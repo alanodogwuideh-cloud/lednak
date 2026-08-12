@@ -8,3 +8,7 @@ expose = true
 [[secret]]
 key = "SUPABASE_PUBLISHABLE_KEY"
 expose = true
+
+[[secret]]
+key = "SUPABASE_SERVICE_ROLE_KEY"
+expose = true
