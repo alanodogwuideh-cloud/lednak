@@ -1,0 +1,5 @@
+[auth]
+# Portfolio visitors are public; Hatchable's admin access protects /api/admin-* routes.
+
+[project]
+name = "Alan Odogwuideh — UX Design Portfolio"
