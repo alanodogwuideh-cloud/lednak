@@ -1,7 +1,16 @@
-import { db } from 'hatchable';
 export const access = 'admin';
-export default async function(req,res){
-  if(req.method==='GET'){const {rows}=await db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1');return res.json(rows[0]||null)}
-  if(req.method==='PUT'){const b=req.body||{}; const {rows}=await db.query('UPDATE portfolio_settings SET site_name=$1,role=$2,intro=$3,about_text=$4,location=$5,linkedin_url=$6,email=$7,about_image_url=$8,updated_at=NOW() WHERE id=(SELECT id FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1) RETURNING *',[b.site_name,b.role,b.intro,b.about_text,b.location,b.linkedin_url,b.email,b.about_image_url]); return res.json(rows[0])}
-  return res.status(405).json({error:'Method not allowed'});
-}
+export const methods = ['GET','PUT'];
+
+const base=()=>process.env.SUPABASE_URL;
+const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;
+const headers=()=>({apikey:key(),Authorization:'Bearer '+key(),'Content-Type':'application/json'});
+async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...headers(),...(opts.headers||{})}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(d?.message||'Supabase request failed');return d;}
+export default async function(req,res){try{
+  if(req.method==='GET'){const d=await sb('about?select=*&limit=1');return res.json(d?.[0]||null)}
+  const b=req.body||{}; const existing=await sb('about?select=id&limit=1');
+  const row={name:b.name||'',headline:b.headline||'',bio:b.bio||'',location:b.location||'',profile_image_url:b.profile_image_url||'',linkedin_url:b.linkedin_url||'',email:b.email||'',availability:b.availability||'',updated_at:new Date().toISOString()};
+  let d;
+  if(existing?.[0]?.id)d=await sb('about?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(row)});
+  else d=await sb('about',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(row)});
+  return res.json(d?.[0]||d);
+}catch(e){return res.status(500).json({error:e.message});}}

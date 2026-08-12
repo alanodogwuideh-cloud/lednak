@@ -1,23 +1,35 @@
-import { db, storage } from 'hatchable';
 export const access = 'admin';
+export const methods = ['GET','POST','PUT','DELETE'];
+
+const base=()=>process.env.SUPABASE_URL;
+const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;
+const headers=()=>({apikey:key(),Authorization:'Bearer '+key(),'Content-Type':'application/json'});
+
+async function sb(path,opts={}){
+  const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...headers(),...(opts.headers||{})}});
+  const text=await r.text();
+  let data=null; try{data=text?JSON.parse(text):null}catch{data=text}
+  if(!r.ok) throw new Error(typeof data==='string'?data:(data?.message||data?.hint||'Supabase request failed'));
+  return data;
+}
+
 export default async function(req,res){
-  if(req.method==='GET'){
-    const {rows}=await db.query('SELECT * FROM case_studies ORDER BY sort_order ASC, created_at ASC');
-    return res.json(rows);
-  }
-  if(req.method==='POST'){
+  try{
+    if(req.method==='GET') return res.json(await sb('projects?select=*&order=display_order.asc,created_at.asc'));
     const b=req.body||{};
-    const {rows}=await db.query('INSERT INTO case_studies (slug,title,subtitle,category,year,role,duration,description,cover_image_url,hero_image_url,status,sort_order,content) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *',[b.slug,b.title,b.subtitle||'',b.category||'UX / Product Design',b.year||'2026',b.role||'UX Designer',b.duration||'',b.description||'',b.cover_image_url||'',b.hero_image_url||'',b.status||'draft',Number(b.sort_order)||0,b.content||{}]);
-    return res.status(201).json(rows[0]);
-  }
-  if(req.method==='PUT'){
-    const b=req.body||{}; if(!b.id)return res.status(400).json({error:'Missing id'});
-    const {rows}=await db.query('UPDATE case_studies SET slug=$1,title=$2,subtitle=$3,category=$4,year=$5,role=$6,duration=$7,description=$8,cover_image_url=$9,hero_image_url=$10,status=$11,sort_order=$12,content=$13,updated_at=NOW() WHERE id=$14 RETURNING *',[b.slug,b.title,b.subtitle||'',b.category||'',b.year||'',b.role||'',b.duration||'',b.description||'',b.cover_image_url||'',b.hero_image_url||'',b.status||'draft',Number(b.sort_order)||0,b.content||{},b.id]);
-    return res.json(rows[0]);
-  }
-  if(req.method==='DELETE'){
-    const id=req.body?.id; if(!id)return res.status(400).json({error:'Missing id'});
-    await db.query('DELETE FROM case_studies WHERE id=$1',[id]); return res.json({ok:true});
-  }
-  return res.status(405).json({error:'Method not allowed'});
+    if(req.method==='POST'){
+      const row={title:b.title,slug:b.slug,short_description:b.short_description||'',overview:b.overview||'',role:b.role||'UX Designer',client:b.client||'',year:b.year||'',duration:b.duration||'',category:b.category||'UX / Product Design',cover_image_url:b.cover_image_url||'',hero_image_url:b.hero_image_url||'',featured:!!b.featured,published:!!b.published,display_order:Number(b.display_order)||0};
+      const data=await sb('projects',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(row)}); return res.status(201).json(data?.[0]||data);
+    }
+    if(req.method==='PUT'){
+      if(!b.id)return res.status(400).json({error:'Missing id'});
+      const row={title:b.title,slug:b.slug,short_description:b.short_description||'',overview:b.overview||'',role:b.role||'',client:b.client||'',year:b.year||'',duration:b.duration||'',category:b.category||'',cover_image_url:b.cover_image_url||'',hero_image_url:b.hero_image_url||'',featured:!!b.featured,published:!!b.published,display_order:Number(b.display_order)||0,updated_at:new Date().toISOString()};
+      const data=await sb('projects?id=eq.'+encodeURIComponent(b.id),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(row)}); return res.json(data?.[0]||data);
+    }
+    if(req.method==='DELETE'){
+      if(!b.id)return res.status(400).json({error:'Missing id'});
+      await sb('projects?id=eq.'+encodeURIComponent(b.id),{method:'DELETE'}); return res.json({ok:true});
+    }
+    return res.status(405).json({error:'Method not allowed'});
+  }catch(e){return res.status(500).json({error:e.message});}
 }
