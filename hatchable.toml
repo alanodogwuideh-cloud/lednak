@@ -3,6 +3,8 @@ name = "Alan Odogwuideh — UX Design Portfolio"
 
 [[secret]]
 key = "SUPABASE_URL"
+expose = true
 
 [[secret]]
 key = "SUPABASE_PUBLISHABLE_KEY"
+expose = true
