@@ -2,19 +2,20 @@ const API=window.__HATCHABLE__?.api||'/api';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
+function isVideo(url=''){return /\.(mp4|webm|mov)(\?|#|$)/i.test(url)}
 function renderImages(images=[]){
   if(!images.length)return '';
-  return `<div class="gallery">${images.map((x,i)=>`<figure class="gallery-item"><button class="image-trigger" type="button" data-lightbox="${i}" aria-label="Open image larger"><img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}"><span class="image-zoom" aria-hidden="true">↗</span></button>${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`).join('')}</div>`;
+  return `<div class="gallery">${images.map((x,i)=>{const video=isVideo(x.image_url);return `<figure class="gallery-item"><button class="image-trigger" type="button" data-lightbox="${i}" data-media-url="${esc(x.image_url)}" data-media-kind="${video?'video':'image'}" aria-label="Open ${video?'video':'image'} larger">${video?`<video loading="lazy" muted playsinline loop autoplay src="${esc(x.image_url)}"></video>`:`<img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}">`}<span class="image-zoom" aria-hidden="true">↗</span></button>${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`}).join('')}</div>`;
 }
 
 function setupLightbox(){
   if(document.querySelector('.lightbox'))return;
-  document.body.insertAdjacentHTML('beforeend',`<div class="lightbox" id="imageLightbox" aria-hidden="true"><div class="lightbox-backdrop" data-close-lightbox></div><div class="lightbox-dialog" role="dialog" aria-modal="true" aria-label="Expanded case study image"><button class="lightbox-close" type="button" data-close-lightbox aria-label="Close image">×</button><img id="lightboxImage" alt=""></div></div>`);
-  const box=$('#imageLightbox'),img=$('#lightboxImage');
-  const close=()=>{box.classList.remove('is-open');box.setAttribute('aria-hidden','true');document.body.classList.remove('lightbox-open');img.src='';};
+  document.body.insertAdjacentHTML('beforeend',`<div class="lightbox" id="imageLightbox" aria-hidden="true"><div class="lightbox-backdrop" data-close-lightbox></div><div class="lightbox-dialog" role="dialog" aria-modal="true" aria-label="Expanded case study media"><button class="lightbox-close" type="button" data-close-lightbox aria-label="Close media">×</button><div id="lightboxMedia"></div></div></div>`);
+  const box=$('#imageLightbox'),media=$('#lightboxMedia');
+  const close=()=>{box.classList.remove('is-open');box.setAttribute('aria-hidden','true');document.body.classList.remove('lightbox-open');media.innerHTML='';};
   document.addEventListener('click',e=>{
     const trigger=e.target.closest('.image-trigger');
-    if(trigger){const source=trigger.querySelector('img');if(!source)return;img.src=source.currentSrc||source.src;img.alt=source.alt||'';box.classList.add('is-open');box.setAttribute('aria-hidden','false');document.body.classList.add('lightbox-open');return;}
+    if(trigger){const url=trigger.dataset.mediaUrl,kind=trigger.dataset.mediaKind;if(!url)return;media.innerHTML=kind==='video'?`<video controls autoplay playsinline src="${esc(url)}"></video>`:`<img src="${esc(url)}" alt="${esc(trigger.querySelector('img')?.alt||'')}">`;box.classList.add('is-open');box.setAttribute('aria-hidden','false');document.body.classList.add('lightbox-open');return;}
     if(e.target.closest('[data-close-lightbox]'))close();
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&box.classList.contains('is-open'))close();});
@@ -59,7 +60,7 @@ async function init(){
           <div><span>Project type</span><strong>End-to-end</strong></div>
         </div>
       </header>
-      ${p.hero_image_url?`<img class="case-hero" src="${esc(p.hero_image_url)}" alt="${esc(p.title)}">`:''}
+      ${p.hero_image_url?(isVideo(p.hero_image_url)?`<video class="case-hero" src="${esc(p.hero_image_url)}" autoplay muted loop playsinline controls></video>`:`<img class="case-hero" src="${esc(p.hero_image_url)}" alt="${esc(p.title)}">`):''}
       <div class="case-content">${blocks.map(block).join('')}</div>
       <a class="next-case" href="/#work"><span>MORE PROJECTS</span><h3>Explore the rest of my work ↗</h3></a>`;
   }catch(e){
