@@ -1,5 +1,3 @@
-import { storage } from 'hatchable';
-
 export const access = 'admin';
 export const methods = ['GET','POST','PATCH','DELETE'];
 
@@ -81,7 +79,11 @@ export default async function(req,res){
       if(!project)return res.status(404).json({error:'Project not found'});
       const safe=safeName(file.filename);
       const keyPath=`portfolio/${project.slug}/${Date.now()}-${safe}`;
-      const url=await storage.put(keyPath,file.buffer,file.contentType||'image/jpeg');
+      const contentType=file.contentType||'image/jpeg';
+      const upload=await fetch(base()+'/storage/v1/object/portfolio-images/'+keyPath,{method:'POST',headers:{apikey:key(),Authorization:'Bearer '+key(),'Content-Type':contentType,'x-upsert':'true'},body:file.buffer});
+      const uploadText=await upload.text();
+      if(!upload.ok)throw new Error('Supabase Storage upload failed: '+uploadText);
+      const url=base()+'/storage/v1/object/public/portfolio-images/'+keyPath;
 
       if(type==='cover' || type==='hero'){
         const field=type==='cover'?'cover_image_url':'hero_image_url';
