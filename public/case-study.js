@@ -5,7 +5,8 @@ const esc=s=>String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function isVideo(url=''){return /\.(mp4|webm|mov)(\?|#|$)/i.test(url)}
 function renderImages(images=[]){
   if(!images.length)return '';
-  return `<div class="gallery">${images.map((x,i)=>{const video=isVideo(x.image_url);return `<figure class="gallery-item"><button class="image-trigger" type="button" data-lightbox="${i}" data-media-url="${esc(x.image_url)}" data-media-kind="${video?'video':'image'}" aria-label="Open ${video?'video':'image'} larger">${video?`<video loading="lazy" muted playsinline loop autoplay src="${esc(x.image_url)}"></video>`:`<img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}">`}<span class="image-zoom" aria-hidden="true">↗</span></button>${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`}).join('')}</div>`;
+  const fullWidth=images.some(x=>/lowfi\s*wireframe.*offline\s*order\s*flow|offline\s*order\s*flow.*lowfi\s*wireframe/i.test(String(x.caption||'')));
+  return `<div class="gallery${fullWidth?' gallery-full-width':''}">${images.map((x,i)=>{const video=isVideo(x.image_url);return `<figure class="gallery-item"><button class="image-trigger" type="button" data-lightbox="${i}" data-media-url="${esc(x.image_url)}" data-media-kind="${video?'video':'image'}" aria-label="Open ${video?'video':'image'} larger">${video?`<video loading="lazy" muted playsinline loop autoplay src="${esc(x.image_url)}"></video>`:`<img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}">`}<span class="image-zoom" aria-hidden="true">↗</span></button>${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`}).join('')}</div>`;
 }
 
 function setupLightbox(){
