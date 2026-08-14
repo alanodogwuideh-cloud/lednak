@@ -28,15 +28,21 @@ function block(b){
   const title=b.title?`<h2>${esc(b.title)}</h2>`:'';
   const body=b.body?`<p>${esc(b.body)}</p>`:'';
   const images=Array.isArray(b.images)?b.images:[];
+  const isDesign=/design\s*exploration/i.test(String(b.title||''));
   const types=[...new Set(images.map(x=>x.image_type).filter(Boolean))];
   let media='';
-  if(types.includes('storyboard')&&types.includes('wireframes')){
+  if(isDesign && types.includes('wireframes')){
+    const papers=images.filter(x=>x.image_type==='wireframes' && !/lowfi\s*wireframe.*offline\s*order\s*flow|offline\s*order\s*flow.*lowfi\s*wireframe/i.test(String(x.caption||'')));
+    const lowfi=images.filter(x=>x.image_type==='wireframes' && /lowfi\s*wireframe.*offline\s*order\s*flow|offline\s*order\s*flow.*lowfi\s*wireframe/i.test(String(x.caption||'')));
+    const other=images.filter(x=>x.image_type!=='wireframes');
+    media=`${papers.length?`<div class="media-group paper-wireframe-media"><h3>Paper Wireframe Explorations</h3>${renderImages(papers)}</div>`:''}${lowfi.length?`<div class="media-group lowfi-flow-media"><h3>Low-Fi Wireframe: Offline Order Flow</h3><p class="media-note">A detailed end-to-end flow for offline ordering across the web and mobile experiences.</p>${renderImages(lowfi)}</div>`:''}${other.length?`<div class="media-group">${renderImages(other)}</div>`:''}`;
+  }else if(types.includes('storyboard')&&types.includes('wireframes')){
     const story=images.filter(x=>x.image_type==='storyboard');
     const wires=images.filter(x=>x.image_type==='wireframes');
     const other=images.filter(x=>!['storyboard','wireframes'].includes(x.image_type));
     media=`<div class="media-group"><h3>Storyboarding</h3>${renderImages(story)}</div><div class="media-group design-exploration-media"><h3>Design Exploration</h3>${renderImages(wires)}</div>${other.length?`<div class="media-group">${renderImages(other)}</div>`:''}`;
   }else media=renderImages(images);
-  return `<section class="case-section">${title}${body}${media}</section>`;
+  return `<section class="case-section${isDesign?' case-section-design':''}">${title}${body}${media}</section>`;
 }
 
 async function init(){
