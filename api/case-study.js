@@ -17,10 +17,20 @@ export default async function(req,res){
       supabase(`project_images?select=*&project_id=eq.${study.id}&order=display_order.asc`),
     ]);
 
-    const grouped = sections.map(section => ({
-      ...section,
-      images: images.filter(img => img.section_id === section.id),
-    }));
+    const designSection = sections.find(section => /design\s*exploration/i.test(section.title || ''));
+    const grouped = sections.map(section => {
+      const sectionImages = images.filter(img => img.section_id === section.id);
+      // Wireframes belong to the Design Exploration narrative, even if older
+      // CMS records still have them attached to the process/storyboard section.
+      const wireframes = designSection && designSection.id === section.id
+        ? images.filter(img => img.image_type === 'wireframes')
+        : [];
+      const filtered = sectionImages.filter(img => img.image_type !== 'wireframes');
+      return {
+        ...section,
+        images: [...filtered, ...wireframes].sort((a,b) => (Number(a.display_order)||0) - (Number(b.display_order)||0)),
+      };
+    });
 
     res.json({
       id: study.id,

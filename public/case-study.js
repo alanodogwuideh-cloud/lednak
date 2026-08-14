@@ -32,7 +32,7 @@ function block(b){
     const story=images.filter(x=>x.image_type==='storyboard');
     const wires=images.filter(x=>x.image_type==='wireframes');
     const other=images.filter(x=>!['storyboard','wireframes'].includes(x.image_type));
-    media=`<div class="media-group"><h3>Storyboarding</h3>${renderImages(story)}</div><div class="media-group"><h3>From Storyboard to Wireframes</h3>${renderImages(wires)}</div>${other.length?`<div class="media-group">${renderImages(other)}</div>`:''}`;
+    media=`<div class="media-group"><h3>Storyboarding</h3>${renderImages(story)}</div><div class="media-group design-exploration-media"><h3>Design Exploration</h3>${renderImages(wires)}</div>${other.length?`<div class="media-group">${renderImages(other)}</div>`:''}`;
   }else media=renderImages(images);
   return `<section class="case-section">${title}${body}${media}</section>`;
 }
