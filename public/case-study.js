@@ -25,7 +25,16 @@ function block(b){
   if(!b)return '';
   const title=b.title?`<h2>${esc(b.title)}</h2>`:'';
   const body=b.body?`<p>${esc(b.body)}</p>`:'';
-  return `<section class="case-section">${title}${body}${renderImages(b.images)}</section>`;
+  const images=Array.isArray(b.images)?b.images:[];
+  const types=[...new Set(images.map(x=>x.image_type).filter(Boolean))];
+  let media='';
+  if(types.includes('storyboard')&&types.includes('wireframes')){
+    const story=images.filter(x=>x.image_type==='storyboard');
+    const wires=images.filter(x=>x.image_type==='wireframes');
+    const other=images.filter(x=>!['storyboard','wireframes'].includes(x.image_type));
+    media=`<div class="media-group"><h3>Storyboarding</h3>${renderImages(story)}</div><div class="media-group"><h3>From Storyboard to Wireframes</h3>${renderImages(wires)}</div>${other.length?`<div class="media-group">${renderImages(other)}</div>`:''}`;
+  }else media=renderImages(images);
+  return `<section class="case-section">${title}${body}${media}</section>`;
 }
 
 async function init(){
