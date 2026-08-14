@@ -5,32 +5,33 @@ export const methods = ['GET'];
 
 export default async function(req,res){
   try {
-    const [settingsRows, projects] = await Promise.all([
-      supabase('about?select=*&limit=1'),
-      supabase('projects?select=id,slug,title,short_description,role,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc'),
+    const [settingsRows, studies] = await Promise.all([
+      supabase('portfolio_settings?select=*&limit=1'),
+      supabase('case_studies?select=id,slug,title,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order&status=eq.published&order=sort_order.asc,created_at.asc'),
     ]);
 
-    const about = settingsRows[0] || null;
-    const settings = about ? {
-      site_name: about.name || 'Alan Odogwuideh',
-      role: 'UX Designer',
-      intro: about.headline || '',
-      about_text: about.bio || '',
-      location: about.location || 'Abuja, Nigeria',
-      linkedin_url: about.linkedin_url || '',
-      email: about.email || '',
-      about_image_url: about.profile_image_url || '',
+    const s = settingsRows[0] || null;
+    const settings = s ? {
+      site_name: s.site_name || 'Alan Odogwuideh',
+      role: s.role || 'UX Designer',
+      intro: s.intro || '',
+      about_text: s.about_text || '',
+      location: s.location || 'Abuja, Nigeria',
+      linkedin_url: s.linkedin_url || '',
+      email: s.email || '',
+      about_image_url: s.about_image_url || '',
     } : null;
 
-    const normalizedProjects = projects.map(p => ({
+    const projects = studies.map(p => ({
       ...p,
-      subtitle: p.short_description || '',
-      description: p.short_description || '',
-      status: p.published ? 'published' : 'draft',
-      sort_order: p.display_order,
+      short_description: p.subtitle || p.description || '',
+      featured: true,
+      published: p.status === 'published',
+      display_order: p.sort_order,
+      status: p.status,
     }));
 
-    res.json({ settings, projects: normalizedProjects });
+    res.json({ settings, projects });
   } catch (error) {
     console.error('portfolio error', error.message);
     res.status(502).json({ error: 'Portfolio data is temporarily unavailable.' });
