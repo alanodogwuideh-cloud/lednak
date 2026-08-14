@@ -16,8 +16,16 @@ async function api(path,opts={}){
 function render(){
   const el=$('#projectList');
   if(!projects.length){el.innerHTML='<div class="panel">No case studies yet. Create your first one.</div>';return}
-  el.innerHTML=projects.map(p=>`<div class="project-row"><img class="thumb" src="${esc(p.cover_image_url||'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%2290%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e7e8e3%22/%3E%3C/svg%3E')}" alt=""><div><h3>${esc(p.title)}</h3><p>${esc(p.category)} · ${esc(p.year)} · ${esc(p.status)}</p></div><div><span class="order">#${esc(p.sort_order)}</span> <button class="edit" data-id="${esc(p.id)}">Edit</button></div></div>`).join('');
+  el.innerHTML=projects.map(p=>`<div class="project-row"><img class="thumb" src="${esc(p.cover_image_url||'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%2290%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e7e8e3%22/%3E%3C/svg%3E')}" alt=""><div><h3>${esc(p.title)}</h3><p>${esc(p.category)} · ${esc(p.year)} · ${esc(p.status)}</p></div><div><span class="order">#${esc(p.sort_order)}</span> <button class="edit" data-id="${esc(p.id)}">Edit</button> <button class="secondary manage-media" data-id="${esc(p.id)}">Media</button></div></div>`).join('');
   document.querySelectorAll('.edit').forEach(b=>b.onclick=()=>openEditor(projects.find(p=>p.id===b.dataset.id)));
+  document.querySelectorAll('.manage-media').forEach(b=>b.onclick=()=>openMediaForProject(b.dataset.id));
+}
+
+function openMediaForProject(id){
+  const tab=document.querySelector('.tab[data-tab="media"]');
+  tab?.click();
+  const select=$('#mediaProject');
+  if(select){select.value=id; loadMedia();}
 }
 
 function setForm(p={}){
@@ -61,9 +69,17 @@ async function loadProjects(){
 function populateMediaProjects(){
   const select=$('#mediaProject');if(!select)return;
   const current=select.value;
-  select.innerHTML=projects.map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
+  if(!projects.length){
+    select.innerHTML='<option value="">No case studies available</option>';
+    select.disabled=true;
+    if($('#mediaProjectMsg'))$('#mediaProjectMsg').textContent='No case studies were returned. Click Case studies → Refresh or reload the admin page.';
+    return;
+  }
+  select.disabled=false;
+  select.innerHTML='<option value="">Select a case study…</option>'+projects.map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
   if(current&&projects.some(p=>p.id===current))select.value=current;
-  loadMedia();
+  if($('#mediaProjectMsg'))$('#mediaProjectMsg').textContent=`${projects.length} case stud${projects.length===1?'y':'ies'} available`;
+  if(select.value)loadMedia();
 }
 
 async function loadMedia(){
