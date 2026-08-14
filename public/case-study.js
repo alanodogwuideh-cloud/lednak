@@ -4,8 +4,22 @@ const esc=s=>String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 function renderImages(images=[]){
   if(!images.length)return '';
-  return `<div class="gallery">${images.map(x=>`<figure><img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}">${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`).join('')}</div>`;
+  return `<div class="gallery">${images.map((x,i)=>`<figure class="gallery-item"><button class="image-trigger" type="button" data-lightbox="${i}" aria-label="Open image larger"><img loading="lazy" src="${esc(x.image_url)}" alt="${esc(x.alt_text||x.caption||'')}"><span class="image-zoom" aria-hidden="true">↗</span></button>${x.caption?`<figcaption>${esc(x.caption)}</figcaption>`:''}</figure>`).join('')}</div>`;
 }
+
+function setupLightbox(){
+  if(document.querySelector('.lightbox'))return;
+  document.body.insertAdjacentHTML('beforeend',`<div class="lightbox" id="imageLightbox" aria-hidden="true"><div class="lightbox-backdrop" data-close-lightbox></div><div class="lightbox-dialog" role="dialog" aria-modal="true" aria-label="Expanded case study image"><button class="lightbox-close" type="button" data-close-lightbox aria-label="Close image">×</button><img id="lightboxImage" alt=""></div></div>`);
+  const box=$('#imageLightbox'),img=$('#lightboxImage');
+  const close=()=>{box.classList.remove('is-open');box.setAttribute('aria-hidden','true');document.body.classList.remove('lightbox-open');img.src='';};
+  document.addEventListener('click',e=>{
+    const trigger=e.target.closest('.image-trigger');
+    if(trigger){const source=trigger.querySelector('img');if(!source)return;img.src=source.currentSrc||source.src;img.alt=source.alt||'';box.classList.add('is-open');box.setAttribute('aria-hidden','false');document.body.classList.add('lightbox-open');return;}
+    if(e.target.closest('[data-close-lightbox]'))close();
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&box.classList.contains('is-open'))close();});
+}
+setupLightbox();
 
 function block(b){
   if(!b)return '';
