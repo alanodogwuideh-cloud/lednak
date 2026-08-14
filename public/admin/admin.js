@@ -9,7 +9,15 @@ async function api(path,opts={}){
   const headers=isForm?{...(opts.headers||{})}:{'Content-Type':'application/json',...(opts.headers||{})};
   const r=await fetch(API+path,{...opts,headers});
   let d={};try{d=await r.json()}catch{}
-  if(!r.ok)throw Error(d.error||'Request failed');
+  if(!r.ok){
+    if(r.status===401){
+      const login=d.login_url||'https://hatchable.com/console/login';
+      window.location.href=login;
+      throw Error('Redirecting to Hatchable sign-in…');
+    }
+    if(r.status===403)throw Error('Your Hatchable account does not have admin access to this portfolio.');
+    throw Error(d.error||'Request failed');
+  }
   return d;
 }
 
