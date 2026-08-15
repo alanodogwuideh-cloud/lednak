@@ -17,8 +17,9 @@ if(req.method==='POST'){
     // Always store the favicon as a true circular SVG wrapper. CSS cannot control
     // the shape of a browser-tab favicon, so the transparency has to be baked into
     // the favicon asset itself. The uploaded file is embedded inside a 64x64 circle.
-    const base64=file.buffer.toString('base64');
-    const safeType=String(file.contentType).replace(/[^a-z0-9.+-]/gi,'');
+    const uploadedBuffer=Buffer.from(file.buffer);
+    const base64=uploadedBuffer.toString('base64');
+    const safeType=String(file.contentType);
     const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><clipPath id="circle"><circle cx="32" cy="32" r="32"/></clipPath></defs><image href="data:${safeType};base64,${base64}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#circle)"/></svg>`;
     const key='site-branding/favicon-'+Date.now()+'-'+crypto.randomUUID()+'.svg';
     await storage.put(key,Buffer.from(svg,'utf8'),'image/svg+xml');
