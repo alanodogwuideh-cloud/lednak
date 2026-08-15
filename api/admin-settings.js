@@ -23,10 +23,10 @@ if(req.method==='POST'){
     const key='site-branding/favicon-'+Date.now()+'-'+crypto.randomUUID()+'.svg';
     await storage.put(key,Buffer.from(svg,'utf8'),'image/svg+xml');
     const existing=(await db.query('SELECT id, favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')).rows[0];
-    if(existing?.favicon_key)await storage.del(existing.favicon_key).catch(()=>{});
     if(existing?.id)await db.query('UPDATE site_branding SET favicon_key=$1, updated_at=NOW() WHERE id=$2',[key,existing.id]);
     else await db.query('INSERT INTO site_branding (favicon_key) VALUES ($1)',[key]);
-    return res.json({url:await storage.urlPermanent(key),key});
+    if(existing?.favicon_key&&existing.favicon_key!==key)await storage.del(existing.favicon_key).catch(()=>{});
+    return res.json({url:'/api/favicon?v='+Date.now(),key,saved:true});
   }
   const url=await storage.put('portfolio-about-'+Date.now()+'-'+String(file.filename||'profile.jpg').replace(/[^a-zA-Z0-9._-]/g,'-'),file.buffer,file.contentType||'image/jpeg');
   const existing=await sb('about?select=id&limit=1');const row={profile_image_url:url,updated_at:new Date().toISOString()};if(existing?.[0]?.id)await sb('about?id=eq.'+existing[0].id,{method:'PATCH',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});else await sb('about',{method:'POST',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.json({url});
