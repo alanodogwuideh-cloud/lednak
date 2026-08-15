@@ -9,7 +9,7 @@ export default async function(req,res){
     const [aboutRows, projects, branding] = await Promise.all([
       supabase('about?select=*&limit=1'),
       supabase('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
-      db.query('SELECT favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1'),
+      db.query('SELECT favicon_key, updated_at FROM site_branding ORDER BY updated_at DESC LIMIT 1'),
     ]);
 
     const a = aboutRows[0] || null;
@@ -23,6 +23,7 @@ export default async function(req,res){
       email: a.email || '',
       about_image_url: a.profile_image_url || '',
       favicon_url: branding.rows[0]?.favicon_key ? await storage.urlPermanent(branding.rows[0].favicon_key) : '',
+      favicon_updated_at: branding.rows[0]?.updated_at || '',
     } : { favicon_url: branding.rows[0]?.favicon_key ? await storage.urlPermanent(branding.rows[0].favicon_key) : '' };
 
     res.json({
