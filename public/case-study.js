@@ -53,6 +53,7 @@ async function init(){
     const p=await r.json();
     if(!r.ok)throw Error(p.error||'Case study unavailable');
     document.title=p.title+' — Alan Odogwuideh';
+    fetch(API+'/portfolio').then(r=>r.json()).then(d=>{if(d.settings?.favicon_url){let icon=document.querySelector('link[data-site-favicon]');if(!icon){icon=document.createElement('link');icon.rel='icon';icon.dataset.siteFavicon='true';document.head.appendChild(icon)}icon.href=d.settings.favicon_url}}).catch(()=>{});
     const c=p.content||{};
     const blocks=Array.isArray(c.sections)?c.sections:[];
     $('#caseContent').innerHTML=`
