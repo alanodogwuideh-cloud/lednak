@@ -39,7 +39,7 @@ if(req.method==='DELETE'){
 }
 if(req.method==='GET'){
   const [d,branding]=await Promise.all([sb('about?select=*&limit=1'),db.query('SELECT favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')]);
-  const row=d?.[0]||{};const key=branding.rows[0]?.favicon_key||'';return res.json({...row,favicon_url:key?await storage.urlPermanent(key):''});
+  const row=d?.[0]||{};const key=branding.rows[0]?.favicon_key||'';return res.json({...row,favicon_url:key?'/api/favicon':''});
 }
 const b=req.body||{};const existing=await sb('about?select=id&limit=1');const row={name:b.name||'',headline:b.headline||'',bio:b.bio||'',location:b.location||'',profile_image_url:b.profile_image_url||'',linkedin_url:b.linkedin_url||'',email:b.email||'',availability:b.availability||'',updated_at:new Date().toISOString()};let d;if(existing?.[0]?.id)d=await sb('about?id=eq.'+existing[0].id,{method:'PATCH',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});else d=await sb('about',{method:'POST',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.json(d?.[0]||d);
 }catch(e){return res.status(500).json({error:e.message||'Site content operation failed.'});}}
