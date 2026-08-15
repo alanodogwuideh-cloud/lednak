@@ -22,9 +22,9 @@ export default async function(req,res){
       linkedin_url: a.linkedin_url || '',
       email: a.email || '',
       about_image_url: a.profile_image_url || '',
-      favicon_url: branding.rows[0]?.favicon_key ? await storage.urlPermanent(branding.rows[0].favicon_key) : '',
+      favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '',
       favicon_updated_at: branding.rows[0]?.updated_at || '',
-    } : { favicon_url: branding.rows[0]?.favicon_key ? await storage.urlPermanent(branding.rows[0].favicon_key) : '' };
+    } : { favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '' };
 
     res.json({
       settings,
