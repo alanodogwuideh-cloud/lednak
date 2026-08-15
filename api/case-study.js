@@ -20,15 +20,20 @@ export default async function(req,res){
     const designSection = sections.find(section => /design\s*exploration/i.test(section.title || ''));
     const grouped = sections.map(section => {
       const sectionImages = images.filter(img => img.section_id === section.id);
-      // Wireframes belong to the Design Exploration narrative, even if older
-      // CMS records still have them attached to the process/storyboard section.
+      // Wireframes belong to Design Exploration, even if older CMS records still
+      // have them attached elsewhere. Final UI media belongs to Final Experience
+      // & Accessibility for the Outsider Vendor Platform narrative.
       const wireframes = designSection && designSection.id === section.id
         ? images.filter(img => img.image_type === 'wireframes')
         : [];
-      const filtered = sectionImages.filter(img => img.image_type !== 'wireframes');
+      const finalSection = sections.find(s => /final experience\s*&\s*accessibility/i.test(s.title || ''));
+      const finalUi = study.slug === 'outsider-vendor-app' && finalSection && finalSection.id === section.id
+        ? images.filter(img => ['mobile_final_ui','web_final_ui'].includes(img.image_type))
+        : [];
+      const filtered = sectionImages.filter(img => !['wireframes','mobile_final_ui','web_final_ui'].includes(img.image_type));
       return {
         ...section,
-        images: [...filtered, ...wireframes].sort((a,b) => (Number(a.display_order)||0) - (Number(b.display_order)||0)),
+        images: [...filtered, ...wireframes, ...finalUi].sort((a,b) => (Number(a.display_order)||0) - (Number(b.display_order)||0)),
       };
     });
 
