@@ -28,7 +28,7 @@ export default async function(req,res){try{
    const signedText=await signed.text();let signedData=null;try{signedData=signedText?JSON.parse(signedText):null}catch{signedData=signedText}
    if(!signed.ok)throw new Error(typeof signedData==='string'?signedData:(signedData?.message||signedData?.error||signedData?.statusCode||'Could not create a signed upload URL.'));
    if(!signedData?.url)throw new Error('Supabase did not return a signed upload URL.');
-   const signedUrl=new URL(base()+signedData.url);return res.json({signedUrl:signedUrl.toString(),path,publicUrl:base()+'/storage/v1/object/public/portfolio-images/'+path,contentType,projectId:id,replaceFixed:replaceFixed||null,replaceImageId:replaceImageId||null});
+   const signedPath=String(signedData?.url||'');if(!signedPath)throw new Error('Supabase did not return a signed upload URL.');const signedUrl=new URL(signedPath.startsWith('/storage/v1/')?base()+signedPath:base()+'/storage/v1'+(signedPath.startsWith('/')?signedPath:'/'+signedPath));return res.json({signedUrl:signedUrl.toString(),path,publicUrl:base()+'/storage/v1/object/public/portfolio-images/'+path,contentType,projectId:id,replaceFixed:replaceFixed||null,replaceImageId:replaceImageId||null});
   }
   if(action==='finalize_upload'){
    const id=req.body?.project_id;const url=String(req.body?.url||'');const type=req.body?.asset_type;const alt=String(req.body?.alt_text||'');const caption=String(req.body?.caption||'');const order=Math.max(0,Number(req.body?.display_order||0));const replaceFixed=req.body?.replace_fixed;const replaceImageId=req.body?.replace_image_id;
