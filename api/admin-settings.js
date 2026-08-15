@@ -14,9 +14,14 @@ if(req.method==='POST'){
   if(kind==='favicon'){
     const allowed=new Set(['image/png','image/svg+xml','image/x-icon','image/vnd.microsoft.icon','image/webp']);
     if(!allowed.has(file.contentType))return res.status(415).json({error:'Favicon must be PNG, SVG, ICO, or WebP.'});
-    const ext=String(file.filename||'favicon.png').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
-    const key='site-branding/favicon-'+Date.now()+'-'+crypto.randomUUID()+'.'+ext;
-    await storage.put(key,file.buffer,file.contentType);
+    // Always store the favicon as a true circular SVG wrapper. CSS cannot control
+    // the shape of a browser-tab favicon, so the transparency has to be baked into
+    // the favicon asset itself. The uploaded file is embedded inside a 64x64 circle.
+    const base64=file.buffer.toString('base64');
+    const safeType=String(file.contentType).replace(/[^a-z0-9.+-]/gi,'');
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><clipPath id="circle"><circle cx="32" cy="32" r="32"/></clipPath></defs><image href="data:${safeType};base64,${base64}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#circle)"/></svg>`;
+    const key='site-branding/favicon-'+Date.now()+'-'+crypto.randomUUID()+'.svg';
+    await storage.put(key,Buffer.from(svg,'utf8'),'image/svg+xml');
     const existing=(await db.query('SELECT id, favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')).rows[0];
     if(existing?.favicon_key)await storage.del(existing.favicon_key).catch(()=>{});
     if(existing?.id)await db.query('UPDATE site_branding SET favicon_key=$1, updated_at=NOW() WHERE id=$2',[key,existing.id]);
