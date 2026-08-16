@@ -3,7 +3,8 @@ import { db } from 'hatchable';
 export const access='public';
 export const methods=['GET','POST','PUT','DELETE'];
 function getSections(project){const s=project?.content?.sections;return Array.isArray(s)?s:[]}
-function normalize(project){return getSections(project).map((s,i)=>({...s,id:`${project.id}:${i}`,display_order:i+1,section_type:s.type||'content',body:s.body??s.text??''}));}
+function normalize(project){return getSections(project).map((s,i)=>({...s,id:`${project.id}:${i}`,display_order:i+1,section_type:s.type||'content',body:s.body??s.text??'',images:Array.isArray(s.images)?s.images.map((img,j)=>({...img,id:`${project.id}:${i}:${j}`})):[]}));}
+function allImages(project){return normalize(project).flatMap(s=>s.images||[])}
 async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
 async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
 export default async function(req,res){
@@ -12,17 +13,17 @@ export default async function(req,res){
   const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
   if(!projectId)return res.status(400).json({error:'Missing project_id.'});
   const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-  if(req.method==='GET')return res.json({project,sections:normalize(project),images:normalize(project).flatMap(s=>Array.isArray(s.images)?s.images:[])});
+  if(req.method==='GET')return res.json({project,sections:normalize(project),images:allImages(project)});
   const sections=getSections(project);
   if(req.method==='POST'){
-   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{}});
+   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{},images:Array.isArray(b.images)?b.images:[]});
    const saved=await saveSections(projectId,sections);const out=normalize(saved);return res.status(201).json(out[out.length-1]);
   }
   if(req.method==='PUT'){
-   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map(s=>({type:s.section_type||s.type||'content',title:s.title||'',body:s.body??s.text??'',text:s.body??s.text??'',items:Array.isArray(s.items)?s.items:undefined,metadata:s.metadata||{}}));const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:[]});}
+   if(b.replace_all===true&&Array.isArray(b.sections)){const current=getSections(project);const cleaned=b.sections.map((s,i)=>({type:s.section_type||s.type||'content',title:s.title||'',body:s.body??s.text??'',text:s.body??s.text??'',items:Array.isArray(s.items)?s.items:undefined,metadata:s.metadata||{},images:Array.isArray(s.images)?s.images:(Array.isArray(current[i]?.images)?current[i].images:[])}));const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:allImages(saved)});}
    if(!b.id)return res.status(400).json({error:'Missing section id.'});
    const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
-   sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{}};
+   sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{},images:Array.isArray(b.images)?b.images:(sections[idx].images||[])};
    const saved=await saveSections(projectId,sections);return res.json(normalize(saved)[idx]);
   }
   if(req.method==='DELETE'){
