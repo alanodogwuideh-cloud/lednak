@@ -7,7 +7,7 @@ function normalize(project){return getSections(project).map((s,i)=>({...s,id:`${
 async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
 const sbBase=()=>process.env.SUPABASE_URL;const sbKey=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const sbHeaders=()=>({apikey:sbKey(),Authorization:'Bearer '+sbKey()});
 async function sb(path){const r=await fetch(sbBase()+'/rest/v1/'+path,{headers:sbHeaders()});if(!r.ok)return [];return await r.json().catch(()=>[])}
-async function getImages(project){if(!project)return [];const legacy=(await sb('projects?select=id,slug&slug=eq.'+encodeURIComponent(project.slug)+'&limit=1'))?.[0];if(!legacy)return [];return await sb('project_images?select=*&project_id=eq.'+encodeURIComponent(legacy.id)+'&order=display_order.asc,created_at.asc')}
+async function getImages(project){if(!project)return [];return getSections(project).flatMap((s,si)=>(Array.isArray(s.images)?s.images:[]).map((x,ii)=>({...x,id:`${si}:${ii}`,section_index:si,image_index:ii})));}
 async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
 export default async function(req,res){
  try{
@@ -18,11 +18,11 @@ export default async function(req,res){
   if(req.method==='GET')return res.json({project,sections:normalize(project),images:await getImages(project)});
   const sections=getSections(project);
   if(req.method==='POST'){
-   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{}});
+   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{},images:[]});
    const saved=await saveSections(projectId,sections);const out=normalize(saved);return res.status(201).json(out[out.length-1]);
   }
   if(req.method==='PUT'){
-   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map(s=>({type:s.section_type||s.type||'content',title:s.title||'',body:s.body??s.text??'',text:s.body??s.text??'',items:Array.isArray(s.items)?s.items:undefined,metadata:s.metadata||{}}));const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:[]});}
+   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map((s,i)=>({type:s.section_type||s.type||'content',title:s.title||'',body:s.body??s.text??'',text:s.body??s.text??'',items:Array.isArray(s.items)?s.items:undefined,metadata:s.metadata||{},images:Array.isArray(s.images)?s.images:((sections[i]&&Array.isArray(sections[i].images))?sections[i].images:[])}));const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:[]});}
    if(!b.id)return res.status(400).json({error:'Missing section id.'});
    const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
    sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{}};
