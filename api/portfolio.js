@@ -6,13 +6,13 @@ export const methods = ['GET'];
 
 export default async function(req,res){
   try {
-    const [aboutRows, projects, branding] = await Promise.all([
-      supabase('about?select=*&limit=1'),
+    const [settingsRows, projects, branding] = await Promise.all([
+      db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1'),
       supabase('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
       db.query('SELECT favicon_key, updated_at FROM site_branding ORDER BY updated_at DESC LIMIT 1'),
     ]);
 
-    const a = aboutRows[0] || null;
+    const a = settingsRows.rows[0] || null;
     const settings = a ? {
       site_name: a.name || 'Alan Odogwuideh',
       role: 'UX Designer',
