@@ -12,7 +12,7 @@ export default async function(req,res){
   const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
   if(!projectId)return res.status(400).json({error:'Missing project_id.'});
   const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-  if(req.method==='GET')return res.json({project,sections:normalize(project),images:normalize(project).flatMap(s=>Array.isArray(s.images)?s.images:[])});
+  if(req.method==='GET')return res.json({project,sections:normalize(project),images:[]});
   const sections=getSections(project);
   if(req.method==='POST'){
    sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{}});
