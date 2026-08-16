@@ -5,6 +5,9 @@ export const methods=['GET','POST','PUT','DELETE'];
 function getSections(project){const s=project?.content?.sections;return Array.isArray(s)?s:[]}
 function normalize(project){return getSections(project).map((s,i)=>({...s,id:`${project.id}:${i}`,display_order:i+1,section_type:s.type||'content',body:s.body??s.text??''}));}
 async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
+const sbBase=()=>process.env.SUPABASE_URL;const sbKey=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const sbHeaders=()=>({apikey:sbKey(),Authorization:'Bearer '+sbKey()});
+async function sb(path){const r=await fetch(sbBase()+'/rest/v1/'+path,{headers:sbHeaders()});if(!r.ok)return [];return await r.json().catch(()=>[])}
+async function getImages(project){if(!project)return [];const legacy=(await sb('projects?select=id,slug&slug=eq.'+encodeURIComponent(project.slug)+'&limit=1'))?.[0];if(!legacy)return [];return await sb('project_images?select=*&project_id=eq.'+encodeURIComponent(legacy.id)+'&order=display_order.asc,created_at.asc')}
 async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
 export default async function(req,res){
  try{
@@ -12,7 +15,7 @@ export default async function(req,res){
   const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
   if(!projectId)return res.status(400).json({error:'Missing project_id.'});
   const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-  if(req.method==='GET')return res.json({project,sections:normalize(project),images:[]});
+  if(req.method==='GET')return res.json({project,sections:normalize(project),images:await getImages(project)});
   const sections=getSections(project);
   if(req.method==='POST'){
    sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{}});
