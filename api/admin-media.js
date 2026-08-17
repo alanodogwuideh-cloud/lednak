@@ -17,8 +17,8 @@ async function getProject(id){const {rows}=await db.query('SELECT * FROM case_st
 async function saveContent(id,content){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[content,id]);return rows[0]}
 function fixedUrl(p,kind){return kind==='cover'?p?.cover_image_url:p?.hero_image_url}
 async function setFixed(id,kind,url){return await db.query(`UPDATE case_studies SET ${kind==='cover'?'cover_image_url':'hero_image_url'}=$1,updated_at=now() WHERE id=$2 RETURNING *`,[url,id])}
-const sectionTitle={research:'Research',chinedu_persona:'Who I Designed For',fatima_persona:'Who I Designed For',storyboard:'From Context to Concept',wireframes:'Design Exploration',usability_testing:'What Usability Testing Revealed',mobile_final_ui:'Final Experience & Accessibility',web_final_ui:'Final Experience & Accessibility'};
-const allowed=['research','chinedu_persona','fatima_persona','storyboard','wireframes','usability_testing','mobile_final_ui','web_final_ui'];
+const sectionTitle={research:'Research',chinedu_persona:'Who I Designed For',fatima_persona:'Who I Designed For',storyboard:'From Context to Concept',paper_wireframe:'Design Exploration',low_fi_wireframe:'Design Exploration',wireframes:'Design Exploration',usability_testing:'What Usability Testing Revealed',mobile_final_ui:'Final Experience & Accessibility',web_final_ui:'Final Experience & Accessibility'};
+const allowed=['research','chinedu_persona','fatima_persona','storyboard','paper_wireframe','low_fi_wireframe','wireframes','usability_testing','mobile_final_ui','web_final_ui'];
 function sectionIndexForType(p,type){const wanted=sectionTitle[type];return sectionsOf(p).findIndex(s=>String(s.title||'').trim().toLowerCase()===wanted.toLowerCase())}
 async function fetchStored(url){const r=await fetch(url);if(!r.ok)throw new Error('Stored media could not be loaded.');return r}
 export default async function(req,res){
