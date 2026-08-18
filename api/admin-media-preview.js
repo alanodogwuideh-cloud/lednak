@@ -15,7 +15,12 @@ export default async function (req, res) {
   try {
     const auth = await requireSupabaseAdmin(req);
     if (!auth.ok) return res.status(auth.status).send(auth.error);
-    const projectId = String(req.query?.project_id || '');
+    let projectId = String(req.query?.project_id || '');
+    const imageId = String(req.query?.image_id || '');
+    if (!projectId && imageId) {
+      const ownerRows = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(imageId)}&select=project_id&limit=1`);
+      projectId = String(ownerRows?.[0]?.project_id || '');
+    }
     if (!projectId) return res.status(400).send('Missing project_id.');
 
     const projects = await supabaseAdmin(`projects?id=eq.${encodeURIComponent(projectId)}&select=cover_image_url,hero_image_url&limit=1`);
@@ -23,7 +28,6 @@ export default async function (req, res) {
     if (!project) return res.status(404).send('Case study not found.');
 
     let url = '';
-    const imageId = String(req.query?.image_id || '');
     const fixed = String(req.query?.fixed || '');
     if (imageId) {
       const images = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(imageId)}&project_id=eq.${encodeURIComponent(projectId)}&select=image_url&limit=1`);
