@@ -1,27 +1,113 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { db } from 'hatchable';
-export const access='public';
-export const methods=['GET','POST','PUT','DELETE'];
-function map(r){return {...r,short_description:r.subtitle||'',overview:r.description||'',status:r.status||'draft',sort_order:r.sort_order};}
-export default async function(req,res){
- try{
-  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
-  if(req.method==='GET'){const {rows}=await db.query('SELECT * FROM case_studies ORDER BY sort_order ASC, created_at ASC');return res.json(rows.map(map));}
-  const b=req.body||{};
-  if(req.method==='POST'){
-   if(!b.title||!b.slug)return res.status(400).json({error:'Title and slug are required.'});
-   const {rows}=await db.query(`INSERT INTO case_studies (title,slug,subtitle,category,year,role,duration,description,status,sort_order,content) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,[b.title,b.slug,b.short_description||'',b.category||'',b.year||'',b.role||'',b.duration||'',b.overview||'',b.status||'draft',Number(b.sort_order)||0,{sections:[]}]);
-   return res.status(201).json(map(rows[0]));
+import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
+
+export const access = 'public';
+export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
+
+const BUCKET = 'portfolio-images';
+
+function mapProject(p) {
+  return {
+    ...p,
+    short_description: p.short_description || '',
+    overview: p.overview || '',
+    status: p.published ? 'published' : 'draft',
+    sort_order: Number(p.display_order || 0),
+  };
+}
+
+function projectPayload(body, partial = false) {
+  const out = {};
+  const fields = {
+    title: body.title,
+    slug: body.slug,
+    short_description: body.short_description,
+    overview: body.overview,
+    role: body.role,
+    client: body.client,
+    year: body.year,
+    duration: body.duration,
+    category: body.category,
+    published: body.status === 'published',
+    display_order: body.sort_order === undefined ? undefined : Number(body.sort_order || 0),
+  };
+  for (const [key, value] of Object.entries(fields)) {
+    if (!partial || value !== undefined) out[key] = value;
   }
-  if(req.method==='PUT'){
-   if(!b.id)return res.status(400).json({error:'Missing case study id.'});
-   const {rows}=await db.query(`UPDATE case_studies SET title=COALESCE($1,title),slug=COALESCE($2,slug),subtitle=COALESCE($3,subtitle),category=COALESCE($4,category),year=COALESCE($5,year),role=COALESCE($6,role),duration=COALESCE($7,duration),description=COALESCE($8,description),status=COALESCE($9,status),sort_order=COALESCE($10,sort_order),updated_at=now() WHERE id=$11 RETURNING *`,[b.title,b.slug,b.short_description,b.category,b.year,b.role,b.duration,b.overview,b.status,b.sort_order===undefined?undefined:Number(b.sort_order),b.id]);
-   if(!rows[0])return res.status(404).json({error:'Case study not found.'});return res.json(map(rows[0]));
+  return out;
+}
+
+async function getProject(id) {
+  const rows = await supabaseAdmin(`projects?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return rows?.[0] || null;
+}
+
+async function deleteProjectMedia(projectId, project) {
+  const images = await supabaseAdmin(`project_images?select=image_url&project_id=eq.${encodeURIComponent(projectId)}`);
+  for (const item of images || []) {
+    const path = storagePathFromPublicUrl(item.image_url, BUCKET);
+    if (path) await deleteStorageObject(BUCKET, path).catch(() => {});
   }
-  if(req.method==='DELETE'){
-   if(!b.id)return res.status(400).json({error:'Missing case study id.'});
-   await db.query('DELETE FROM case_studies WHERE id=$1',[b.id]);return res.json({ok:true});
+  for (const url of [project?.cover_image_url, project?.hero_image_url]) {
+    const path = storagePathFromPublicUrl(url, BUCKET);
+    if (path) await deleteStorageObject(BUCKET, path).catch(() => {});
   }
-  return res.status(405).json({error:'Method not allowed'});
- }catch(e){return res.status(500).json({error:e.message||'Case study operation failed.'});}
+  await supabaseAdmin(`project_images?project_id=eq.${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+  await supabaseAdmin(`case_study_sections?project_id=eq.${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+}
+
+export default async function (req, res) {
+  try {
+    const auth = await requireSupabaseAdmin(req);
+    if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+
+    if (req.method === 'GET') {
+      const rows = await supabaseAdmin('projects?select=*&order=display_order.asc,created_at.asc');
+      return res.json((rows || []).map(mapProject));
+    }
+
+    const body = req.body || {};
+
+    if (req.method === 'POST') {
+      if (!body.title || !body.slug) return res.status(400).json({ error: 'Title and slug are required.' });
+      const payload = {
+        ...projectPayload(body),
+        cover_image_url: '',
+        hero_image_url: '',
+        featured: false,
+      };
+      const rows = await supabaseAdmin('projects', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload),
+      });
+      return res.status(201).json(mapProject(rows?.[0]));
+    }
+
+    if (req.method === 'PUT') {
+      if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
+      const existing = await getProject(body.id);
+      if (!existing) return res.status(404).json({ error: 'Case study not found.' });
+      const rows = await supabaseAdmin(`projects?id=eq.${encodeURIComponent(body.id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(projectPayload(body, true)),
+      });
+      return res.json(mapProject(rows?.[0]));
+    }
+
+    if (req.method === 'DELETE') {
+      if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
+      const existing = await getProject(body.id);
+      if (!existing) return res.status(404).json({ error: 'Case study not found.' });
+      await deleteProjectMedia(body.id, existing);
+      await supabaseAdmin(`projects?id=eq.${encodeURIComponent(body.id)}`, { method: 'DELETE' });
+      return res.json({ ok: true });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    console.error('admin-projects error', error.message);
+    return res.status(500).json({ error: error.message || 'Case study operation failed.' });
+  }
 }
