@@ -1,65 +1,35 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { supabaseRequest } from 'lib/supabase-admin';
+import { db } from 'hatchable';
 export const access='public';
 export const methods=['GET','POST','PUT','DELETE'];
-
-function normalizeMetadata(value){return value&&typeof value==='object'&&!Array.isArray(value)?{...value}:{}}
-function fromRow(row){
-  const metadata=normalizeMetadata(row.metadata);
-  return {...row,metadata,items:Array.isArray(metadata.items)?metadata.items:[],item_display:metadata.item_display||'',quote_text:metadata.quote_text||'',quote_author:metadata.quote_author||'',text:row.body||'',type:row.section_type||'content'};
-}
-async function getProject(id){const rows=await supabaseRequest('projects?id=eq.'+encodeURIComponent(id)+'&select=*');return rows?.[0]||null}
-async function getSections(id){const rows=await supabaseRequest('case_study_sections?project_id=eq.'+encodeURIComponent(id)+'&select=*&order=display_order.asc,created_at.asc');return (rows||[]).map(fromRow)}
-async function getImages(id){return await supabaseRequest('project_images?project_id=eq.'+encodeURIComponent(id)+'&select=*&order=display_order.asc,created_at.asc')||[]}
-function payloadForSection(s,index){
-  const metadata=normalizeMetadata(s.metadata);
-  if(Array.isArray(s.items))metadata.items=s.items; else delete metadata.items;
-  if(s.item_display!==undefined)metadata.item_display=s.item_display; else delete metadata.item_display;
-  if(s.quote_text!==undefined)metadata.quote_text=s.quote_text; else if(s.section_type!=='quote'&&s.type!=='quote')delete metadata.quote_text;
-  if(s.quote_author!==undefined)metadata.quote_author=s.quote_author; else if(s.section_type!=='quote'&&s.type!=='quote')delete metadata.quote_author;
-  if(s.metadata?.quote_font_size!==undefined)metadata.quote_font_size=s.metadata.quote_font_size;
-  if(s.metadata?.metric_font_size!==undefined)metadata.metric_font_size=s.metadata.metric_font_size;
-  return {section_type:s.section_type||s.type||'content',title:s.title??'',body:s.body??s.text??'',metadata,display_order:index+1,updated_at:new Date().toISOString()};
-}
-
+function getSections(project){const s=project?.content?.sections;return Array.isArray(s)?s:[]}
+function normalize(project){return getSections(project).map((s,i)=>{const sid=s._id||s.id||crypto.randomUUID();return {...s,_id:sid,id:sid,display_order:i+1,section_type:s.type||s.section_type||'content',body:s.body??s.text??'',text:s.text??s.body??'',images:Array.isArray(s.images)?s.images.map((img,j)=>({...img,id:img.id||`${sid}:${j}`})):[]};});}
+function allImages(project){return normalize(project).flatMap(s=>s.images||[])}
+async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
+async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
 export default async function(req,res){
-  try{
-    const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
-    const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
-    if(!projectId)return res.status(400).json({error:'Missing project_id.'});
-    const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-    if(req.method==='GET')return res.json({project,sections:await getSections(projectId),images:await getImages(projectId)});
-
-    if(req.method==='POST'){
-      const rows=await supabaseRequest('case_study_sections?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:payloadForSection(b,Number(b.display_order||0))});
-      return res.status(201).json(fromRow(rows[0]));
-    }
-
-    if(req.method==='PUT'){
-      if(b.replace_all===true&&Array.isArray(b.sections)){
-        const existing=await getSections(projectId);
-        const incomingIds=new Set(b.sections.map(s=>String(s.id||s._id||'')).filter(Boolean));
-        for(const old of existing){if(!incomingIds.has(String(old.id))){await supabaseRequest('project_images?section_id=eq.'+encodeURIComponent(old.id),{method:'DELETE'});await supabaseRequest('case_study_sections?id=eq.'+encodeURIComponent(old.id),{method:'DELETE'});}}
-        for(let i=0;i<b.sections.length;i++){
-          const s=b.sections[i],id=s.id||s._id;
-          const payload=payloadForSection(s,i);
-          if(id&&existing.some(x=>String(x.id)===String(id))){await supabaseRequest('case_study_sections?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:payload});}
-          else {await supabaseRequest('case_study_sections?select=id',{method:'POST',headers:{Prefer:'return=minimal'},body:{...payload,project_id:projectId}});}
-        }
-        return res.json({project,sections:await getSections(projectId),images:await getImages(projectId)});
-      }
-      if(!b.id)return res.status(400).json({error:'Missing section id.'});
-      const rows=await supabaseRequest('case_study_sections?id=eq.'+encodeURIComponent(b.id)+'&project_id=eq.'+encodeURIComponent(projectId)+'&select=*',{method:'PATCH',headers:{Prefer:'return=representation'},body:payloadForSection(b,Math.max(0,Number(b.display_order||1)-1))});
-      if(!rows?.[0])return res.status(404).json({error:'Section not found.'});
-      return res.json(fromRow(rows[0]));
-    }
-
-    if(req.method==='DELETE'){
-      if(!b.id)return res.status(400).json({error:'Missing section id.'});
-      await supabaseRequest('project_images?section_id=eq.'+encodeURIComponent(b.id),{method:'DELETE'});
-      await supabaseRequest('case_study_sections?id=eq.'+encodeURIComponent(b.id)+'&project_id=eq.'+encodeURIComponent(projectId),{method:'DELETE'});
-      return res.json({ok:true});
-    }
-    return res.status(405).json({error:'Method not allowed'});
-  }catch(e){return res.status(500).json({error:e.message||'Case study section operation failed.'});}
+ try{
+  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
+  const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
+  if(!projectId)return res.status(400).json({error:'Missing project_id.'});
+  const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
+  if(req.method==='GET')return res.json({project,sections:normalize(project),images:allImages(project)});
+  const sections=getSections(project);
+  if(req.method==='POST'){
+   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{},images:Array.isArray(b.images)?b.images:[]});
+   const saved=await saveSections(projectId,sections);const out=normalize(saved);return res.status(201).json(out[out.length-1]);
+  }
+  if(req.method==='PUT'){
+   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map((s)=>{const out={...s,_id:s._id||s.id||crypto.randomUUID(),type:s.section_type||s.type||'content',title:s.title??'',body:s.body??s.text??'',text:s.text??s.body??'',metadata:s.metadata||{},images:Array.isArray(s.images)?s.images:[]};if(Array.isArray(s.items))out.items=s.items;else delete out.items;delete out.id;delete out.display_order;delete out.section_type;return out;});const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:allImages(saved)});}
+   if(!b.id)return res.status(400).json({error:'Missing section id.'});
+   const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
+   sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{},images:Array.isArray(b.images)?b.images:(sections[idx].images||[])};
+   const saved=await saveSections(projectId,sections);return res.json(normalize(saved)[idx]);
+  }
+  if(req.method==='DELETE'){
+   if(!b.id)return res.status(400).json({error:'Missing section id.'});const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
+   sections.splice(idx,1);await saveSections(projectId,sections);return res.json({ok:true});
+  }
+  return res.status(405).json({error:'Method not allowed'});
+ }catch(e){return res.status(500).json({error:e.message||'Case study section operation failed.'});}
 }
