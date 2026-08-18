@@ -12,10 +12,13 @@ export default async function (req, res) {
     const slug = req.query?.slug;
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
 
-    const aliases = { 'outsider-vendor-platform': 'outsider-vendor-app' };
-    const lookupSlug = aliases[slug] || slug;
-    const projects = await supabaseAdmin(`projects?slug=eq.${encodeURIComponent(lookupSlug)}&limit=1`);
-    const project = projects?.[0];
+    const aliases = { 'outsider-vendor-app': 'outsider-vendor-platform' };
+    let projects = await supabaseAdmin(`projects?slug=eq.${encodeURIComponent(slug)}&limit=1`);
+    let project = projects?.[0];
+    if (!project && aliases[slug]) {
+      projects = await supabaseAdmin(`projects?slug=eq.${encodeURIComponent(aliases[slug])}&limit=1`);
+      project = projects?.[0];
+    }
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 
     const [sections, images] = await Promise.all([
