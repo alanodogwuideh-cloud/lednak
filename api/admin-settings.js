@@ -1,51 +1,43 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { storage, db } from 'hatchable';
+import { supabaseRequest, storageDeleteByUrl, publicStorageUrl, supabaseBase } from 'lib/supabase-admin';
 import crypto from 'node:crypto';
 export const access='public';
 export const methods=['GET','PUT','POST','DELETE'];
-const base=()=>process.env.SUPABASE_URL;const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const headers=()=>({apikey:key(),Authorization:'Bearer '+key(),'Content-Type':'application/json'});
-async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...headers(),...(opts.headers||{})}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(typeof d==='string'?d:(d?.message||d?.hint||'Supabase request failed'));return d;}
-export default async function(req,res){try{const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
-if(req.method==='POST'){
-  const kind=String(req.body?.kind||'about');
-  const file=req.files?.find(x=>x.field==='file')||req.files?.[0];
-  if(!file||!String(file.contentType||'').startsWith('image/'))return res.status(400).json({error:'Please choose an image file.'});
-  if(file.buffer.length>5*1024*1024)return res.status(413).json({error:'Image is too large. Maximum size is 5 MB.'});
-  if(kind==='favicon'){
-    const allowed=new Set(['image/png','image/svg+xml','image/x-icon','image/vnd.microsoft.icon','image/webp']);
-    if(!allowed.has(file.contentType))return res.status(415).json({error:'Favicon must be PNG, SVG, ICO, or WebP.'});
-    // Always store the favicon as a true circular SVG wrapper. CSS cannot control
-    // the shape of a browser-tab favicon, so the transparency has to be baked into
-    // the favicon asset itself. The uploaded file is embedded inside a 64x64 circle.
-    const uploadedBuffer=Buffer.from(file.buffer);
-    const base64=uploadedBuffer.toString('base64');
-    const safeType=String(file.contentType);
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><clipPath id="circle"><circle cx="32" cy="32" r="32"/></clipPath></defs><image href="data:${safeType};base64,${base64}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#circle)"/></svg>`;
-    const key='site-branding/favicon-'+Date.now()+'-'+crypto.randomUUID()+'.svg';
-    await storage.put(key,Buffer.from(svg,'utf8'),'image/svg+xml');
-    const existing=(await db.query('SELECT id, favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')).rows[0];
-    if(existing?.id)await db.query('UPDATE site_branding SET favicon_key=$1, updated_at=NOW() WHERE id=$2',[key,existing.id]);
-    else await db.query('INSERT INTO site_branding (favicon_key) VALUES ($1)',[key]);
-    if(existing?.favicon_key&&existing.favicon_key!==key)await storage.del(existing.favicon_key).catch(()=>{});
-    return res.json({url:'/api/favicon?v='+Date.now(),key,saved:true});
+
+const SETTING_KEYS=['site_name','headline','location','email','linkedin_url','profile_image_url','bio','availability','favicon_url'];
+async function rows(){return await supabaseRequest('site_settings?select=*&order=updated_at.desc')||[]}
+async function getMap(){const out={};for(const r of await rows()){if(out[r.setting_key]===undefined)out[r.setting_key]=r.setting_value||''}return out}
+async function setSetting(key,value){
+  const existing=await supabaseRequest('site_settings?setting_key=eq.'+encodeURIComponent(key)+'&select=id&order=updated_at.desc&limit=1');
+  if(existing?.[0])await supabaseRequest('site_settings?id=eq.'+encodeURIComponent(existing[0].id),{method:'PATCH',body:{setting_value:String(value??''),updated_at:new Date().toISOString()}});
+  else await supabaseRequest('site_settings?select=*',{method:'POST',headers:{Prefer:'return=minimal'},body:{setting_key:key,setting_value:String(value??'')}});
+}
+async function removeSetting(key){await supabaseRequest('site_settings?setting_key=eq.'+encodeURIComponent(key),{method:'DELETE'}).catch(()=>{})}
+async function uploadSupabaseFile(file,prefix){const safe=String(file.filename||'upload').replace(/[^a-zA-Z0-9._-]/g,'-').slice(0,160);const path=`site/${prefix}/${Date.now()}-${crypto.randomUUID()}-${safe}`;const r=await fetch(supabaseBase()+'/storage/v1/object/portfolio-images/'+path,{method:'POST',headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':file.contentType||'application/octet-stream','Cache-Control':'3600','x-upsert':'false'},body:Buffer.from(file.buffer)});if(!r.ok)throw new Error((await r.text().catch(()=>''))||`Supabase Storage upload failed (${r.status})`);return publicStorageUrl(path)}
+
+export default async function(req,res){
+ try{
+  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
+  if(req.method==='GET'){
+    const s=await getMap();
+    return res.json({name:s.site_name||'Alan Odogwuideh',site_name:s.site_name||'Alan Odogwuideh',headline:s.headline||'',role:s.role||'UX Designer',location:s.location||'',email:s.email||'',linkedin_url:s.linkedin_url||'',profile_image_url:s.profile_image_url||'',about_image_url:s.profile_image_url||'',bio:s.bio||'',availability:s.availability||'',favicon_url:s.favicon_url?'/api/favicon':''});
   }
-  const storageKey='portfolio-about-'+Date.now()+'-'+crypto.randomUUID()+'-'+String(file.filename||'profile.jpg').replace(/[^a-zA-Z0-9._-]/g,'-');
-  await storage.put(storageKey,file.buffer,file.contentType||'image/jpeg');
-  const existing=(await db.query('SELECT id,about_image_url FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1')).rows[0];
-  if(existing?.id)await db.query('UPDATE portfolio_settings SET about_image_url=$1, updated_at=NOW() WHERE id=$2',[storageKey,existing.id]);
-  else await db.query('INSERT INTO portfolio_settings (about_image_url) VALUES ($1)',[storageKey]);
-  if(existing?.about_image_url){let oldKey=String(existing.about_image_url);if(oldKey.startsWith('http')){try{oldKey=new URL(oldKey).pathname.split('/').pop()||''}catch{oldKey=''}}if(oldKey&&oldKey!==storageKey)await storage.del(oldKey).catch(()=>{});}
-  return res.json({url:'/api/about-image?v='+Date.now(),key:storageKey,saved:true});
+  if(req.method==='POST'){
+    const kind=String(req.body?.kind||'about');const file=req.files?.find(x=>x.field==='file')||req.files?.[0];if(!file)return res.status(400).json({error:'Please choose a file.'});
+    if(file.buffer.length>6*1024*1024)return res.status(413).json({error:'File is too large. Maximum size is 6 MB.'});
+    if(kind==='favicon'){
+      const allowed=new Set(['image/png','image/svg+xml','image/x-icon','image/vnd.microsoft.icon','image/webp']);if(!allowed.has(file.contentType))return res.status(415).json({error:'Favicon must be PNG, SVG, ICO, or WebP.'});
+      const uploaded=Buffer.from(file.buffer).toString('base64');const type=String(file.contentType);const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><clipPath id="circle"><circle cx="32" cy="32" r="32"/></clipPath></defs><image href="data:${type};base64,${uploaded}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#circle)"/></svg>`;
+      const old=(await getMap()).favicon_url||'';const path=`site/favicon/${Date.now()}-${crypto.randomUUID()}.svg`;const r=await fetch(supabaseBase()+'/storage/v1/object/portfolio-images/'+path,{method:'POST',headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'image/svg+xml','Cache-Control':'3600','x-upsert':'false'},body:Buffer.from(svg)});if(!r.ok)throw new Error((await r.text().catch(()=>''))||'Favicon upload failed.');const url=publicStorageUrl(path);await setSetting('favicon_url',url);if(old)await storageDeleteByUrl(old);return res.json({url:'/api/favicon?v='+Date.now(),saved:true});
+    }
+    if(!String(file.contentType||'').startsWith('image/'))return res.status(415).json({error:'Please choose an image file.'});
+    const old=(await getMap()).profile_image_url||'';const url=await uploadSupabaseFile(file,'profile');await setSetting('profile_image_url',url);if(old)await storageDeleteByUrl(old);return res.json({url,saved:true});
+  }
+  if(req.method==='DELETE'){
+    const key='favicon_url';const s=await getMap();if(s[key])await storageDeleteByUrl(s[key]);await removeSetting(key);return res.json({ok:true});
+  }
+  const b=req.body||{};const map={site_name:b.name??b.site_name??'',headline:b.headline??'',location:b.location??'',email:b.email??'',linkedin_url:b.linkedin_url??'',profile_image_url:b.profile_image_url??'',bio:b.bio??'',availability:b.availability??''};
+  for(const key of Object.keys(map))if(SETTING_KEYS.includes(key))await setSetting(key,map[key]);
+  return res.json(await getMap());
+ }catch(e){return res.status(500).json({error:e.message||'Site content operation failed.'});}
 }
-if(req.method==='DELETE'){
-  const existing=(await db.query('SELECT id, favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')).rows[0];
-  if(existing?.favicon_key)await storage.del(existing.favicon_key).catch(()=>{});
-  if(existing?.id)await db.query('UPDATE site_branding SET favicon_key=$1, updated_at=NOW() WHERE id=$2',['',existing.id]);
-  return res.json({ok:true});
-}
-if(req.method==='GET'){
-  const [settings,branding]=await Promise.all([db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1'),db.query('SELECT favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')]);
-  const row=settings.rows[0]||{};const key=branding.rows[0]?.favicon_key||'';const aboutUrl=row.about_image_url?'/api/about-image?v='+encodeURIComponent(row.updated_at||Date.now()):'';return res.json({...row,profile_image_url:aboutUrl,about_image_url:aboutUrl,favicon_url:key?'/api/favicon':''});
-}
-const b=req.body||{};const existing=(await db.query('SELECT id,about_image_url FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1')).rows[0];const submittedImage=String(b.profile_image_url||b.about_image_url||'');const aboutKey=submittedImage.includes('/api/about-image')?(existing?.about_image_url||''):submittedImage;const row={site_name:b.name||b.site_name||'Alan Odogwuideh',role:b.role||'UX Designer',intro:b.headline||b.intro||'',about_text:b.bio||b.about_text||'',location:b.location||'',about_image_url:aboutKey,linkedin_url:b.linkedin_url||'',email:b.email||'',updated_at:new Date().toISOString()};let d;if(existing?.id)d=await db.query('UPDATE portfolio_settings SET site_name=$1,role=$2,intro=$3,about_text=$4,location=$5,about_image_url=$6,linkedin_url=$7,email=$8,updated_at=NOW() WHERE id=$9 RETURNING *',[row.site_name,row.role,row.intro,row.about_text,row.location,row.about_image_url,row.linkedin_url,row.email,existing.id]);else d=await db.query('INSERT INTO portfolio_settings (site_name,role,intro,about_text,location,about_image_url,linkedin_url,email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[row.site_name,row.role,row.intro,row.about_text,row.location,row.about_image_url,row.linkedin_url,row.email]);return res.json({...d.rows[0],profile_image_url:d.rows[0].about_image_url||''});
-}catch(e){return res.status(500).json({error:e.message||'Site content operation failed.'});}}

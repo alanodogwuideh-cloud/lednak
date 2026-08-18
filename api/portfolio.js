@@ -1,41 +1,4 @@
-import { supabase } from '../lib/supabase.js';
-import { db, storage } from 'hatchable';
-
-export const access = 'public';
-export const methods = ['GET'];
-
-export default async function(req,res){
-  try {
-    const [settingsRows, projects, branding] = await Promise.all([
-      db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1'),
-      supabase('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
-      db.query('SELECT favicon_key, updated_at FROM site_branding ORDER BY updated_at DESC LIMIT 1'),
-    ]);
-
-    const a = settingsRows.rows[0] || null;
-    const settings = a ? {
-      site_name: a.site_name || 'Alan Odogwuideh',
-      role: a.role || 'UX Designer',
-      intro: a.intro || '',
-      about_text: a.about_text || '',
-      location: a.location || 'Abuja, Nigeria',
-      linkedin_url: a.linkedin_url || '',
-      email: a.email || '',
-      about_image_url: a.about_image_url ? '/api/about-image?v='+encodeURIComponent(a.updated_at || Date.now()) : '',
-      favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '',
-      favicon_updated_at: branding.rows[0]?.updated_at || '',
-    } : { favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '' };
-
-    res.json({
-      settings,
-      projects: projects.map(p => ({
-        ...p,
-        short_description: p.short_description || p.overview || '',
-        status: p.published ? 'published' : 'draft',
-      })),
-    });
-  } catch (error) {
-    console.error('portfolio error', error.message);
-    res.status(502).json({ error: 'Portfolio data is temporarily unavailable.' });
-  }
-}
+import { supabaseRequest } from 'lib/supabase-admin';
+export const access='public';
+export const methods=['GET'];
+export default async function(req,res){try{const [settingsRows,projects]=await Promise.all([supabaseRequest('site_settings?select=setting_key,setting_value,updated_at&order=updated_at.desc'),supabaseRequest('projects?select=*&published=eq.true&order=display_order.asc,created_at.asc')]);const s={};for(const row of settingsRows||[]){if(s[row.setting_key]===undefined)s[row.setting_key]=row.setting_value||''}const settings={site_name:s.site_name||'Alan Odogwuideh',role:s.role||'UX Designer',intro:s.headline||'',about_text:s.bio||'',location:s.location||'Abuja, Nigeria',linkedin_url:s.linkedin_url||'',email:s.email||'',about_image_url:s.profile_image_url?'/api/about-image?v='+encodeURIComponent(s.profile_image_url):'',favicon_url:s.favicon_url?'/api/favicon?v='+encodeURIComponent(s.favicon_url):''};return res.json({settings,projects:(projects||[]).map(p=>({...p,short_description:p.short_description||'',status:p.published?'published':'draft',sort_order:p.display_order}))});}catch(error){console.error('portfolio error',error.message);res.status(502).json({error:'Portfolio data is temporarily unavailable.'});}}
