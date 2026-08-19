@@ -39,8 +39,11 @@ function sectionForAsset(sections, assetType) {
     return sections.find(s => /key\s+research\s+findings/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'research');
   }
   if (assetType === 'chinedu_persona' || assetType === 'fatima_persona') return sections.find(s => s.section_type === 'personas');
-  if (['storyboard', 'paper_wireframe', 'low_fi_wireframe', 'wireframes'].includes(assetType)) {
+  if (['storyboard'].includes(assetType)) {
     return sections.find(s => /from\s+context\s+to\s+concept/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'process');
+  }
+  if (['paper_wireframe', 'low_fi_wireframe', 'wireframes'].includes(assetType)) {
+    return sections.find(s => /design\s+exploration/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'process');
   }
   if (assetType === 'usability_testing') return sections.find(s => s.section_type === 'usability') || sections.find(s => /usability/i.test(String(s.title || '')));
   if (assetType === 'mobile_final_ui' || assetType === 'web_final_ui') {
@@ -172,7 +175,9 @@ export default async function (req, res) {
 
         if (!allowed.has(body.asset_type)) return res.status(400).json({ error: 'Invalid asset type.' });
         const sections = await getSections(projectId);
-        const section = sectionForAsset(sections || [], body.asset_type);
+        const explicitSection = body.section_id ? (sections || []).find(s => String(s.id) === String(body.section_id)) : null;
+        if (body.section_id && !explicitSection) return res.status(400).json({ error: 'Selected section does not belong to this case study.' });
+        const section = explicitSection || sectionForAsset(sections || [], body.asset_type);
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}. Add that section first.` });
         const rows = await supabaseAdmin('project_images', {
           method: 'POST',
