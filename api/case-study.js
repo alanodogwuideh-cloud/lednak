@@ -26,7 +26,8 @@ export default async function (req, res) {
       supabaseAdmin(`project_images?project_id=eq.${encodeURIComponent(project.id)}&select=*&order=display_order.asc,created_at.asc`),
     ]);
 
-    const blocks = (sections || []).map(section => {
+    const blocks = [];
+    for (const section of (sections || [])) {
       const metadata = metadataObject(section.metadata);
       const block = {
         ...section,
@@ -41,8 +42,35 @@ export default async function (req, res) {
       if (metadata.item_display) block.item_display = metadata.item_display;
       if (metadata.quote_text !== undefined) block.quote_text = metadata.quote_text;
       if (metadata.quote_author !== undefined) block.quote_author = metadata.quote_author;
-      return block;
-    });
+
+      const legacyCaptioned = Array.isArray(metadata.card2_items) && metadata.card2_items.length;
+      if (legacyCaptioned && String(block.section_type) === 'cards') {
+        if (!Array.isArray(block.items) || !block.items.length) {
+          block.items = metadata.card2_items.map(item => {
+            const caption = String(item?.caption || '').trim();
+            const description = String(item?.description || '').trim();
+            return caption && description ? `${caption}: ${description}` : (caption || description);
+          }).filter(Boolean);
+        }
+        block.metadata = { ...metadata };
+        delete block.metadata.card2_items;
+        blocks.push(block);
+        blocks.push({
+          id: `${section.id}-card2`,
+          project_id: section.project_id,
+          section_type: 'card2',
+          type: 'card2',
+          title: '',
+          body: '',
+          text: '',
+          metadata: { card2_items: metadata.card2_items },
+          images: [],
+          display_order: Number(section.display_order || 0) + 0.1,
+        });
+        continue;
+      }
+      blocks.push(block);
+    }
 
     return res.json({
       id: project.id,
