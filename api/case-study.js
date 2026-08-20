@@ -1,4 +1,4 @@
-import { supabaseAdmin } from 'lib/supabase-admin';
+import { db } from 'hatchable';
 
 export const access = 'public';
 export const methods = ['GET'];
@@ -26,30 +26,15 @@ export default async function (req, res) {
   try {
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
-
-    let rows = await supabaseAdmin(`case_studies?slug=eq.${encodeURIComponent(slug)}&limit=1`);
-    let project = rows?.[0];
-    if (!project && aliases[slug]) {
-      rows = await supabaseAdmin(`case_studies?slug=eq.${encodeURIComponent(aliases[slug])}&limit=1`);
-      project = rows?.[0];
-    }
+    const lookup = aliases[slug] || slug;
+    const { rows } = await db.query(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
+    const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
-
-    const sections = normalizeSections(project.content);
     return res.json({
-      id: project.id,
-      slug: project.slug,
-      title: project.title || '',
-      subtitle: project.subtitle || '',
-      description: project.description || '',
-      category: project.category || '',
-      year: project.year || '',
-      role: project.role || '',
-      duration: project.duration || '',
-      client: project.client || '',
-      cover_image_url: project.cover_image_url || '',
-      hero_image_url: project.hero_image_url || '',
-      content: { sections },
+      id: project.id, slug: project.slug, title: project.title || '', subtitle: project.subtitle || '',
+      description: project.description || '', category: project.category || '', year: project.year || '',
+      role: project.role || '', duration: project.duration || '', cover_image_url: project.cover_image_url || '',
+      hero_image_url: project.hero_image_url || '', content: { sections: normalizeSections(project.content) },
     });
   } catch (error) {
     console.error('case-study error', error.message);
