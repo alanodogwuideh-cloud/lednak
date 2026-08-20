@@ -52,6 +52,27 @@ async function loadContent(projectId) {
   };
 }
 
+async function repairRefiningDesign(projectId, current) {
+  const section = current.sections.find(s => /final experience\s*&\s*accessibility/i.test(String(s.title || '')));
+  if (!section) return current;
+  const metadata = normalizeMetadata(section.metadata);
+  const refining = normalizeMetadata(metadata.refining_design);
+  const items = Array.isArray(refining.items) ? [...refining.items] : [];
+  let changed = false;
+  REFINING_DEFAULT_ITEMS.forEach((fallback, index) => {
+    if (items[index] === null || items[index] === undefined) { items[index] = fallback; changed = true; }
+  });
+  if (!changed) return current;
+  refining.items = items.slice(0, 3);
+  metadata.refining_design = refining;
+  await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(section.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ metadata }),
+  });
+  return loadContent(projectId);
+}
+
 async function migrateLegacyCaptionedCards(projectId, current) {
   const legacy = current.sections.find(section =>
     String(section.section_type || section.type) === 'cards' &&
@@ -94,12 +115,27 @@ async function migrateLegacyCaptionedCards(projectId, current) {
   return loadContent(projectId);
 }
 
+const REFINING_DEFAULT_ITEMS = [
+  'Designed clear navigation structures with simple, predictable user flows to support low digital literacy users',
+  'Applied readable typography, clear visual hierarchy, adequate spacing, and scalable UI elements for an inclusive experience',
+  'Ensured key actions — managing orders, payments, and inventory — are easy to locate through consistent layouts and intuitive patterns',
+];
+
 function metadataFor(section) {
   const metadata = normalizeMetadata(section.metadata);
   if (Array.isArray(section.items)) metadata.items = section.items;
   if (section.item_display !== undefined) metadata.item_display = section.item_display;
   if (section.quote_text !== undefined) metadata.quote_text = section.quote_text;
   if (section.quote_author !== undefined) metadata.quote_author = section.quote_author;
+  if (/final experience\s*&\s*accessibility/i.test(String(section.title || ''))) {
+    const refining = normalizeMetadata(metadata.refining_design);
+    const items = Array.isArray(refining.items) ? [...refining.items] : [];
+    REFINING_DEFAULT_ITEMS.forEach((fallback, index) => {
+      if (items[index] === null || items[index] === undefined) items[index] = fallback;
+    });
+    refining.items = items.slice(0, 3);
+    metadata.refining_design = refining;
+  }
   return metadata;
 }
 
@@ -173,7 +209,8 @@ export default async function (req, res) {
     if (!current) return res.status(404).json({ error: 'Case study not found.' });
 
     if (req.method === 'GET') {
-      const migrated = await migrateLegacyCaptionedCards(projectId, current);
+      const repaired = await repairRefiningDesign(projectId, current);
+      const migrated = await migrateLegacyCaptionedCards(projectId, repaired);
       return res.json(migrated);
     }
 
