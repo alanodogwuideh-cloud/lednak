@@ -1,219 +1,80 @@
+import { db } from 'hatchable';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
 
 export const access = 'public';
 export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
-const BUCKET = 'portfolio-images';
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEFAULT_REFINING_ITEMS = [
+  'Designed clear navigation structures with simple, predictable user flows to support low digital literacy users',
+  'Applied readable typography, clear visual hierarchy, adequate spacing, and scalable UI elements for an inclusive experience',
+  'Ensured key actions — managing orders, payments, and inventory — are easy to locate through consistent layouts and intuitive patterns',
+];
 
-function normalizeMetadata(value) {
-  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
-}
-
-function sectionFromRow(row, images) {
-  const metadata = normalizeMetadata(row.metadata);
-  const out = {
-    ...row,
-    id: row.id,
-    _id: row.id,
-    type: row.section_type || 'content',
-    section_type: row.section_type || 'content',
-    display_order: Number(row.display_order || 0),
-    body: row.body || '',
-    text: row.body || '',
-    metadata,
-    images: (images || []).filter(x => String(x.section_id) === String(row.id)),
-  };
+function metadataObject(value) { return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {}; }
+function normalizeSection(section, index) {
+  const metadata = metadataObject(section?.metadata);
+  const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, type: section?.type || section?.section_type || 'content', section_type: section?.section_type || section?.type || 'content', title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: Array.isArray(section?.images) ? section.images : [], display_order: Number(section?.display_order || index + 1) };
   if (Array.isArray(metadata.items)) out.items = [...metadata.items];
-  if (metadata.item_display) out.item_display = metadata.item_display;
+  if (metadata.item_display !== undefined) out.item_display = metadata.item_display;
   if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text;
   if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
 }
-
-async function getProject(id) {
-  const rows = await supabaseAdmin(`projects?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
-  return rows?.[0] || null;
-}
-
-async function loadContent(projectId) {
-  const [project, sections, images] = await Promise.all([
-    getProject(projectId),
-    supabaseAdmin(`case_study_sections?project_id=eq.${encodeURIComponent(projectId)}&select=*&order=display_order.asc,created_at.asc`),
-    supabaseAdmin(`project_images?project_id=eq.${encodeURIComponent(projectId)}&select=*&order=display_order.asc,created_at.asc`),
-  ]);
-  if (!project) return null;
-  const normalizedSections = (sections || []).map(row => sectionFromRow(row, images || []));
-  return {
-    project,
-    sections: normalizedSections,
-    images: images || [],
-  };
-}
-
-async function migrateLegacyCaptionedCards(projectId, current) {
-  const legacy = current.sections.find(section =>
-    String(section.section_type || section.type) === 'cards' &&
-    Array.isArray(section.metadata?.card2_items) &&
-    section.metadata.card2_items.length
-  );
-  if (!legacy || current.sections.some(section => String(section.section_type || section.type) === 'card2')) return current;
-
-  const captionedItems = legacy.metadata.card2_items
-    .map(item => ({ caption: String(item?.caption || '').trim(), description: String(item?.description || '').trim() }))
-    .filter(item => item.caption || item.description);
-  if (!captionedItems.length) return current;
-
-  const legacyItems = Array.isArray(legacy.items) && legacy.items.length
-    ? legacy.items
-    : captionedItems.map(item => item.caption && item.description ? `${item.caption}: ${item.description}` : (item.caption || item.description));
-
-  const cleanMetadata = { ...normalizeMetadata(legacy.metadata), items: legacyItems };
-  delete cleanMetadata.card2_items;
-
-  await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(legacy.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ section_type: 'cards', metadata: cleanMetadata }),
-  });
-
-  await supabaseAdmin('case_study_sections', {
-    method: 'POST',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({
-      project_id: projectId,
-      section_type: 'card2',
-      title: '',
-      body: '',
-      metadata: { card2_items: captionedItems },
-      display_order: Number(legacy.display_order || 0),
-    }),
-  });
-
-  return loadContent(projectId);
-}
-
-function metadataFor(section) {
-  const metadata = normalizeMetadata(section.metadata);
-  if (Array.isArray(section.items)) metadata.items = section.items;
+function normalizeContent(content) { return { ...(content && typeof content === 'object' && !Array.isArray(content) ? content : {}), sections: Array.isArray(content?.sections) ? content.sections.map(normalizeSection) : [] }; }
+function refine(section) {
+  const metadata = metadataObject(section.metadata);
+  if (Array.isArray(section.items)) metadata.items = [...section.items];
   if (section.item_display !== undefined) metadata.item_display = section.item_display;
   if (section.quote_text !== undefined) metadata.quote_text = section.quote_text;
   if (section.quote_author !== undefined) metadata.quote_author = section.quote_author;
+  if (/final experience\s*&\s*accessibility/i.test(String(section.title || ''))) {
+    const refining = metadataObject(metadata.refining_design);
+    const items = Array.isArray(refining.items) ? [...refining.items] : [];
+    DEFAULT_REFINING_ITEMS.forEach((fallback, i) => { if (items[i] == null) items[i] = fallback; });
+    refining.items = items.slice(0, 3); metadata.refining_design = refining;
+  }
   return metadata;
 }
-
-async function removeSectionImages(sectionId, images) {
-  for (const image of (images || []).filter(x => String(x.section_id) === String(sectionId))) {
-    const path = storagePathFromPublicUrl(image.image_url, BUCKET);
-    if (path) await deleteStorageObject(BUCKET, path).catch(() => {});
-  }
-  await supabaseAdmin(`project_images?section_id=eq.${encodeURIComponent(sectionId)}`, { method: 'DELETE' });
+async function getProject(id) { const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
+async function saveSections(project, incoming) {
+  if (!Array.isArray(incoming) || !incoming.length) throw new Error('Refusing to save an empty case study. Existing content was preserved.');
+  const current = normalizeContent(project.content);
+  const sections = incoming.map((s, i) => { const x = normalizeSection(s, i); x.metadata = refine(x); return x; });
+  const content = { ...current, sections };
+  const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
+  return rows?.[0] || project;
 }
-
-async function saveAllSections(projectId, incomingSections) {
-  const current = await loadContent(projectId);
-  if (!current) throw new Error('Case study not found.');
-  const currentIds = new Set(current.sections.map(s => String(s.id)));
-  const keptIds = new Set();
-  const savedRows = [];
-
-  for (let i = 0; i < incomingSections.length; i += 1) {
-    const section = incomingSections[i] || {};
-    const sectionType = String(section.section_type || section.type || 'content');
-    const payload = {
-      project_id: projectId,
-      section_type: sectionType,
-      title: String(section.title ?? ''),
-      body: String(section.body ?? section.text ?? ''),
-      metadata: metadataFor(section),
-      display_order: i + 1,
-    };
-
-    if (UUID_RE.test(String(section.id || '')) && currentIds.has(String(section.id))) {
-      const rows = await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(section.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
-        method: 'PATCH',
-        headers: { Prefer: 'return=representation' },
-        body: JSON.stringify(payload),
-      });
-      if (rows?.[0]) savedRows.push(rows[0]);
-      keptIds.add(String(section.id));
-    } else {
-      const rows = await supabaseAdmin('case_study_sections', {
-        method: 'POST',
-        headers: { Prefer: 'return=representation' },
-        body: JSON.stringify(payload),
-      });
-      if (rows?.[0]) savedRows.push(rows[0]);
-      keptIds.add(String(rows?.[0]?.id || ''));
-    }
-  }
-
-  for (const currentSection of current.sections) {
-    if (!keptIds.has(String(currentSection.id))) {
-      await removeSectionImages(currentSection.id, current.images);
-      await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(currentSection.id)}&project_id=eq.${encodeURIComponent(projectId)}`, { method: 'DELETE' });
-    }
-  }
-
-  return loadContent(projectId);
-}
+function response(project) { return { ...project, content: normalizeContent(project.content) }; }
 
 export default async function (req, res) {
   try {
     const auth = await requireSupabaseAdmin(req);
     if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
-
-    const query = req.query || {};
     const body = req.body || {};
-    const projectId = query.project_id || body.project_id;
+    const projectId = req.query?.project_id || body.project_id || body.id;
     if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
-
-    const current = await loadContent(projectId);
-    if (!current) return res.status(404).json({ error: 'Case study not found.' });
-
-    if (req.method === 'GET') {
-      const migrated = await migrateLegacyCaptionedCards(projectId, current);
-      return res.json(migrated);
-    }
-
-    if (req.method === 'PUT' && body.replace_all === true && Array.isArray(body.sections)) {
-      const saved = await saveAllSections(projectId, body.sections);
-      return res.json(saved);
-    }
-
+    const project = await getProject(projectId);
+    if (!project) return res.status(404).json({ error: 'Case study not found.' });
+    if (req.method === 'GET') return res.json(response(project));
+    const current = normalizeContent(project.content);
+    if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections)));
     if (req.method === 'POST') {
-      const sections = [...current.sections, {
-        section_type: body.section_type || 'content',
-        title: body.title || '',
-        body: body.body || '',
-        metadata: body.metadata || {},
-        items: Array.isArray(body.items) ? body.items : undefined,
-      }];
-      const saved = await saveAllSections(projectId, sections);
-      return res.status(201).json(saved.sections[saved.sections.length - 1]);
+      const sections = [...current.sections, { type: body.type || body.section_type || 'content', section_type: body.section_type || body.type || 'content', title: body.title || '', body: body.body || body.text || '', text: body.text || body.body || '', metadata: body.metadata || {}, items: body.items, images: body.images || [] }];
+      return res.status(201).json(response(await saveSections(project, sections)));
     }
-
     if (req.method === 'PUT') {
       if (!body.id) return res.status(400).json({ error: 'Missing section id.' });
-      const index = current.sections.findIndex(s => String(s.id) === String(body.id));
+      const index = current.sections.findIndex((s, i) => String(s.id || s._id || `section-${i + 1}`) === String(body.id));
       if (index < 0) return res.status(404).json({ error: 'Section not found.' });
-      const sections = current.sections.map((section, i) => i === index ? { ...section, ...body } : section);
-      const saved = await saveAllSections(projectId, sections);
-      return res.json(saved.sections.find(s => String(s.id) === String(body.id)) || saved.sections[index]);
+      const sections = current.sections.map((s, i) => i === index ? { ...s, ...body } : s);
+      return res.json(response(await saveSections(project, sections)));
     }
-
     if (req.method === 'DELETE') {
+      const sections = current.sections.filter((s, i) => String(s.id || s._id || `section-${i + 1}`) !== String(body.id));
       if (!body.id) return res.status(400).json({ error: 'Missing section id.' });
-      if (!current.sections.some(s => String(s.id) === String(body.id))) return res.status(404).json({ error: 'Section not found.' });
-      const sections = current.sections.filter(s => String(s.id) !== String(body.id));
-      const saved = await saveAllSections(projectId, sections);
-      return res.json({ ok: true, ...saved });
+      if (!sections.length) return res.status(409).json({ error: 'A case study must retain at least one section.' });
+      return res.json(response(await saveSections(project, sections)));
     }
-
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error) {
-    console.error('admin-case-study error', error.message);
-    return res.status(500).json({ error: error.message || 'Case study section operation failed.' });
-  }
+  } catch (error) { console.error('admin-case-study error', error.message); return res.status(500).json({ error: error.message || 'Case study operation failed.' }); }
 }
