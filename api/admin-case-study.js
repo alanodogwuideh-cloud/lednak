@@ -39,7 +39,18 @@ async function getProject(id) { const { rows } = await db.query(`SELECT * FROM c
 async function saveSections(project, incoming) {
   if (!Array.isArray(incoming) || !incoming.length) throw new Error('Refusing to save an empty case study. Existing content was preserved.');
   const current = normalizeContent(project.content);
-  const sections = incoming.map((s, i) => { const x = normalizeSection(s, i); x.metadata = refine(x); return x; });
+  const sections = incoming.map((s, i) => {
+    const x = normalizeSection(s, i);
+    x.metadata = refine(x);
+    // Card 2 is the replacement representation for the legacy flat list.
+    // Do not carry the old `items` array forward, otherwise deleted legacy
+    // rows can be reconstructed when the editor is reopened.
+    if (x.section_type === 'card2' || x.type === 'card2') {
+      x.items = [];
+      if (x.metadata && Object.prototype.hasOwnProperty.call(x.metadata, 'items')) delete x.metadata.items;
+    }
+    return x;
+  });
   const content = { ...current, sections };
   const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
