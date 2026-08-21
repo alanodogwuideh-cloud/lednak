@@ -40,24 +40,30 @@ export default async function (req, res) {
       const keys = Object.keys(p);
       const vals = Object.values(p);
       const setParts = keys.map((k,i)=>`${k} = $${i+1}`);
-      if (body.client !== undefined) {
-        vals.push(String(body.client ?? ''));
-        setParts.push(`content = jsonb_set(COALESCE(content, '{}'::jsonb), '{client}', to_jsonb($${vals.length}::text), true)`);
-      }
+
+      // Build the content JSON once and assign the content column once.
+      // Previously client and case_meta each appended their own `content = ...`
+      // assignment, which PostgreSQL rejects as "multiple assignments to same
+      // column content" when the editor saves both at the same time.
+      const hasClient = body.client !== undefined;
       const hasCaseMeta = ['role_label','duration_label','platform_label','project_type_label','platform','project_type'].some(k => body[k] !== undefined);
-      if (hasCaseMeta) {
+      if (hasClient || hasCaseMeta) {
         const existingContent = existing?.content && typeof existing.content === 'object' && !Array.isArray(existing.content) ? existing.content : {};
-        const existingMeta = existingContent?.case_meta && typeof existingContent.case_meta === 'object' && !Array.isArray(existingContent.case_meta) ? existingContent.case_meta : {};
-        const caseMeta = {
-          role_label: body.role_label ?? existingMeta.role_label ?? 'Role',
-          duration_label: body.duration_label ?? existingMeta.duration_label ?? 'Duration',
-          platform_label: body.platform_label ?? existingMeta.platform_label ?? 'Platform',
-          project_type_label: body.project_type_label ?? existingMeta.project_type_label ?? 'Project type',
-          platform: body.platform ?? existingMeta.platform ?? 'Mobile + Web',
-          project_type: body.project_type ?? existingMeta.project_type ?? 'End-to-end'
-        };
-        vals.push(JSON.stringify(caseMeta));
-        setParts.push(`content = jsonb_set(COALESCE(content, '{}'::jsonb), '{case_meta}', $${vals.length}::jsonb, true)`);
+        const nextContent = { ...existingContent };
+        if (hasClient) nextContent.client = String(body.client ?? '');
+        if (hasCaseMeta) {
+          const existingMeta = existingContent?.case_meta && typeof existingContent.case_meta === 'object' && !Array.isArray(existingContent.case_meta) ? existingContent.case_meta : {};
+          nextContent.case_meta = {
+            role_label: body.role_label ?? existingMeta.role_label ?? 'Role',
+            duration_label: body.duration_label ?? existingMeta.duration_label ?? 'Duration',
+            platform_label: body.platform_label ?? existingMeta.platform_label ?? 'Platform',
+            project_type_label: body.project_type_label ?? existingMeta.project_type_label ?? 'Project type',
+            platform: body.platform ?? existingMeta.platform ?? 'Mobile + Web',
+            project_type: body.project_type ?? existingMeta.project_type ?? 'End-to-end'
+          };
+        }
+        vals.push(JSON.stringify(nextContent));
+        setParts.push(`content = $${vals.length}::jsonb`);
       }
       if (!setParts.length) return res.json(mapProject(existing));
       vals.push(body.id);
