@@ -6,7 +6,21 @@ export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
 function mapProject(p) {
   const content = p?.content && typeof p.content === 'object' && !Array.isArray(p.content) ? p.content : {};
-  return { ...p, client: p?.client ?? content.client ?? '', short_description: p?.subtitle || '', overview: p?.description || '', status: p?.status || 'draft', sort_order: Number(p?.sort_order || 0) };
+  const meta = content?.case_meta && typeof content.case_meta === 'object' && !Array.isArray(content.case_meta) ? content.case_meta : {};
+  return {
+    ...p,
+    client: p?.client ?? content.client ?? '',
+    short_description: p?.subtitle || '',
+    overview: p?.description || '',
+    platform: meta.platform ?? 'Mobile + Web',
+    project_type: meta.project_type ?? 'End-to-end',
+    role_label: meta.role_label ?? 'Role',
+    duration_label: meta.duration_label ?? 'Duration',
+    platform_label: meta.platform_label ?? 'Platform',
+    project_type_label: meta.project_type_label ?? 'Project type',
+    status: p?.status || 'draft',
+    sort_order: Number(p?.sort_order || 0)
+  };
 }
 function payload(body, partial = false) {
   const fields = { title: body.title, slug: body.slug, subtitle: body.short_description ?? body.subtitle, description: body.overview ?? body.description, role: body.role, year: body.year, duration: body.duration, category: body.category, status: body.status, sort_order: body.sort_order === undefined ? undefined : Number(body.sort_order || 0) };
@@ -18,7 +32,7 @@ export default async function (req, res) {
     const auth = await requireSupabaseAdmin(req); if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
     if (req.method === 'GET') { const { rows } = await db.query(`SELECT * FROM case_studies ORDER BY sort_order ASC, created_at ASC`); return res.json(rows.map(mapProject)); }
     const body = req.body || {};
-    if (req.method === 'POST') { if (!body.title || !body.slug) return res.status(400).json({ error: 'Title and slug are required.' }); const content = { sections: [], client: body.client || '' }; const { rows } = await db.query(`INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
+    if (req.method === 'POST') { if (!body.title || !body.slug) return res.status(400).json({ error: 'Title and slug are required.' }); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end' } }; const { rows } = await db.query(`INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
     if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
     const existing = await getProject(body.id); if (!existing) return res.status(404).json({ error: 'Case study not found.' });
     if (req.method === 'PUT') {
@@ -29,6 +43,21 @@ export default async function (req, res) {
       if (body.client !== undefined) {
         vals.push(String(body.client ?? ''));
         setParts.push(`content = jsonb_set(COALESCE(content, '{}'::jsonb), '{client}', to_jsonb($${vals.length}::text), true)`);
+      }
+      const hasCaseMeta = ['role_label','duration_label','platform_label','project_type_label','platform','project_type'].some(k => body[k] !== undefined);
+      if (hasCaseMeta) {
+        const existingContent = existing?.content && typeof existing.content === 'object' && !Array.isArray(existing.content) ? existing.content : {};
+        const existingMeta = existingContent?.case_meta && typeof existingContent.case_meta === 'object' && !Array.isArray(existingContent.case_meta) ? existingContent.case_meta : {};
+        const caseMeta = {
+          role_label: body.role_label ?? existingMeta.role_label ?? 'Role',
+          duration_label: body.duration_label ?? existingMeta.duration_label ?? 'Duration',
+          platform_label: body.platform_label ?? existingMeta.platform_label ?? 'Platform',
+          project_type_label: body.project_type_label ?? existingMeta.project_type_label ?? 'Project type',
+          platform: body.platform ?? existingMeta.platform ?? 'Mobile + Web',
+          project_type: body.project_type ?? existingMeta.project_type ?? 'End-to-end'
+        };
+        vals.push(JSON.stringify(caseMeta));
+        setParts.push(`content = jsonb_set(COALESCE(content, '{}'::jsonb), '{case_meta}', $${vals.length}::jsonb, true)`);
       }
       if (!setParts.length) return res.json(mapProject(existing));
       vals.push(body.id);

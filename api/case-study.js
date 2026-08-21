@@ -30,10 +30,21 @@ export default async function (req, res) {
     const { rows } = await db.query(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
+    const content = project.content && typeof project.content === 'object' && !Array.isArray(project.content) ? project.content : {};
+    const caseMeta = content.case_meta && typeof content.case_meta === 'object' && !Array.isArray(content.case_meta) ? content.case_meta : {};
     return res.json({
       id: project.id, slug: project.slug, title: project.title || '', subtitle: project.subtitle || '',
       description: project.description || '', category: project.category || '', year: project.year || '',
-      role: project.role || '', duration: project.duration || '', cover_image_url: project.cover_image_url || '',
+      role: project.role || '', duration: project.duration || '',
+      case_meta: {
+        role_label: caseMeta.role_label || 'Role',
+        duration_label: caseMeta.duration_label || 'Duration',
+        platform_label: caseMeta.platform_label || 'Platform',
+        project_type_label: caseMeta.project_type_label || 'Project type',
+        platform: caseMeta.platform || 'Mobile + Web',
+        project_type: caseMeta.project_type || 'End-to-end'
+      },
+      cover_image_url: project.cover_image_url || '',
       hero_image_url: project.hero_image_url || '', content: { sections: normalizeSections(project.content) },
     });
   } catch (error) {
