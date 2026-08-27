@@ -1,13 +1,11 @@
-import { requireSupabaseAdmin } from 'lib/admin-auth';
 import { uploadStorageObject } from 'lib/supabase-admin';
 import crypto from 'node:crypto';
 
-export const access = 'public';
+// Owner-only legacy upload endpoint.
+export const access = 'admin';
 export const methods = ['POST'];
 
 export default async function (req, res) {
-  const auth = await requireSupabaseAdmin(req);
-  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   const file = req.files?.[0];
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
   const safe = String(file.filename || 'file').replace(/[^a-zA-Z0-9._-]/g, '-');

@@ -1,7 +1,7 @@
 import { db } from 'hatchable';
-import { requireSupabaseAdmin } from 'lib/admin-auth';
 
-export const access = 'public';
+// Owner-only CMS endpoint. Edge auth avoids the Supabase Auth server dependency.
+export const access = 'admin';
 export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
 const DEFAULT_REFINING_ITEMS = [
@@ -70,8 +70,6 @@ function response(project) { const content = normalizeContent(project.content); 
 
 export default async function (req, res) {
   try {
-    const auth = await requireSupabaseAdmin(req);
-    if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
     const body = req.body || {};
     const projectId = req.query?.project_id || body.project_id || body.id;
     if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
