@@ -1,8 +1,9 @@
 import { db } from 'hatchable';
+import { requireSupabaseAdmin } from 'lib/admin-auth';
 
-// This is an owner-only CMS endpoint. Use Hatchable's platform auth at the edge
-// instead of making every request wait on Supabase Auth from the server.
-export const access = 'admin';
+// Owner-only CMS endpoint. Authentication is handled by the portfolio's
+// Supabase admin account, so the CMS does not depend on Hatchable console login.
+export const access = 'public';
 export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
 function mapProject(p) {
@@ -29,6 +30,8 @@ function payload(body, partial = false) {
 }
 async function getProject(id) { const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
 export default async function (req, res) {
+  const auth = await requireSupabaseAdmin(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
     if (req.method === 'GET') { const { rows } = await db.query(`SELECT * FROM case_studies ORDER BY sort_order ASC, created_at ASC`); return res.json(rows.map(mapProject)); }
     const body = req.body || {};
