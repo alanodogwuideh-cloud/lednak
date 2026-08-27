@@ -170,6 +170,18 @@ export default async function (req, res) {
         }
 
         if (!allowed.has(body.asset_type)) return res.status(400).json({ error: 'Invalid asset type.' });
+
+        // Cover and hero are fixed case-study assets, not section media. The
+        // Media tab exposes them as normal upload choices, so a fresh upload
+        // must update the corresponding case_studies column directly instead
+        // of trying to find a section for it. Replacement uploads already use
+        // replace_fixed; this also makes first-time cover/hero uploads work.
+        if (body.asset_type === 'cover' || body.asset_type === 'hero') {
+          const column = body.asset_type === 'cover' ? 'cover_image_url' : 'hero_image_url';
+          const saved = await db.query(`UPDATE case_studies SET ${column} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
+          return res.status(201).json({ kind: body.asset_type, url: body.url, project: saved.rows?.[0] || project });
+        }
+
         const section = body.section_id ? content.sections.find(s => String(s.id) === String(body.section_id)) : sectionForAsset(content.sections, body.asset_type);
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}.` });
         const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
