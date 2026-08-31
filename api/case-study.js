@@ -93,6 +93,7 @@ export default async function (req, res) {
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
     const content = object(project.content);
     const caseMeta = object(content.case_meta);
     const sections = normalizeSections(content);
