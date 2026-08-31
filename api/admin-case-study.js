@@ -55,9 +55,12 @@ function normalizeImageSubsections(section, imageLayout) {
   const validCols = value => [1,2,3,4].includes(Number(value)) ? Number(value) : 1;
   const normalizeOne = (sub, fallbackImages, fallbackTitle = '') => {
     const x = metadataObject(sub);
-    const ids = new Set((Array.isArray(x.image_ids) ? x.image_ids : []).map(String));
-    const selected = Array.isArray(x.images) ? x.images : fallbackImages.filter(img => ids.has(String(img.id)));
-    const resolved = selected.length ? selected : fallbackImages;
+    const hasImageIds = Array.isArray(x.image_ids);
+    const ids = new Set((hasImageIds ? x.image_ids : (Array.isArray(x.images) ? x.images.map(img => img?.id).filter(Boolean) : [])).map(String));
+    // image_ids is the authoritative subsection assignment. The embedded
+    // `images` array can be stale because it is a hydrated/rendering copy;
+    // never let it repopulate a subsection after an image is unselected.
+    const resolved = hasImageIds ? fallbackImages.filter(img => ids.has(String(img.id))) : fallbackImages.filter(img => ids.has(String(img.id)));
     const layout = x.image_layout && typeof x.image_layout === 'object' ? x.image_layout : imageLayout;
     return {
       id: String(x.id || crypto.randomUUID()),
