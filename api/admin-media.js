@@ -1,4 +1,4 @@
-import { supabaseAdmin } from 'lib/supabase-admin';
+import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
 import { db } from 'hatchable';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
@@ -225,8 +225,24 @@ export default async function (req, res) {
       if (!body.id) return res.status(400).json({ error: 'Missing image id.' });
       const found = findImage(content, body.id);
       if (!found) return res.status(404).json({ error: 'Media item not found.' });
+      const deletedUrl = String(found.image?.image_url || '');
       found.section.images.splice(found.index, 1);
       await saveContent(project, content);
+
+      // Media Library deletion is the only CMS action that permanently removes
+      // an uploaded object. Do not remove the storage object when it is still
+      // referenced by another case study or by another fixed asset.
+      if (deletedUrl) {
+        const marker = `/storage/v1/object/public/${BUCKET}/`;
+        const { rows: otherRefs } = await db.query(
+          `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR content::text LIKE $3) LIMIT 1`,
+          [project.id, deletedUrl, `%${deletedUrl}%`]
+        );
+        if (!otherRefs?.length) {
+          const storagePath = storagePathFromPublicUrl(deletedUrl, BUCKET);
+          if (storagePath) await deleteStorageObject(BUCKET, storagePath);
+        }
+      }
       return res.json({ ok: true });
     }
 
