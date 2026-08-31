@@ -5,6 +5,18 @@ export const methods = ['GET'];
 
 const aliases = { 'outsider-vendor-platform': 'outsider-vendor-app' };
 
+function inferImageLayout(section) {
+  const meta = section?.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : {};
+  const images = Array.isArray(section?.images) ? section.images : [];
+  const saved = meta.image_layout && typeof meta.image_layout === 'object' ? meta.image_layout : {};
+  const title = String(section?.title || '');
+  const mobileFinal = images.length > 0 && images.every(x => x?.image_type === 'mobile_final_ui');
+  const webFinal = images.length > 0 && images.every(x => x?.image_type === 'web_final_ui');
+  const matrix = /user\s*research\s*findings\s*matrix/i.test(title);
+  let defaults = images.length <= 1 ? [1,1,1] : [2,2,1];
+  if (mobileFinal) defaults=[4,4,2]; else if (webFinal || matrix) defaults=[1,1,1];
+  return { desktop:[1,2,3,4].includes(Number(saved.desktop))?Number(saved.desktop):defaults[0], tablet:[1,2,3,4].includes(Number(saved.tablet))?Number(saved.tablet):defaults[1], mobile:[1,2,3,4].includes(Number(saved.mobile))?Number(saved.mobile):defaults[2] };
+}
 function normalizeSections(content) {
   const sections = Array.isArray(content?.sections) ? content.sections : [];
   return sections.map((section, index) => ({
@@ -18,7 +30,7 @@ function normalizeSections(content) {
     title: section.title || '',
     body: section.body || section.text || '',
     text: section.text || section.body || '',
-    metadata: section.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : {},
+    metadata: { ...(section.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : {}), image_layout: inferImageLayout(section) },
     images: Array.isArray(section.images) ? section.images : [],
     display_order: Number(section.display_order || index + 1),
   }));

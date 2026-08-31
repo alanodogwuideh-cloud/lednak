@@ -12,6 +12,22 @@ const DEFAULT_REFINING_ITEMS = [
 ];
 
 function metadataObject(value) { return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {}; }
+function inferImageLayout(section) {
+  const meta = metadataObject(section?.metadata); const images = Array.isArray(section?.images) ? section.images : [];
+  const saved = meta.image_layout && typeof meta.image_layout === 'object' ? meta.image_layout : {};
+  const title = String(section?.title || ''); const types = new Set(images.map(x => String(x?.image_type || '')).filter(Boolean));
+  const isMobileFinal = images.length > 0 && images.every(x => x?.image_type === 'mobile_final_ui');
+  const isWebFinal = images.length > 0 && images.every(x => x?.image_type === 'web_final_ui');
+  const isResearchMatrix = /user\s*research\s*findings\s*matrix/i.test(title) || images.some(x => /user\s*research\s*findings\s*matrix/i.test(`${x?.caption || ''} ${x?.alt_text || ''}`));
+  const isDesign = /design\s*exploration/i.test(title);
+  const isLowfi = images.some(x => x?.image_type === 'low_fi_wireframe' || (x?.image_type === 'wireframes' && /lowfi\s*wireframe.*offline\s*order\s*flow|offline\s*order\s*flow.*lowfi\s*wireframe/i.test(String(x?.caption || ''))));
+  let defaults = images.length <= 1 ? [1, 1, 1] : [2, 2, 1];
+  if (isMobileFinal) defaults = [4, 4, 2];
+  else if (isWebFinal || isResearchMatrix) defaults = [1, 1, 1];
+  else if (isDesign && (types.has('paper_wireframe') || isLowfi)) defaults = [2, 2, 1];
+  else if (isDesign && types.has('wireframes')) defaults = [1, 1, 1];
+  return { desktop: [1,2,3,4].includes(Number(saved.desktop)) ? Number(saved.desktop) : defaults[0], tablet: [1,2,3,4].includes(Number(saved.tablet)) ? Number(saved.tablet) : defaults[1], mobile: [1,2,3,4].includes(Number(saved.mobile)) ? Number(saved.mobile) : defaults[2] };
+}
 const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow'];
 const PRESENTATIONS = new Set(['text_box','card','list','quote']);
 const STYLE_VALUES = new Set(['card1','card2','card3','card4','analytic_card']);
@@ -36,6 +52,7 @@ function assetKey(value){const raw=String(value||'').trim();if(!raw)return 'proj
 function normalizeSection(section, index) {
   const metadata = metadataObject(section?.metadata); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
+  metadata.image_layout = inferImageLayout(section);
   const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, asset_type:assetType, type:presentation, section_type:presentation, presentation_style:style, title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: Array.isArray(section?.images) ? section.images : [], display_order: Number(section?.display_order || index + 1) };
   if (Array.isArray(metadata.items)) out.items = [...metadata.items]; if (metadata.item_display !== undefined) out.item_display = metadata.item_display; if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text; if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
