@@ -191,7 +191,21 @@ export default async function (req, res) {
       const found = findImage(content, body.id);
       if (!found) return res.status(404).json({ error: 'Media item not found.' });
       const image = { ...found.image };
-      if (body.display_order !== undefined) image.display_order = Math.max(0, Number(body.display_order) || 0);
+      if (body.display_order !== undefined) {
+        const requested = Math.max(0, Number(body.display_order) || 0);
+        const siblings = [...found.section.images].sort((a, b) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0));
+        const currentIndex = siblings.findIndex(item => String(item.id) === String(body.id));
+        if (currentIndex >= 0) {
+          const targetIndex = Math.min(requested, siblings.length - 1);
+          siblings.splice(currentIndex, 1);
+          siblings.splice(targetIndex, 0, image);
+          siblings.forEach((item, index) => { item.display_order = index; });
+          found.section.images = siblings;
+          await saveContent(project, content);
+          return res.json({ ...image, id: body.id, project_id: project.id, section_id: found.section.id, display_order: targetIndex });
+        }
+        image.display_order = requested;
+      }
       if (body.alt_text !== undefined) image.alt_text = String(body.alt_text);
       if (body.caption !== undefined) image.caption = String(body.caption);
       if (body.section_index !== undefined && String(body.section_index) !== '') {

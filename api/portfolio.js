@@ -1,14 +1,16 @@
 import { supabaseAdmin } from 'lib/supabase-admin';
+import { db } from 'hatchable';
 
 export const access = 'public';
 export const methods = ['GET'];
 
 export default async function (req, res) {
   try {
-    const [settingsRows, projects] = await Promise.all([
+    const [settingsRows, projectResult] = await Promise.all([
       supabaseAdmin('site_settings?select=setting_key,setting_value,updated_at&order=setting_key.asc'),
-      supabaseAdmin('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
+      db.query(`SELECT id,title,slug,subtitle,description,role,client,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 ORDER BY sort_order ASC, created_at ASC`, ['published']),
     ]);
+    const projects = projectResult?.rows || [];
 
     const values = {};
     for (const row of settingsRows || []) values[row.setting_key] = row.setting_value || '';
