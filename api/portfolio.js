@@ -8,7 +8,7 @@ export default async function (req, res) {
   try {
     const [settingsRows, projectResult] = await Promise.all([
       supabaseAdmin('site_settings?select=setting_key,setting_value,updated_at&order=setting_key.asc'),
-      db.query(`SELECT id,title,slug,subtitle,description,role,client,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 ORDER BY sort_order ASC, created_at ASC`, ['published']),
+      db.query(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 ORDER BY sort_order ASC, created_at ASC`, ['published']),
     ]);
     const projects = projectResult?.rows || [];
 
@@ -32,8 +32,8 @@ export default async function (req, res) {
       projects: (projects || []).map(p => ({
         ...p,
         short_description: p.short_description || p.overview || '',
-        status: p.published ? 'published' : 'draft',
-        sort_order: Number(p.display_order || 0),
+        status: p.status || 'draft',
+        sort_order: Number(p.sort_order || 0),
       })),
     });
   } catch (error) {
