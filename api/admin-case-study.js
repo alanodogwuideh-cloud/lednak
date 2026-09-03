@@ -41,7 +41,7 @@ function inferAssetType(section) {
 }
 function inferPresentation(section) {
   const old=String(section?.section_type||section?.type||''); const meta=metadataObject(section?.metadata);
-  if(PRESENTATIONS.has(old)) return old; if(old==='quote') return 'quote'; if(['card2','card4','card3','cards','card1','analytic_card'].includes(old)) return 'card'; if(old==='list') return 'list';
+  if(PRESENTATIONS.has(old)) return old; if(old==='quote') return 'quote'; if(['card2','card4','card3','cards','card1','card5','analytic_card'].includes(old)) return 'card'; if(old==='list') return 'list';
   if(PRESENTATIONS.has(meta.presentation_type)) return meta.presentation_type; return 'text_box';
 }
 function inferStyle(section) {
