@@ -118,7 +118,19 @@ function normalizeSection(section, index) {
   if (Array.isArray(metadata.items)) out.items = [...metadata.items]; if (metadata.item_display !== undefined) out.item_display = metadata.item_display; if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text; if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
 }
-function normalizeContent(content) { return { ...(content && typeof content === 'object' && !Array.isArray(content) ? content : {}), sections: Array.isArray(content?.sections) ? content.sections.map(normalizeSection) : [] }; }
+function normalizeContent(content) {
+  const base = content && typeof content === 'object' && !Array.isArray(content) ? content : {};
+  const rawSections = Array.isArray(base.sections) ? base.sections : [];
+  const usedIds = new Set();
+  const sections = rawSections.map((section, index) => {
+    const normalized = normalizeSection(section, index);
+    let id = String(normalized.id || normalized._id || '').trim();
+    if (!id || usedIds.has(id)) id = crypto.randomUUID();
+    usedIds.add(id);
+    return { ...normalized, id, _id: id };
+  });
+  return { ...base, sections };
+}
 function refine(section) {
   const metadata = metadataObject(section.metadata);
   if (Array.isArray(section.items)) metadata.items = [...section.items];
