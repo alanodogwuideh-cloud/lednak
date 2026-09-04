@@ -1,5 +1,6 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 import { db } from 'hatchable';
+import { repairVendorMedia } from 'lib/case-study-media';
 
 export const access='public';
 export const methods=['GET','POST','PATCH','DELETE'];
@@ -13,7 +14,7 @@ const safeName=n=>String(n||'image').replace(/[^a-zA-Z0-9._-]/g,'-').slice(0,160
 const urlToPath=url=>{const marker='/storage/v1/object/public/portfolio-images/';const i=String(url||'').indexOf(marker);return i<0?'':String(url).slice(i+marker.length)};
 async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...headers(),...(opts.headers||{})}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(typeof d==='string'?d:(d?.message||d?.hint||'Supabase request failed'));return d;}
 async function deleteUrl(url){const path=urlToPath(url);if(!path)return;await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'DELETE',headers:headers()}).catch(()=>{});}
-async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]||null;}
+async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);const p=rows[0]||null;if(!p)return null;const repaired=repairVendorMedia(p);if(repaired.changed){const saved=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[repaired.project.content,p.id]);return saved.rows[0]||repaired.project;}return p;}
 function sectionsOf(p){return Array.isArray(p?.content?.sections)?p.content.sections:[];}
 function flattenImages(p){const out=[];sectionsOf(p).forEach((s,si)=>{(Array.isArray(s.images)?s.images:[]).forEach((img,ii)=>out.push({...img,id:`${p.id}:${si}:${ii}`,section_index:si,image_index:ii,section_id:`${p.id}:${si}`}));});return out.sort((a,b)=>Number(a.display_order||0)-Number(b.display_order||0));}
 function fixed(p){return [p?.cover_image_url?{fixed:'cover',url:p.cover_image_url,label:'Project cover'}:null,p?.hero_image_url?{fixed:'hero',url:p.hero_image_url,label:'Case-study hero'}:null].filter(Boolean);}
