@@ -83,7 +83,14 @@ export default async function (req, res) {
 
     const query = req.query || {};
     const body = req.body || {};
-    const projectId = query.project_id || body.project_id;
+    let projectId = query.project_id || body.project_id;
+    // Media mutation requests can safely recover their project scope from the
+    // media row. This keeps older admin clients from failing with Missing
+    // project_id while still enforcing project ownership below.
+    if (!projectId && (req.method === 'PATCH' || req.method === 'DELETE') && body.id) {
+      const ownerRows = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(body.id)}&select=project_id&limit=1`);
+      projectId = ownerRows?.[0]?.project_id || '';
+    }
 
     if (req.method === 'GET') {
       if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });

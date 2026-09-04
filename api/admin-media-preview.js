@@ -5,11 +5,10 @@ export const access = 'public';
 export const methods = ['GET'];
 
 async function sendProxy(res, url) {
-  const response = await fetch(url);
-  if (!response.ok) return res.status(response.status).send('Media preview could not be loaded.');
-  res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+  // Supabase Storage is already public for these portfolio assets. Redirecting
+  // avoids loading multi-megabyte GIF/video files into the 128 MB isolate heap.
   res.setHeader('Cache-Control', 'private, max-age=300');
-  return res.send(Buffer.from(await response.arrayBuffer()));
+  return res.redirect(url);
 }
 
 export default async function (req, res) {
