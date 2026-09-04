@@ -69,6 +69,6 @@
     timer = window.setTimeout(() => {
       phase = 'typing';
       step();
-    }, 1000);
+    }, 3000);
   });
 })();
