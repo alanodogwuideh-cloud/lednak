@@ -52,6 +52,48 @@ async function loadContent(projectId) {
   };
 }
 
+async function migrateLegacyCaptionedCards(projectId, current) {
+  const legacy = current.sections.find(section =>
+    String(section.section_type || section.type) === 'cards' &&
+    Array.isArray(section.metadata?.card2_items) &&
+    section.metadata.card2_items.length
+  );
+  if (!legacy || current.sections.some(section => String(section.section_type || section.type) === 'card2')) return current;
+
+  const captionedItems = legacy.metadata.card2_items
+    .map(item => ({ caption: String(item?.caption || '').trim(), description: String(item?.description || '').trim() }))
+    .filter(item => item.caption || item.description);
+  if (!captionedItems.length) return current;
+
+  const legacyItems = Array.isArray(legacy.items) && legacy.items.length
+    ? legacy.items
+    : captionedItems.map(item => item.caption && item.description ? `${item.caption}: ${item.description}` : (item.caption || item.description));
+
+  const cleanMetadata = { ...normalizeMetadata(legacy.metadata), items: legacyItems };
+  delete cleanMetadata.card2_items;
+
+  await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(legacy.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ section_type: 'cards', metadata: cleanMetadata }),
+  });
+
+  await supabaseAdmin('case_study_sections', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      project_id: projectId,
+      section_type: 'card2',
+      title: '',
+      body: '',
+      metadata: { card2_items: captionedItems },
+      display_order: Number(legacy.display_order || 0),
+    }),
+  });
+
+  return loadContent(projectId);
+}
+
 function metadataFor(section) {
   const metadata = normalizeMetadata(section.metadata);
   if (Array.isArray(section.items)) metadata.items = section.items;
@@ -131,7 +173,8 @@ export default async function (req, res) {
     if (!current) return res.status(404).json({ error: 'Case study not found.' });
 
     if (req.method === 'GET') {
-      return res.json(current);
+      const migrated = await migrateLegacyCaptionedCards(projectId, current);
+      return res.json(migrated);
     }
 
     if (req.method === 'PUT' && body.replace_all === true && Array.isArray(body.sections)) {
