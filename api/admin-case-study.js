@@ -70,8 +70,11 @@ async function saveSections(project, incoming, caseMeta) {
       project_type: caseMeta.project_type ?? currentMeta.project_type ?? 'End-to-end'
     };
   }
+  const existingById = new Map(current.sections.map((s, i) => [String(s.id || s._id || `section-${i + 1}`), s]));
   const sections = incoming.map((s, i) => {
-    const x = normalizeSection(s, i);
+    const existingSection = existingById.get(String(s?.id || s?._id || `section-${i + 1}`));
+    const source = (s?.asset_type || s?.metadata?.asset_type) ? s : { ...s, asset_type: existingSection?.asset_type || existingSection?.metadata?.asset_type || s?.asset_type };
+    const x = normalizeSection(source, i);
     x.metadata = refine(x);
     // Card 2 is the replacement representation for the legacy flat list.
     // Do not carry the old `items` array forward, otherwise deleted legacy
