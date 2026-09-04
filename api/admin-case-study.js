@@ -1,34 +1,30 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { db } from 'hatchable';
 export const access='public';
 export const methods=['GET','POST','PUT','DELETE'];
-function getSections(project){const s=project?.content?.sections;return Array.isArray(s)?s:[]}
-function normalize(project){return getSections(project).map((s,i)=>({...s,id:`${project.id}:${i}`,display_order:i+1,section_type:s.type||'content',body:s.body??s.text??''}));}
-async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
-async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
-export default async function(req,res){
- try{
-  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
-  const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
+const base=()=>process.env.SUPABASE_URL;const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const headers=()=>({apikey:key(),Authorization:'Bearer '+key(),'Content-Type':'application/json'});
+async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...headers(),...(opts.headers||{})}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(typeof d==='string'?d:(d?.message||d?.hint||'Supabase request failed'));return d;}
+export default async function(req,res){try{
+ const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
+ const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
+ if(req.method==='GET'){
   if(!projectId)return res.status(400).json({error:'Missing project_id.'});
-  const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-  if(req.method==='GET')return res.json({project,sections:normalize(project),images:[]});
-  const sections=getSections(project);
-  if(req.method==='POST'){
-   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{}});
-   const saved=await saveSections(projectId,sections);const out=normalize(saved);return res.status(201).json(out[out.length-1]);
-  }
-  if(req.method==='PUT'){
-   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map(s=>({type:s.section_type||s.type||'content',title:s.title||'',body:s.body??s.text??'',text:s.body??s.text??'',items:Array.isArray(s.items)?s.items:undefined,metadata:s.metadata||{}}));const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:[]});}
-   if(!b.id)return res.status(400).json({error:'Missing section id.'});
-   const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
-   sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{}};
-   const saved=await saveSections(projectId,sections);return res.json(normalize(saved)[idx]);
-  }
-  if(req.method==='DELETE'){
-   if(!b.id)return res.status(400).json({error:'Missing section id.'});const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
-   sections.splice(idx,1);await saveSections(projectId,sections);return res.json({ok:true});
-  }
-  return res.status(405).json({error:'Method not allowed'});
- }catch(e){return res.status(500).json({error:e.message||'Case study section operation failed.'});}
-}
+  const project=(await sb('projects?select=*&id=eq.'+encodeURIComponent(projectId)+'&limit=1'))?.[0];if(!project)return res.status(404).json({error:'Case study not found.'});
+  const [sections,images]=await Promise.all([sb('case_study_sections?select=*&project_id=eq.'+encodeURIComponent(projectId)+'&order=display_order.asc,created_at.asc'),sb('project_images?select=*&project_id=eq.'+encodeURIComponent(projectId)+'&order=display_order.asc,created_at.asc')]);
+  return res.json({project,sections,images});
+ }
+ if(req.method==='POST'){
+  if(!projectId)return res.status(400).json({error:'Missing project_id.'});
+  const row={project_id:projectId,section_type:b.section_type||'content',title:b.title||'',body:b.body||'',metadata:b.metadata||{},display_order:Number(b.display_order)||0};
+  const d=await sb('case_study_sections',{method:'POST',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.status(201).json(d?.[0]||d);
+ }
+ if(req.method==='PUT'){
+  if(!b.id)return res.status(400).json({error:'Missing section id.'});
+  const row={section_type:b.section_type||'content',title:b.title||'',body:b.body||'',metadata:b.metadata||{},display_order:Number(b.display_order)||0,updated_at:new Date().toISOString()};
+  const d=await sb('case_study_sections?id=eq.'+encodeURIComponent(b.id),{method:'PATCH',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.json(d?.[0]||d);
+ }
+ if(req.method==='DELETE'){
+  if(!b.id)return res.status(400).json({error:'Missing section id.'});
+  await sb('case_study_sections?id=eq.'+encodeURIComponent(b.id),{method:'DELETE'});return res.json({ok:true});
+ }
+ return res.status(405).json({error:'Method not allowed'});
+}catch(e){return res.status(500).json({error:e.message||'Case study section operation failed.'});}}
