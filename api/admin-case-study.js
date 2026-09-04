@@ -49,6 +49,19 @@ function inferStyle(section) {
   if(STYLE_VALUES.has(old)) return old; if(STYLE_VALUES.has(meta.presentation_style)) return meta.presentation_style; if(meta.card_variant==='card4')return 'card4'; if(meta.card_variant==='card3')return 'card3'; if(meta.card_variant==='card1')return 'card1'; if(meta.card_variant==='analytic_card')return 'analytic_card'; if(Array.isArray(meta.card4_items)&&meta.card4_items.length)return 'card4'; if(Array.isArray(meta.card2_items)&&meta.card2_items.length)return 'card2'; return '';
 }
 function assetKey(value){const raw=String(value||'').trim();if(!raw)return 'project_context';return raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+function normalizeCardItems(metadata){
+  const meta=metadataObject(metadata);
+  for(const key of ['card2_items','card4_items']){
+    if(!Array.isArray(meta[key])) continue;
+    const used=new Set();
+    meta[key]=meta[key].map((item,index)=>{
+      const x=metadataObject(item); let id=String(x.id||'').trim();
+      if(!id||used.has(id)) id=crypto.randomUUID(); used.add(id);
+      return {...x,id};
+    });
+  }
+  return meta;
+}
 function normalizeImageSubsections(section, imageLayout) {
   const meta = metadataObject(section?.metadata);
   const images = Array.isArray(section?.images) ? section.images : [];
@@ -110,7 +123,7 @@ function normalizeImageSubsections(section, imageLayout) {
   return groups;
 }
 function normalizeSection(section, index) {
-  const metadata = metadataObject(section?.metadata); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
+  let metadata = normalizeCardItems(section?.metadata); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
   metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
