@@ -20,8 +20,8 @@ export default async function(req,res){
     const designSection = sections.find(section => /design\s*exploration/i.test(section.title || ''));
     const grouped = sections.map(section => {
       const sectionImages = images.filter(img => img.section_id === section.id);
-      // Wireframes belong to the Design Exploration narrative, even if older
-      // CMS records still have them attached to the process/storyboard section.
+      // Keep the database's existing section assignment intact. The frontend
+      // handles the requested Final UI narrative placement without changing CMS data.
       const wireframes = designSection && designSection.id === section.id
         ? images.filter(img => img.image_type === 'wireframes')
         : [];
