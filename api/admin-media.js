@@ -59,12 +59,13 @@ function sectionForAsset(sections, assetType) {
 function flatten(project) {
   const content = normalizeContent(project.content);
   const images = [];
-  content.sections.forEach(section => {
+  content.sections.forEach((section, sectionIndex) => {
     section.images.forEach((image, index) => images.push({
       ...image,
       id: image.id || `${section.id}-image-${index + 1}`,
       project_id: project.id,
       section_id: section.id,
+      section_index: sectionIndex,
       section_title: section.title || '',
       display_order: Number(image.display_order ?? index),
     }));
@@ -135,7 +136,7 @@ export default async function (req, res) {
         res.setHeader('Content-Type', file.headers.get('content-type') || 'application/octet-stream');
         return res.send(Buffer.from(await file.arrayBuffer()));
       }
-      return res.json({ project, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, title: s.title || '', section_type: s.section_type || s.type || 'content', display_order: Number(s.display_order || i + 1) })) });
+      return res.json({ project, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, index: i, title: s.title || '', section_type: s.section_type || s.type || 'content', display_order: Number(s.display_order || i + 1) })) });
     }
 
     if (req.method === 'POST') {
@@ -200,6 +201,23 @@ export default async function (req, res) {
       if (body.display_order !== undefined) image.display_order = Math.max(0, Number(body.display_order) || 0);
       if (body.alt_text !== undefined) image.alt_text = String(body.alt_text);
       if (body.caption !== undefined) image.caption = String(body.caption);
+      if (body.section_index !== undefined && String(body.section_index) !== '') {
+        const targetIndex = Number(body.section_index);
+        const target = Number.isInteger(targetIndex) ? content.sections[targetIndex] : null;
+        if (!target) return res.status(400).json({ error: 'Selected case-study section not found.' });
+        if (targetIndex === content.sections.indexOf(found.section)) {
+          found.section.images[found.index] = image;
+          await saveContent(project, content);
+          return res.json({ ...image, id: body.id, project_id: project.id, section_id: found.section.id, section_index: targetIndex });
+        }
+        found.section.images.splice(found.index, 1);
+        image.section_id = target.id;
+        image.project_id = project.id;
+        image.display_order = Math.max(0, target.images.length);
+        target.images.push(image);
+        await saveContent(project, content);
+        return res.json({ ...image, id: body.id, project_id: project.id, section_id: target.id });
+      }
       found.section.images[found.index] = image;
       await saveContent(project, content);
       return res.json({ ...image, id: body.id, project_id: project.id, section_id: found.section.id });
