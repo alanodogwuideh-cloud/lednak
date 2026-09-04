@@ -13,16 +13,7 @@ const headers = () => ({ apikey: serviceKey(), Authorization: `Bearer ${serviceK
 const safeName = n => String(n || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
 const uuid = () => crypto.randomUUID();
 
-const allowed = new Set([
-  'cover', 'hero',
-  'research', 'chinedu_persona', 'fatima_persona', 'storyboard',
-  'paper_wireframe', 'low_fi_wireframe', 'wireframes', 'usability_testing',
-  'mobile_final_ui', 'web_final_ui',
-  'marketing_sitemap', 'marketing_paper_wireframe', 'marketing_digital_wireframe',
-  'marketing_desktop_before', 'marketing_desktop_after', 'marketing_mobile_before',
-  'marketing_mobile_after', 'marketing_desktop_final', 'marketing_tablet_final',
-  'marketing_mobile_final', 'marketing_hifi_desktop', 'marketing_hifi_mobile',
-]);
+const allowed = new Set(['project_cover','case_study_hero','project_overview','the_challenge','the_goal','my_role','project_context','research_overview','research_methods','research_findings','key_insights','user_personas','user_needs','problem_statement','ideation','information_architecture','user_flow','wireframing','low_fidelity_prototype','high_fidelity_prototype','heuristic_review','usability_testing','design_decisions','design_iteration','design_refinement','visual_design','design_system','accessibility','responsive_design','final_solution','outcome','learnings','next_steps','sitemap','paper_wireframe','digital_wireframe','design_exploration','desktop_before_heuristic','desktop_after_heuristic','mobile_before_heuristic','mobile_after_heuristic','final_desktop_screens','final_tablet_screens','final_mobile_screens','hifi_desktop_onboarding','hifi_mobile_onboarding','research','storyboard','wireframes_legacy','mobile_final_ui','web_final_ui','cover','hero','chinedu_persona','fatima_persona','low_fi_wireframe','wireframes','marketing_sitemap','marketing_paper_wireframe','marketing_digital_wireframe','marketing_desktop_before','marketing_desktop_after','marketing_mobile_before','marketing_mobile_after','marketing_desktop_final','marketing_tablet_final','marketing_mobile_final','marketing_hifi_desktop','marketing_hifi_mobile']);
 
 function normalizeContent(content) {
   return {
@@ -42,17 +33,13 @@ async function getProject(id) {
 }
 
 function sectionForAsset(sections, assetType) {
-  if (assetType === 'research') return sections.find(s => /key\s+research\s+findings/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'research' || s.type === 'research');
-  if (assetType === 'chinedu_persona' || assetType === 'fatima_persona') return sections.find(s => s.section_type === 'personas' || s.type === 'personas');
-  if (assetType === 'storyboard') return sections.find(s => /from\s+context\s+to\s+concept/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'process' || s.type === 'process');
-  if (['paper_wireframe', 'low_fi_wireframe', 'wireframes'].includes(assetType)) return sections.find(s => /design\s+exploration|low-fi\s+wireframe/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'process' || s.type === 'process');
-  if (assetType === 'usability_testing') return sections.find(s => s.section_type === 'usability' || s.type === 'usability' || /usability/i.test(String(s.title || '')));
-  if (assetType === 'mobile_final_ui' || assetType === 'web_final_ui') return sections.find(s => /final\s+experience\s*&\s*accessibility/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'final' || s.type === 'final' || s.section_type === 'outcome' || s.type === 'outcome');
-  const marketingSection = (pattern) => sections.find(s => pattern.test(String(s.title || '')));
-  if (assetType === 'marketing_sitemap' || assetType === 'marketing_paper_wireframe' || assetType === 'marketing_digital_wireframe') return marketingSection(/sitemap|wireframe/i);
-  if (assetType === 'marketing_desktop_before' || assetType === 'marketing_desktop_after' || assetType === 'marketing_mobile_before' || assetType === 'marketing_mobile_after') return marketingSection(/design\s+validation|heuristic/i);
-  if (assetType === 'marketing_desktop_final' || assetType === 'marketing_tablet_final' || assetType === 'marketing_mobile_final') return marketingSection(/high-fidelity|accessibility/i);
-  if (assetType === 'marketing_hifi_desktop' || assetType === 'marketing_hifi_mobile') return marketingSection(/high-fidelity/i);
+  const normalized=String(assetType||'').toLowerCase();
+  const byAsset=sections.find(s=>String(s.asset_type||s.metadata?.asset_type||'').toLowerCase()===normalized); if(byAsset)return byAsset;
+  const title=(re)=>sections.find(s=>re.test(String(s.title||'')));
+  const rules={project_overview:/project\s*snapshot|project\s*overview/i,the_challenge:/challenge/i,the_goal:/goal/i,my_role:/my\s*role/i,project_context:/project\s*context|understanding\s*the\s*product/i,research_overview:/research/i,research_methods:/research\s*method/i,research_findings:/key\s*research\s*findings|research\s*findings/i,key_insights:/key\s*insights/i,user_personas:/who\s*i\s*designed\s*for|persona/i,information_architecture:/information\s*architecture|sitemap/i,user_flow:/user\s*flow/i,wireframing:/wireframing|wireframe/i,usability_testing:/usability\s*testing/i,heuristic_review:/heuristic/i,design_decisions:/key\s*product\s*decisions|design\s*decisions/i,final_solution:/final\s*experience|final\s*solution|high-fidelity/i,outcome:/impact|outcome|takeaways/i,learnings:/what\s*i\s*learned|learnings/i,next_steps:/next\s*steps/i};
+  if(rules[normalized])return title(rules[normalized]);
+  const legacy={research:'research',chinedu_persona:'personas',fatima_persona:'personas',storyboard:'process',paper_wireframe:'process',low_fi_wireframe:'process',wireframes:'process',usability_testing:'usability',mobile_final_ui:'final',web_final_ui:'final',marketing_sitemap:'sitemap|wireframe',marketing_paper_wireframe:'sitemap|wireframe',marketing_digital_wireframe:'sitemap|wireframe',marketing_desktop_before:'design\\s+validation|heuristic',marketing_desktop_after:'design\\s+validation|heuristic',marketing_mobile_before:'design\\s+validation|heuristic',marketing_mobile_after:'design\\s+validation|heuristic',marketing_desktop_final:'high-fidelity|accessibility',marketing_tablet_final:'high-fidelity|accessibility',marketing_mobile_final:'high-fidelity|accessibility',marketing_hifi_desktop:'high-fidelity',marketing_hifi_mobile:'high-fidelity'};
+  if(legacy[assetType]){const pattern=legacy[assetType];return sections.find(s=>new RegExp(pattern,'i').test(String(s.title||'')))||sections.find(s=>String(s.section_type||s.type||'').toLowerCase()===pattern.toLowerCase());}
   return null;
 }
 
@@ -62,6 +49,7 @@ function flatten(project) {
   content.sections.forEach((section, sectionIndex) => {
     section.images.forEach((image, index) => images.push({
       ...image,
+      asset_type: image.asset_type || image.image_type || '',
       id: image.id || `${section.id}-image-${index + 1}`,
       project_id: project.id,
       section_id: section.id,
@@ -136,7 +124,7 @@ export default async function (req, res) {
         res.setHeader('Content-Type', file.headers.get('content-type') || 'application/octet-stream');
         return res.send(Buffer.from(await file.arrayBuffer()));
       }
-      return res.json({ project, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, index: i, title: s.title || '', section_type: s.section_type || s.type || 'content', display_order: Number(s.display_order || i + 1) })) });
+      return res.json({ project, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, index: i, title: s.title || '', asset_type: s.asset_type || s.metadata?.asset_type || '', section_type: s.section_type || s.type || 'content', presentation_style: s.presentation_style || s.metadata?.presentation_style || s.metadata?.card_variant || '', display_order: Number(s.display_order || i + 1) })) });
     }
 
     if (req.method === 'POST') {
@@ -177,15 +165,15 @@ export default async function (req, res) {
         // must update the corresponding case_studies column directly instead
         // of trying to find a section for it. Replacement uploads already use
         // replace_fixed; this also makes first-time cover/hero uploads work.
-        if (body.asset_type === 'cover' || body.asset_type === 'hero') {
-          const column = body.asset_type === 'cover' ? 'cover_image_url' : 'hero_image_url';
+        if (body.asset_type === 'cover' || body.asset_type === 'hero' || body.asset_type === 'project_cover' || body.asset_type === 'case_study_hero') {
+          const column = body.asset_type === 'cover' || body.asset_type === 'project_cover' ? 'cover_image_url' : 'hero_image_url';
           const saved = await db.query(`UPDATE case_studies SET ${column} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
           return res.status(201).json({ kind: body.asset_type, url: body.url, project: saved.rows?.[0] || project });
         }
 
         const section = body.section_id ? content.sections.find(s => String(s.id) === String(body.section_id)) : sectionForAsset(content.sections, body.asset_type);
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}.` });
-        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
+        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
         section.images = [...section.images, image];
         await saveContent(project, content);
         return res.status(201).json({ kind: 'gallery', url: body.url, image });
