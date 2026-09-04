@@ -60,7 +60,8 @@ function normalizeImageSubsections(section, imageLayout) {
     // image_ids is the authoritative subsection assignment. The embedded
     // `images` array can be stale because it is a hydrated/rendering copy;
     // never let it repopulate a subsection after an image is unselected.
-    const resolved = hasImageIds ? fallbackImages.filter(img => ids.has(String(img.id))) : fallbackImages.filter(img => ids.has(String(img.id)));
+    const byId = new Map(fallbackImages.map(img => [String(img.id), img]));
+    const resolved = [...ids].map(id => byId.get(String(id))).filter(Boolean);
     const layout = x.image_layout && typeof x.image_layout === 'object' ? x.image_layout : imageLayout;
     return {
       id: String(x.id || crypto.randomUUID()),
