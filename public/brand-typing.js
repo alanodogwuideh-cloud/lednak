@@ -41,7 +41,7 @@
           timer = window.setTimeout(step, 105);
         } else {
           phase = 'holding';
-          timer = window.setTimeout(step, 8000);
+          timer = window.setTimeout(step, 5000);
         }
         return;
       }
