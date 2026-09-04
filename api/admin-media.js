@@ -16,15 +16,17 @@ const uuid = () => crypto.randomUUID();
 const allowed = new Set(['project_cover','case_study_hero','project_overview','the_challenge','the_goal','my_role','project_context','research_overview','research_methods','research_findings','key_insights','user_personas','user_needs','problem_statement','ideation','information_architecture','user_flow','wireframing','low_fidelity_prototype','high_fidelity_prototype','heuristic_review','usability_testing','design_decisions','design_iteration','design_refinement','visual_design','design_system','accessibility','responsive_design','final_solution','outcome','learnings','next_steps','sitemap','paper_wireframe','digital_wireframe','design_exploration','desktop_before_heuristic','desktop_after_heuristic','mobile_before_heuristic','mobile_after_heuristic','final_desktop_screens','final_tablet_screens','final_mobile_screens','hifi_desktop_onboarding','hifi_mobile_onboarding','research','storyboard','wireframes_legacy','mobile_final_ui','web_final_ui','cover','hero','chinedu_persona','fatima_persona','low_fi_wireframe','wireframes','marketing_sitemap','marketing_paper_wireframe','marketing_digital_wireframe','marketing_desktop_before','marketing_desktop_after','marketing_mobile_before','marketing_mobile_after','marketing_desktop_final','marketing_tablet_final','marketing_mobile_final','marketing_hifi_desktop','marketing_hifi_mobile']);
 
 function normalizeContent(content) {
-  return {
-    ...(content && typeof content === 'object' && !Array.isArray(content) ? content : {}),
-    sections: Array.isArray(content?.sections) ? content.sections.map((s, i) => ({
-      ...s,
-      id: s.id || s._id || `section-${i + 1}`,
-      _id: s._id || s.id || `section-${i + 1}`,
-      images: Array.isArray(s.images) ? s.images : [],
-    })) : [],
-  };
+  const base = content && typeof content === 'object' && !Array.isArray(content) ? content : {};
+  const rawSections = Array.isArray(base.sections) ? base.sections : [];
+  const usedIds = new Set();
+  const sections = rawSections.map((s, i) => {
+    let id = String(s?.id || s?._id || `section-${i + 1}`).trim();
+    if (!id || usedIds.has(id)) id = crypto.randomUUID();
+    usedIds.add(id);
+    const images = Array.isArray(s?.images) ? s.images.map(image => ({ ...image, section_id: id })) : [];
+    return { ...s, id, _id: id, images };
+  });
+  return { ...base, sections };
 }
 
 async function getProject(id) {
@@ -208,11 +210,16 @@ export default async function (req, res) {
       }
       if (body.alt_text !== undefined) image.alt_text = String(body.alt_text);
       if (body.caption !== undefined) image.caption = String(body.caption);
-      if (body.section_index !== undefined && String(body.section_index) !== '') {
-        const targetIndex = Number(body.section_index);
-        const target = Number.isInteger(targetIndex) ? content.sections[targetIndex] : null;
+      const requestedSectionId = body.section_id !== undefined ? String(body.section_id || '') : '';
+      const requestedSectionIndex = body.section_index !== undefined ? String(body.section_index || '') : '';
+      if (requestedSectionId || requestedSectionIndex) {
+        const target = requestedSectionId
+          ? content.sections.find(section => String(section.id) === requestedSectionId)
+          : content.sections[Number(requestedSectionIndex)];
         if (!target) return res.status(400).json({ error: 'Selected case-study section not found.' });
-        if (targetIndex === content.sections.indexOf(found.section)) {
+        const targetIndex = content.sections.indexOf(target);
+        if (target === found.section) {
+          image.section_id = target.id;
           found.section.images[found.index] = image;
           await saveContent(project, content);
           return res.json({ ...image, id: body.id, project_id: project.id, section_id: found.section.id, section_index: targetIndex });
@@ -223,7 +230,7 @@ export default async function (req, res) {
         image.display_order = Math.max(0, target.images.length);
         target.images.push(image);
         await saveContent(project, content);
-        return res.json({ ...image, id: body.id, project_id: project.id, section_id: target.id });
+        return res.json({ ...image, id: body.id, project_id: project.id, section_id: target.id, section_index: targetIndex });
       }
       found.section.images[found.index] = image;
       await saveContent(project, content);

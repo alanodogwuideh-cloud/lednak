@@ -56,20 +56,25 @@ function normalizeImageSubsections(section, parentImages, parentLayout) {
 
 function normalizeSections(content) {
   const sections = Array.isArray(content?.sections) ? content.sections : [];
+  const usedIds = new Set();
   return sections.map((section, index) => {
+    let sectionId = String(section?.id || section?._id || `section-${index + 1}`).trim();
+    if (!sectionId || usedIds.has(sectionId)) sectionId = crypto.randomUUID();
+    usedIds.add(sectionId);
     const meta = object(section.metadata);
     const rawImages = Array.isArray(section.images) ? section.images : [];
     const images = rawImages.map((image, imageIndex) => ({
       ...image,
-      id: image.id || `${section.id || section._id || `section-${index + 1}`}-image-${imageIndex + 1}`,
+      id: image.id || `${sectionId}-image-${imageIndex + 1}`,
+      section_id: sectionId,
       display_order: Number(image.display_order ?? imageIndex),
     }));
     const imageLayout = inferImageLayout({ ...section, images, metadata: meta });
     const imageSubsections = normalizeImageSubsections({ ...section, metadata: meta }, images, imageLayout);
     return {
       ...section,
-      id: section.id || section._id || `section-${index + 1}`,
-      _id: section._id || section.id || `section-${index + 1}`,
+      id: sectionId,
+      _id: sectionId,
       asset_type: section.asset_type || meta.asset_type || '',
       type: section.type || section.section_type || 'content',
       section_type: section.section_type || section.type || 'content',
