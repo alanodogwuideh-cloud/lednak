@@ -41,8 +41,15 @@ function inferAssetType(section) {
 }
 function inferPresentation(section) {
   const old=String(section?.section_type||section?.type||''); const meta=metadataObject(section?.metadata);
-  if(PRESENTATIONS.has(old)) return old; if(old==='quote') return 'quote'; if(['card2','card4','card3','cards','card1','card5','analytic_card'].includes(old)) return 'card'; if(old==='list') return 'list';
-  if(PRESENTATIONS.has(meta.presentation_type)) return meta.presentation_type; return 'text_box';
+  const style=String(section?.presentation_style||meta.presentation_style||meta.card_variant||'');
+  if(PRESENTATIONS.has(old)) return old;
+  if(old==='quote') return 'quote';
+  if(['card2','card4','card3','cards','card1','card5','analytic_card'].includes(old)) return 'card';
+  if(old==='list') return 'list';
+  if(PRESENTATIONS.has(meta.presentation_type) && meta.presentation_type!=='text_box') return meta.presentation_type;
+  if(STYLE_VALUES.has(style)) return 'card';
+  if(['list','card1','card3','cards'].includes(String(meta.item_display||'')) && (Array.isArray(section?.items)||Array.isArray(meta.items))) return 'list';
+  return 'text_box';
 }
 function inferStyle(section) {
   const old=String(section?.section_type||section?.type||''); const meta=metadataObject(section?.metadata);
@@ -179,13 +186,8 @@ async function saveSections(project, incoming, caseMeta) {
     const source = (s?.asset_type || s?.metadata?.asset_type) ? s : { ...s, asset_type: existingSection?.asset_type || existingSection?.metadata?.asset_type || s?.asset_type };
     const x = normalizeSection(source, i);
     x.metadata = refine(x);
-    // Card 2 is the replacement representation for the legacy flat list.
-    // Do not carry the old `items` array forward, otherwise deleted legacy
-    // rows can be reconstructed when the editor is reopened.
-    if (x.section_type === 'card2' || x.type === 'card2') {
-      x.items = [];
-      if (x.metadata && Object.prototype.hasOwnProperty.call(x.metadata, 'items')) delete x.metadata.items;
-    }
+    // Preserve all item collections exactly as supplied by the editor. Card 2/Card 4
+    // content lives in their dedicated metadata collections and must never be cleared here.
     return x;
   });
   const content = { ...current, sections };
