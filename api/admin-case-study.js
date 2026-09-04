@@ -112,10 +112,21 @@ export default async function (req, res) {
       return res.json(response(await saveSections(project, sections)));
     }
     if (req.method === 'DELETE') {
-      const sections = current.sections.filter((s, i) => String(s.id || s._id || `section-${i + 1}`) !== String(body.id));
       if (!body.id) return res.status(400).json({ error: 'Missing section id.' });
+      const sections = current.sections.filter((s, i) => String(s.id || s._id || `section-${i + 1}`) !== String(body.id));
+      if (sections.length === current.sections.length) return res.status(404).json({ error: 'Section not found.' });
       if (!sections.length) return res.status(409).json({ error: 'A case study must retain at least one section.' });
-      return res.json(response(await saveSections(project, sections)));
+
+      // Delete the requested section directly from the stored case-study
+      // document. This is intentionally separate from the general save path:
+      // a delete must be an atomic persisted operation, not merely a client-side
+      // array mutation that can be overwritten by a later save/reload.
+      const content = { ...current, sections: sections.map((s, i) => ({ ...s, display_order: i + 1 })) };
+      const { rows } = await db.query(
+        `UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+        [JSON.stringify(content), project.id]
+      );
+      return res.json(response(rows?.[0] || project));
     }
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) { console.error('admin-case-study error', error.message); return res.status(500).json({ error: error.message || 'Case study operation failed.' }); }
