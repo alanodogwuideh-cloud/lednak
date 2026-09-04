@@ -79,9 +79,10 @@ async function signedUpload(path) {
   const text = await response.text();
   let data;
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  if (!response.ok || !data?.url) throw new Error(data?.message || 'Could not create a Supabase upload URL.');
+  if (!response.ok || !data?.url || !data?.token) throw new Error(data?.message || 'Could not create a Supabase upload URL.');
   const raw = String(data.url);
-  return new URL(raw.startsWith('/storage/v1/') ? base() + raw : base() + '/storage/v1' + (raw.startsWith('/') ? raw : '/' + raw)).toString();
+  const url = new URL(raw.startsWith('/storage/v1/') ? base() + raw : base() + '/storage/v1' + (raw.startsWith('/') ? raw : '/' + raw)).toString();
+  return { url, token: String(data.token) };
 }
 
 async function saveContent(project, content) {
@@ -143,8 +144,9 @@ export default async function (req, res) {
         if (!supported.has(contentType)) return res.status(400).json({ error: 'Unsupported media type.' });
         if (body.replace_image_id && !findImage(content, body.replace_image_id)) return res.status(404).json({ error: 'Media item not found in this case study.' });
         const path = `portfolio/${project.slug}/${Date.now()}-${safeName(body.filename)}`;
-        const signedUrl = await signedUpload(`portfolio-images/${path}`);
-        return res.json({ signedUrl, publicUrl: `${base()}/storage/v1/object/public/${BUCKET}/${path}`, contentType, projectId, replaceFixed: body.replace_fixed || null, replaceImageId: body.replace_image_id || null });
+        const signed = await signedUpload(`portfolio-images/${path}`);
+        const storageHost = base().replace(/\.supabase\.co$/i, '.storage.supabase.co');
+        return res.json({ signedUrl: signed.url, uploadToken: signed.token, resumableEndpoint: `${storageHost}/storage/v1/upload/resumable`, objectPath: path, bucketName: BUCKET, publicUrl: `${base()}/storage/v1/object/public/${BUCKET}/${path}`, contentType, projectId, replaceFixed: body.replace_fixed || null, replaceImageId: body.replace_image_id || null });
       }
 
       if (body.action === 'finalize_upload') {
