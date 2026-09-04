@@ -13,6 +13,7 @@ const safeName = n => String(n || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slic
 const uuid = () => crypto.randomUUID();
 
 const allowed = new Set([
+  'cover', 'hero',
   'research', 'chinedu_persona', 'fatima_persona', 'storyboard',
   'paper_wireframe', 'low_fi_wireframe', 'wireframes', 'usability_testing',
   'mobile_final_ui', 'web_final_ui',
