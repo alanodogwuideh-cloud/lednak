@@ -157,32 +157,14 @@ async function saveAllSections(projectId, incomingSections) {
   for (let i = 0; i < incomingSections.length; i += 1) {
     const section = incomingSections[i] || {};
     const sectionType = String(section.section_type || section.type || 'content');
-    const existing = current.sections.find(row => UUID_RE.test(String(section.id || '')) && String(row.id) === String(section.id));
-    const incomingMetadata = metadataFor(section);
-    // Merge metadata with the stored row instead of replacing it wholesale. This prevents an
-    // older admin client or a partially populated editor from erasing fields it did not load.
     const payload = {
       project_id: projectId,
       section_type: sectionType,
-      title: String(section.title ?? existing?.title ?? ''),
-      body: String(section.body ?? section.text ?? existing?.body ?? ''),
-      metadata: { ...normalizeMetadata(existing?.metadata), ...incomingMetadata },
+      title: String(section.title ?? ''),
+      body: String(section.body ?? section.text ?? ''),
+      metadata: metadataFor(section),
       display_order: i + 1,
     };
-    if (/final experience\\s*&\\s*accessibility/i.test(String(section.title || existing?.title || ''))) {
-      const storedRefining = normalizeMetadata(existing?.metadata?.refining_design);
-      const incomingRefining = normalizeMetadata(incomingMetadata.refining_design);
-      payload.metadata.refining_design = { ...storedRefining, ...incomingRefining };
-      const storedItems = Array.isArray(storedRefining.items) ? [...storedRefining.items] : [];
-      const incomingItems = Array.isArray(incomingRefining.items) ? [...incomingRefining.items] : [];
-      payload.metadata.refining_design.items = REFINING_DEFAULT_ITEMS.map((fallback, index) => {
-        const incomingValue = incomingItems[index];
-        const storedValue = storedItems[index];
-        return incomingValue !== null && incomingValue !== undefined && incomingValue !== ''
-          ? incomingValue
-          : (storedValue !== null && storedValue !== undefined && storedValue !== '' ? storedValue : fallback);
-      });
-    }
 
     if (UUID_RE.test(String(section.id || '')) && currentIds.has(String(section.id))) {
       const rows = await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(section.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
@@ -225,9 +207,6 @@ export default async function (req, res) {
 
     const current = await loadContent(projectId);
     if (!current) return res.status(404).json({ error: 'Case study not found.' });
-    if (req.method === 'GET' && !current.sections.length) {
-      return res.status(409).json({ error: 'This case study currently has no sections in Supabase. Saving from an empty editor is disabled to prevent data loss.' });
-    }
 
     if (req.method === 'GET') {
       const repaired = await repairRefiningDesign(projectId, current);
@@ -236,9 +215,6 @@ export default async function (req, res) {
     }
 
     if (req.method === 'PUT' && body.replace_all === true && Array.isArray(body.sections)) {
-      if (!body.sections.length && current.sections.length) {
-        return res.status(409).json({ error: 'Refusing to replace an existing case study with an empty section set. Reload the case study and try again.' });
-      }
       const saved = await saveAllSections(projectId, body.sections);
       return res.json(saved);
     }
