@@ -14,14 +14,14 @@ export default async function(req,res){
 
     const a = settingsRows.rows[0] || null;
     const settings = a ? {
-      site_name: a.name || 'Alan Odogwuideh',
-      role: 'UX Designer',
-      intro: a.headline || '',
-      about_text: a.bio || '',
+      site_name: a.site_name || 'Alan Odogwuideh',
+      role: a.role || 'UX Designer',
+      intro: a.intro || '',
+      about_text: a.about_text || '',
       location: a.location || 'Abuja, Nigeria',
       linkedin_url: a.linkedin_url || '',
       email: a.email || '',
-      about_image_url: a.profile_image_url || '',
+      about_image_url: a.about_image_url || '',
       favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '',
       favicon_updated_at: branding.rows[0]?.updated_at || '',
     } : { favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '' };
