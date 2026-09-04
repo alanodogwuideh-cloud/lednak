@@ -1,4 +1,4 @@
-import { supabaseAdmin } from 'lib/supabase-admin';
+import { db } from 'hatchable';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 // Owner-only CMS preview endpoint authenticated by the portfolio's Supabase admin account.
@@ -6,35 +6,48 @@ export const access = 'public';
 export const methods = ['GET'];
 
 async function sendProxy(res, url) {
-  // Supabase Storage is already public for these portfolio assets. Redirecting
-  // avoids loading multi-megabyte GIF/video files into the 128 MB isolate heap.
-  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   return res.redirect(url);
+}
+
+function normalizeContent(content) {
+  const value = content && typeof content === 'object' && !Array.isArray(content) ? content : {};
+  return {
+    ...value,
+    sections: Array.isArray(value.sections) ? value.sections : [],
+  };
+}
+
+function findImage(content, id) {
+  for (const section of content.sections) {
+    const images = Array.isArray(section.images) ? section.images : [];
+    const image = images.find(item => String(item?.id) === String(id));
+    if (image) return image;
+  }
+  return null;
 }
 
 export default async function (req, res) {
   const auth = await requireSupabaseAdmin(req);
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
-    let projectId = String(req.query?.project_id || '');
+    const projectId = String(req.query?.project_id || '');
     const imageId = String(req.query?.image_id || '');
-    if (!projectId && imageId) {
-      const ownerRows = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(imageId)}&select=project_id&limit=1`);
-      projectId = String(ownerRows?.[0]?.project_id || '');
-    }
+    const fixed = String(req.query?.fixed || '');
     if (!projectId) return res.status(400).send('Missing project_id.');
 
-    const projects = await supabaseAdmin(`projects?id=eq.${encodeURIComponent(projectId)}&select=cover_image_url,hero_image_url&limit=1`);
-    const project = projects?.[0];
+    const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [projectId]);
+    const project = rows?.[0];
     if (!project) return res.status(404).send('Case study not found.');
 
     let url = '';
-    const fixed = String(req.query?.fixed || '');
     if (imageId) {
-      const images = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(imageId)}&project_id=eq.${encodeURIComponent(projectId)}&select=image_url&limit=1`);
-      url = images?.[0]?.image_url || '';
-    } else if (fixed === 'cover' || fixed === 'hero') {
-      url = project[fixed + '_image_url'] || '';
+      const image = findImage(normalizeContent(project.content), imageId);
+      url = String(image?.image_url || '');
+    } else if (fixed === 'cover') {
+      url = String(project.cover_image_url || '');
+    } else if (fixed === 'hero') {
+      url = String(project.hero_image_url || '');
     } else {
       return res.status(400).send('Missing media target.');
     }
