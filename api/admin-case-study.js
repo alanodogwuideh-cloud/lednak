@@ -30,7 +30,7 @@ function inferImageLayout(section) {
 }
 const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow'];
 const PRESENTATIONS = new Set(['text_box','card','list','quote']);
-const STYLE_VALUES = new Set(['card1','card2','card3','card4','analytic_card']);
+const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','analytic_card']);
 function inferAssetType(section) {
   const title=String(section?.title||'').trim(); const old=String(section?.section_type||section?.type||'');
   const direct=ASSET_TYPES.find(x=>x.toLowerCase()===title.toLowerCase()); if(direct)return direct;
