@@ -3,7 +3,7 @@
   if (!brands.length) return;
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fullName = ' Odogwuideh';
+  const fullName = 'Odogwuideh';
 
   brands.forEach((brand) => {
     const fixed = brand.querySelector('.brand-fixed');
@@ -12,7 +12,7 @@
     if (!fixed || !rest || !measure) return;
 
     const reserveWidth = () => {
-      const total = Math.ceil(fixed.getBoundingClientRect().width + measure.getBoundingClientRect().width);
+      const total = Math.ceil(fixed.getBoundingClientRect().width + measure.getBoundingClientRect().width + rest.getBoundingClientRect().width * 0 + parseFloat(getComputedStyle(rest).marginLeft || '0'));
       brand.style.setProperty('--brand-total-width', `${total}px`);
     };
 
