@@ -1,63 +1,73 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
+import { db } from 'hatchable';
 export const access='public';
-export const methods=['GET','POST','PUT','PATCH','DELETE'];
-const base=()=>process.env.SUPABASE_URL;const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const h=()=>({apikey:key(),Authorization:'Bearer '+key()});
-async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...opts,headers:{...h(),...(opts.headers||{})}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(typeof d==='string'?d:(d?.message||d?.hint||'Supabase request failed'));return d;}
-function safeName(n){return String(n||'image').replace(/[^a-zA-Z0-9._-]/g,'-').slice(0,160)}
+export const methods=['GET','POST','PATCH','DELETE'];
+const base=()=>String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
+const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;
+const headers=()=>({apikey:key(),Authorization:'Bearer '+key()});
+const safeName=n=>String(n||'image').replace(/[^a-zA-Z0-9._-]/g,'-').slice(0,160);
+function contentOf(p){return p?.content&&typeof p.content==='object'?p.content:{sections:[]}}
+function sectionsOf(p){const s=contentOf(p).sections;return Array.isArray(s)?s:[]}
+function imageId(projectId,si,ii){return `${projectId}:${si}:${ii}`}
+function parseImageId(id){const m=String(id||'').match(/^([^:]+):([0-9]+):([0-9]+)$/);return m?{si:Number(m[2]),ii:Number(m[3])}:null}
+function flatten(p){return sectionsOf(p).flatMap((s,si)=>(Array.isArray(s.images)?s.images:[]).map((x,ii)=>({...x,id:imageId(p.id,si,ii),section_id:imageId(p.id,si,0).split(':').slice(0,2).join(':'),section_title:s.title||''})))}
 function urlToPath(url){const marker='/storage/v1/object/public/portfolio-images/';const i=String(url||'').indexOf(marker);return i<0?'':String(url).slice(i+marker.length)}
-async function deleteUrl(url){const path=urlToPath(url);if(!path)return;await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'DELETE',headers:h()}).catch(()=>{});}
-async function project(id){return (await sb('projects?select=id,title,slug,cover_image_url,hero_image_url&id=eq.'+encodeURIComponent(id)+'&limit=1'))?.[0]||null}
-const allowed=['cover','hero','research','chinedu_persona','fatima_persona','storyboard','wireframes','usability_testing','mobile_final_ui','web_final_ui'];
-const sectionMap={research:'research',chinedu_persona:'personas',fatima_persona:'personas',storyboard:'process',wireframes:'process',usability_testing:'usability',mobile_final_ui:'final',web_final_ui:'final'};
-export default async function(req,res){try{
- const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
- if(req.method==='GET'){const id=req.query?.project_id;if(!id)return res.status(400).json({error:'Missing project_id.'});const p=await project(id);if(!p)return res.status(404).json({error:'Case study not found.'});const previewId=req.query?.preview_image_id;if(previewId){const item=(await sb('project_images?select=image_url&id=eq.'+encodeURIComponent(previewId)+'&project_id=eq.'+encodeURIComponent(id)+'&limit=1'))?.[0];if(!item?.image_url)return res.status(404).json({error:'Media preview not found.'});const r=await fetch(item.image_url);if(!r.ok)return res.status(r.status).send('Media preview could not be loaded.');const contentType=r.headers.get('content-type')||'application/octet-stream';res.setHeader('Content-Type',contentType);res.setHeader('Cache-Control','private, max-age=300');return res.send(Buffer.from(await r.arrayBuffer()));}const previewFixed=req.query?.preview_fixed;if(previewFixed&&['cover','hero'].includes(previewFixed)){const url=previewFixed==='cover'?p.cover_image_url:p.hero_image_url;if(!url)return res.status(404).send('Media preview not found.');const r=await fetch(url);if(!r.ok)return res.status(r.status).send('Media preview could not be loaded.');const contentType=r.headers.get('content-type')||'application/octet-stream';res.setHeader('Content-Type',contentType);res.setHeader('Cache-Control','private, max-age=300');return res.send(Buffer.from(await r.arrayBuffer()));}const [images,sections]=await Promise.all([sb('project_images?select=*&project_id=eq.'+encodeURIComponent(id)+'&order=display_order.asc,created_at.asc'),sb('case_study_sections?select=id,title,section_type,display_order&project_id=eq.'+encodeURIComponent(id)+'&order=display_order.asc')]);return res.json({project:p,images,sections});}
- if(req.method==='POST'){
-  const action=req.body?.action;
-  if(action==='prepare_upload'){
-   const id=req.body?.project_id;const filename=req.body?.filename;const contentType=String(req.body?.content_type||'application/octet-stream').toLowerCase();const replaceFixed=req.body?.replace_fixed;const replaceImageId=req.body?.replace_image_id;
-   const supportedImage=['image/png','image/jpeg','image/webp','image/gif','image/svg+xml'];const supportedVideo=['video/mp4','video/webm','video/quicktime'];
-   if(!id)return res.status(400).json({error:'Please choose a case study.'});if(!filename)return res.status(400).json({error:'Please choose a file.'});if(!supportedImage.includes(contentType)&&!supportedVideo.includes(contentType))return res.status(400).json({error:'Unsupported media type. Use PNG, JPG, WebP, GIF, SVG, MP4, WebM, or MOV.'});
-   const p=await project(id);if(!p)return res.status(404).json({error:'Case study not found.'});
-   if(replaceFixed&&!['cover','hero'].includes(replaceFixed))return res.status(400).json({error:'Invalid replacement target.'});
-   if(replaceImageId){const existing=(await sb('project_images?select=id,project_id&id=eq.'+encodeURIComponent(replaceImageId)+'&limit=1'))?.[0];if(!existing||existing.project_id!==id)return res.status(404).json({error:'Media item not found.'});}
-   const path=`portfolio/${p.slug}/${Date.now()}-${safeName(filename)}`;
-   // Supabase signed-upload routes require the bucket name before the object path.
-   // The previous implementation omitted it, causing "The related resource does not exist".
-   const signed=await fetch(base()+'/storage/v1/object/upload/sign/portfolio-images/'+path,{method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({upsert:true})});
-   const signedText=await signed.text();let signedData=null;try{signedData=signedText?JSON.parse(signedText):null}catch{signedData=signedText}
-   if(!signed.ok)throw new Error(typeof signedData==='string'?signedData:(signedData?.message||signedData?.error||signedData?.statusCode||'Could not create a signed upload URL.'));
-   if(!signedData?.url)throw new Error('Supabase did not return a signed upload URL.');
-   const signedPath=String(signedData?.url||'');if(!signedPath)throw new Error('Supabase did not return a signed upload URL.');const signedUrl=new URL(signedPath.startsWith('/storage/v1/')?base()+signedPath:base()+'/storage/v1'+(signedPath.startsWith('/')?signedPath:'/'+signedPath));return res.json({signedUrl:signedUrl.toString(),path,publicUrl:base()+'/storage/v1/object/public/portfolio-images/'+path,contentType,projectId:id,replaceFixed:replaceFixed||null,replaceImageId:replaceImageId||null});
+async function deleteUrl(url){const path=urlToPath(url);if(!path)return;await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'DELETE',headers:headers()}).catch(()=>{})}
+async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]||null}
+async function saveContent(id,content){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[content,id]);return rows[0]}
+function fixedUrl(p,kind){return kind==='cover'?p?.cover_image_url:p?.hero_image_url}
+async function setFixed(id,kind,url){return await db.query(`UPDATE case_studies SET ${kind==='cover'?'cover_image_url':'hero_image_url'}=$1,updated_at=now() WHERE id=$2 RETURNING *`,[url,id])}
+const sectionTitle={research:'Research',chinedu_persona:'Who I Designed For',fatima_persona:'Who I Designed For',storyboard:'From Context to Concept',wireframes:'Design Exploration',usability_testing:'What Usability Testing Revealed',mobile_final_ui:'Final Experience & Accessibility',web_final_ui:'Final Experience & Accessibility'};
+const allowed=['research','chinedu_persona','fatima_persona','storyboard','wireframes','usability_testing','mobile_final_ui','web_final_ui'];
+function sectionIndexForType(p,type){const wanted=sectionTitle[type];return sectionsOf(p).findIndex(s=>String(s.title||'').trim().toLowerCase()===wanted.toLowerCase())}
+async function fetchStored(url){const r=await fetch(url);if(!r.ok)throw new Error('Stored media could not be loaded.');return r}
+export default async function(req,res){
+ try{
+  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
+  const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
+  if(req.method==='GET'){
+   if(!projectId)return res.status(400).json({error:'Missing project_id.'});
+   const p=await getProject(projectId);if(!p)return res.status(404).json({error:'Case study not found.'});
+   if(q.preview_image_id){const item=flatten(p).find(x=>x.id===String(q.preview_image_id));if(!item?.image_url)return res.status(404).send('Media preview not found.');const r=await fetchStored(item.image_url);res.setHeader('Content-Type',r.headers.get('content-type')||'application/octet-stream');return res.send(Buffer.from(await r.arrayBuffer()));}
+   if(q.preview_fixed){if(!['cover','hero'].includes(q.preview_fixed))return res.status(400).send('Invalid fixed media.');const url=fixedUrl(p,q.preview_fixed);if(!url)return res.status(404).send('Media preview not found.');const r=await fetchStored(url);res.setHeader('Content-Type',r.headers.get('content-type')||'application/octet-stream');return res.send(Buffer.from(await r.arrayBuffer()));}
+   return res.json({project:p,images:flatten(p),sections:sectionsOf(p).map((s,i)=>({id:`${p.id}:${i}`,title:s.title||'',section_type:s.type||'content',display_order:i+1}))});
   }
-  if(action==='finalize_upload'){
-   const id=req.body?.project_id;const url=String(req.body?.url||'');const type=req.body?.asset_type;const alt=String(req.body?.alt_text||'');const caption=String(req.body?.caption||'');const order=Math.max(0,Number(req.body?.display_order||0));const replaceFixed=req.body?.replace_fixed;const replaceImageId=req.body?.replace_image_id;
-   if(!id||!url)return res.status(400).json({error:'Missing uploaded media details.'});if(!url.startsWith(base()+'/storage/v1/object/public/portfolio-images/'))return res.status(400).json({error:'Invalid uploaded media URL.'});const p=await project(id);if(!p)return res.status(404).json({error:'Case study not found.'});
-   if(replaceFixed){if(!['cover','hero'].includes(replaceFixed))return res.status(400).json({error:'Invalid replacement target.'});const field=replaceFixed==='cover'?'cover_image_url':'hero_image_url';const old=p[field]||'';const d=await sb('projects?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({[field]:url,updated_at:new Date().toISOString()})});await deleteUrl(old);return res.json({kind:replaceFixed,url,project:d?.[0]||null});}
-   if(replaceImageId){const existing=(await sb('project_images?select=*&id=eq.'+encodeURIComponent(replaceImageId)+'&limit=1'))?.[0];if(!existing||existing.project_id!==id)return res.status(404).json({error:'Media item not found.'});const d=await sb('project_images?id=eq.'+encodeURIComponent(replaceImageId),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({image_url:url})});await deleteUrl(existing.image_url);return res.json({kind:'gallery',url,image:d?.[0]||null});}
-   if(!allowed.includes(type))return res.status(400).json({error:'Invalid asset type.'});const sectionType=sectionMap[type];const sections=await sb('case_study_sections?select=id&project_id=eq.'+encodeURIComponent(id)+'&section_type=eq.'+encodeURIComponent(sectionType)+'&order=display_order.asc&limit=1');const section=sections?.[0];if(!section)return res.status(400).json({error:'No matching case-study section exists for '+type+'. Add that section first.'});const row={project_id:id,section_id:section.id,image_url:url,image_type:type,alt_text:alt,caption,display_order:order};const created=await sb('project_images',{method:'POST',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(row)});return res.status(201).json({kind:'gallery',url,image:created?.[0]||null});
-  }
-  const file=req.files?.find(x=>x.field==='file')||req.files?.[0];const id=req.body?.project_id;const replaceFixed=req.body?.replace_fixed;const replaceImageId=req.body?.replace_image_id;
-  if(replaceFixed||replaceImageId){
-   if(!file)return res.status(400).json({error:'Please choose a replacement file.'});
-   const mime=String(file.contentType||'').toLowerCase();const supportedImage=['image/png','image/jpeg','image/webp','image/gif','image/svg+xml'];const supportedVideo=['video/mp4','video/webm','video/quicktime'];if(!supportedImage.includes(mime)&&!supportedVideo.includes(mime))return res.status(400).json({error:'Unsupported media type. Use PNG, JPG, WebP, GIF, SVG, MP4, WebM, or MOV.'});
-   if(replaceFixed){
-    if(!id||!['cover','hero'].includes(replaceFixed))return res.status(400).json({error:'Invalid replacement target.'});
-    const p=await project(id);if(!p)return res.status(404).json({error:'Case study not found.'});const field=replaceFixed==='cover'?'cover_image_url':'hero_image_url';const old=p[field]||'';const path=`portfolio/${p.slug}/${Date.now()}-${safeName(file.filename)}`;const upload=await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'POST',headers:{...h(),'Content-Type':file.contentType||'application/octet-stream','x-upsert':'true'},body:file.buffer});if(!upload.ok)throw new Error('Supabase Storage upload failed: '+await upload.text());const url=base()+'/storage/v1/object/public/portfolio-images/'+path;const d=await sb('projects?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({[field]:url,updated_at:new Date().toISOString()})});await deleteUrl(old);return res.json({kind:replaceFixed,url,project:d?.[0]||null});
+  if(req.method==='POST'){
+   if(b.action==='prepare_upload'){
+    if(!projectId||!b.filename)return res.status(400).json({error:'Choose a case study and file.'});
+    const p=await getProject(projectId);if(!p)return res.status(404).json({error:'Case study not found.'});
+    const contentType=String(b.content_type||'application/octet-stream').toLowerCase();
+    const supported=[...['image/png','image/jpeg','image/webp','image/gif','image/svg+xml'],...['video/mp4','video/webm','video/quicktime']];
+    if(!supported.includes(contentType))return res.status(400).json({error:'Unsupported media type.'});
+    if(b.replace_fixed&&!['cover','hero'].includes(b.replace_fixed))return res.status(400).json({error:'Invalid fixed replacement target.'});
+    if(b.replace_image_id&&!flatten(p).some(x=>x.id===String(b.replace_image_id)))return res.status(404).json({error:'Media item not found.'});
+    const path=`portfolio/${p.slug}/${Date.now()}-${safeName(b.filename)}`;
+    const signed=await fetch(base()+'/storage/v1/object/upload/sign/portfolio-images/'+path,{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({upsert:true})});
+    const text=await signed.text();let data;try{data=text?JSON.parse(text):null}catch{data=text}
+    if(!signed.ok||!data?.url)throw new Error(typeof data==='string'?data:(data?.message||'Could not create a signed upload URL.'));
+    const raw=String(data.url);const signedUrl=new URL(raw.startsWith('/storage/v1/')?base()+raw:base()+'/storage/v1'+(raw.startsWith('/')?raw:'/'+raw));
+    return res.json({signedUrl:signedUrl.toString(),publicUrl:base()+'/storage/v1/object/public/portfolio-images/'+path,contentType,projectId,replaceFixed:b.replace_fixed||null,replaceImageId:b.replace_image_id||null});
    }
-   const existing=(await sb('project_images?select=*&id=eq.'+encodeURIComponent(replaceImageId)+'&limit=1'))?.[0];if(!existing)return res.status(404).json({error:'Media item not found.'});const p=await project(existing.project_id);if(!p)return res.status(404).json({error:'Case study not found.'});const path=`portfolio/${p.slug}/${Date.now()}-${safeName(file.filename)}`;const upload=await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'POST',headers:{...h(),'Content-Type':file.contentType||'application/octet-stream','x-upsert':'true'},body:file.buffer});if(!upload.ok)throw new Error('Supabase Storage upload failed: '+await upload.text());const url=base()+'/storage/v1/object/public/portfolio-images/'+path;const d=await sb('project_images?id=eq.'+encodeURIComponent(replaceImageId),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({image_url:url})});await deleteUrl(existing.image_url);return res.json({kind:'gallery',url,image:d?.[0]||null});
+   if(b.action==='finalize_upload'){
+    if(!projectId||!b.url)return res.status(400).json({error:'Missing uploaded media details.'});
+    const p=await getProject(projectId);if(!p)return res.status(404).json({error:'Case study not found.'});
+    if(!String(b.url).startsWith(base()+'/storage/v1/object/public/portfolio-images/'))return res.status(400).json({error:'Invalid uploaded media URL.'});
+    if(b.replace_fixed){const old=fixedUrl(p,b.replace_fixed);if(!['cover','hero'].includes(b.replace_fixed))return res.status(400).json({error:'Invalid fixed replacement target.'});const saved=(await setFixed(projectId,b.replace_fixed,b.url)).rows[0];await deleteUrl(old);return res.json({kind:b.replace_fixed,url:b.url,project:saved});}
+    if(b.replace_image_id){const parsed=parseImageId(b.replace_image_id);const content=contentOf(p);const sections=sectionsOf(p);if(!parsed||!sections[parsed.si]?.images?.[parsed.ii])return res.status(404).json({error:'Media item not found.'});const old=sections[parsed.si].images[parsed.ii].image_url;sections[parsed.si].images[parsed.ii]={...sections[parsed.si].images[parsed.ii],image_url:b.url};const saved=await saveContent(projectId,{...content,sections});await deleteUrl(old);return res.json({kind:'gallery',url:b.url,image:flatten(saved).find(x=>x.id===b.replace_image_id)||null});}
+    if(!allowed.includes(b.asset_type))return res.status(400).json({error:'Invalid asset type.'});
+    const si=sectionIndexForType(p,b.asset_type);if(si<0)return res.status(400).json({error:`No matching case-study section exists for ${b.asset_type}. Add that section first.`});
+    const content=contentOf(p),sections=sectionsOf(p);sections[si].images=Array.isArray(sections[si].images)?sections[si].images:[];sections[si].images.push({image_url:b.url,image_type:b.asset_type,alt_text:String(b.alt_text||''),caption:String(b.caption||''),display_order:Math.max(0,Number(b.display_order||0))});const saved=await saveContent(projectId,{...content,sections});return res.status(201).json({kind:'gallery',url:b.url,image:flatten(saved).find(x=>x.image_url===b.url&&x.image_type===b.asset_type)||null});
+   }
+   return res.status(400).json({error:'Unknown media action.'});
   }
-  const type=req.body?.asset_type;const alt=req.body?.alt_text||'';const caption=req.body?.caption||'';const order=Math.max(0,Number(req.body?.display_order||0));if(!file)return res.status(400).json({error:'Please choose a PNG, JPG, WebP, GIF, SVG, MP4, WebM, or MOV file.'});if(!id)return res.status(400).json({error:'Please choose a case study.'});if(!allowed.includes(type))return res.status(400).json({error:'Invalid asset type.'});const mime=String(file.contentType||'').toLowerCase();const supportedImage=['image/png','image/jpeg','image/webp','image/gif','image/svg+xml'];const supportedVideo=['video/mp4','video/webm','video/quicktime'];if(!supportedImage.includes(mime)&&!supportedVideo.includes(mime))return res.status(400).json({error:'Unsupported media type. Use PNG, JPG, WebP, GIF, SVG, MP4, WebM, or MOV.'});const p=await project(id);if(!p)return res.status(404).json({error:'Case study not found.'});const path=`portfolio/${p.slug}/${Date.now()}-${safeName(file.filename)}`;const upload=await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'POST',headers:{...h(),'Content-Type':file.contentType||'image/jpeg','x-upsert':'true'},body:file.buffer});if(!upload.ok)throw new Error('Supabase Storage upload failed: '+await upload.text());const url=base()+'/storage/v1/object/public/portfolio-images/'+path;
-  if(type==='cover'||type==='hero'){const field=type==='cover'?'cover_image_url':'hero_image_url';const old=p[field];const d=await sb('projects?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({[field]:url,updated_at:new Date().toISOString()})});await deleteUrl(old);return res.status(201).json({kind:type,url,project:d?.[0]||null});}
-  const sectionType=sectionMap[type];const sections=await sb('case_study_sections?select=id&project_id=eq.'+encodeURIComponent(id)+'&section_type=eq.'+encodeURIComponent(sectionType)+'&order=display_order.asc&limit=1');const section=sections?.[0];if(!section)return res.status(400).json({error:'No matching case-study section exists for '+type+'. Add that section first.'});
-  const row={project_id:id,section_id:section.id,image_url:url,image_type:type,alt_text:alt,caption,display_order:order};const created=await sb('project_images',{method:'POST',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(row)});return res.status(201).json({kind:'gallery',url,image:created?.[0]||null});
- }
- const b=req.body||{};
- if(req.method==='PUT')return res.status(405).json({error:'Use the direct upload flow to replace media.'});
- if(req.method==='PATCH'){if(!b.id)return res.status(400).json({error:'Missing image id.'});const row={};if(b.display_order!==undefined)row.display_order=Math.max(0,Number(b.display_order)||0);if(b.alt_text!==undefined)row.alt_text=String(b.alt_text);if(b.caption!==undefined)row.caption=String(b.caption);const d=await sb('project_images?id=eq.'+encodeURIComponent(b.id),{method:'PATCH',headers:{...h(),'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(row)});return res.json(d?.[0]||d);}
- if(req.method==='DELETE'){
-  if(b.fixed&&b.project_id){const p=await project(b.project_id);const field=b.fixed==='cover'?'cover_image_url':'hero_image_url';if(!['cover','hero'].includes(b.fixed))return res.status(400).json({error:'Invalid fixed image.'});const old=p?.[field]||'';await sb('projects?id=eq.'+encodeURIComponent(b.project_id),{method:'PATCH',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({[field]:'',updated_at:new Date().toISOString()})});await deleteUrl(old);return res.json({ok:true});}
-  if(!b.id)return res.status(400).json({error:'Missing image id.'});const existing=(await sb('project_images?select=image_url&id=eq.'+encodeURIComponent(b.id)+'&limit=1'))?.[0];await sb('project_images?id=eq.'+encodeURIComponent(b.id),{method:'DELETE'});await deleteUrl(existing?.image_url);return res.json({ok:true});
- }
- return res.status(405).json({error:'Method not allowed'});
-}catch(e){return res.status(500).json({error:e.message||'Media operation failed.'});}}
+  if(req.method==='PATCH'){
+   if(!b.id)return res.status(400).json({error:'Missing image id.'});const p=await getProject(projectId);if(!p)return res.status(404).json({error:'Case study not found.'});const parsed=parseImageId(b.id),content=contentOf(p),sections=sectionsOf(p);if(!parsed||!sections[parsed.si]?.images?.[parsed.ii])return res.status(404).json({error:'Media item not found.'});const x=sections[parsed.si].images[parsed.ii];sections[parsed.si].images[parsed.ii]={...x,...(b.display_order!==undefined?{display_order:Math.max(0,Number(b.display_order)||0)}:{}),...(b.alt_text!==undefined?{alt_text:String(b.alt_text)}:{}),...(b.caption!==undefined?{caption:String(b.caption)}:{})};const saved=await saveContent(projectId,{...content,sections});return res.json(flatten(saved).find(x=>x.id===b.id));
+  }
+  if(req.method==='DELETE'){
+   const p=await getProject(projectId||b.project_id);if(!p)return res.status(404).json({error:'Case study not found.'});
+   if(b.fixed){if(!['cover','hero'].includes(b.fixed))return res.status(400).json({error:'Invalid fixed image.'});const old=fixedUrl(p,b.fixed);const saved=(await setFixed(p.id,b.fixed,'')).rows[0];await deleteUrl(old);return res.json({ok:true,project:saved});}
+   const parsed=parseImageId(b.id),content=contentOf(p),sections=sectionsOf(p);if(!parsed||!sections[parsed.si]?.images?.[parsed.ii])return res.status(404).json({error:'Media item not found.'});const old=sections[parsed.si].images[parsed.ii].image_url;sections[parsed.si].images.splice(parsed.ii,1);sections[parsed.si].images.forEach((x,i)=>x.display_order=i+1);await saveContent(p.id,{...content,sections});await deleteUrl(old);return res.json({ok:true});
+  }
+  return res.status(405).json({error:'Method not allowed'});
+ }catch(e){return res.status(500).json({error:e.message||'Media operation failed.'});}
+}
