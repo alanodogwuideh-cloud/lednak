@@ -60,30 +60,7 @@ function normalizeCardItems(metadata){
       return {...x,id};
     });
   }
-  if(Array.isArray(meta.items)){
-    const existing=Array.isArray(meta.item_ids)?meta.item_ids.map(String):[];
-    const used=new Set();
-    meta.item_ids=meta.items.map((item,index)=>{
-      const candidate=String(existing[index]||'').trim();
-      const id=candidate&&!used.has(candidate)?candidate:crypto.randomUUID();
-      used.add(id); return id;
-    });
-  }
   return meta;
-}
-function normalizePrototypeButtons(value){
-  const defaults=[
-    {id:'mobile',label:'Mobile App Prototype',url:'',visible:true,order:1},
-    {id:'web',label:'Web App Prototype',url:'',visible:true,order:2}
-  ];
-  if(!Array.isArray(value)) return defaults;
-  const used=new Set();
-  const out=value.map((item,index)=>{
-    const x=metadataObject(item); let id=String(x.id||'').trim();
-    if(!id||used.has(id)) id=crypto.randomUUID(); used.add(id);
-    return {id,label:String(x.label||`Prototype ${index+1}`),url:String(x.url||'').trim(),visible:x.visible!==false,order:Number(x.order)||index+1};
-  });
-  return out.sort((a,b)=>a.order-b.order);
 }
 function normalizeImageSubsections(section, imageLayout) {
   const meta = metadataObject(section?.metadata);
@@ -182,7 +159,7 @@ function refine(section) {
   return metadata;
 }
 async function getProject(id) { const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
-async function saveSections(project, incoming, caseMeta, prototypeButtons) {
+async function saveSections(project, incoming, caseMeta) {
   if (!Array.isArray(incoming) || !incoming.length) throw new Error('Refusing to save an empty case study. Existing content was preserved.');
   const current = normalizeContent(project.content);
   if (caseMeta && typeof caseMeta === 'object' && !Array.isArray(caseMeta)) {
@@ -212,7 +189,6 @@ async function saveSections(project, incoming, caseMeta, prototypeButtons) {
     return x;
   });
   const content = { ...current, sections };
-  if (prototypeButtons !== undefined) content.prototype_buttons = normalizePrototypeButtons(prototypeButtons);
   const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
 }
@@ -229,7 +205,7 @@ export default async function (req, res) {
     if (!project) return res.status(404).json({ error: 'Case study not found.' });
     if (req.method === 'GET') return res.json(response(project));
     const current = normalizeContent(project.content);
-    if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections, body.case_meta, body.prototype_buttons)));
+    if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections, body.case_meta)));
     if (req.method === 'POST') {
       const sections = [...current.sections, { type: body.type || body.section_type || 'content', section_type: body.section_type || body.type || 'content', title: body.title || '', body: body.body || body.text || '', text: body.text || body.body || '', metadata: body.metadata || {}, items: body.items, images: body.images || [] }];
       return res.status(201).json(response(await saveSections(project, sections)));
