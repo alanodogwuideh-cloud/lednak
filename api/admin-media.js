@@ -175,6 +175,11 @@ export default async function (req, res) {
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}.` });
         const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
         section.images = [...section.images, image];
+        const sectionMeta = section.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : (section.metadata = {});
+        if (Array.isArray(sectionMeta.image_subsections) && sectionMeta.image_subsections.length) {
+          const first = sectionMeta.image_subsections[0];
+          first.image_ids = Array.isArray(first.image_ids) ? [...first.image_ids, String(image.id)] : [String(image.id)];
+        }
         await saveContent(project, content);
         return res.status(201).json({ kind: 'gallery', url: body.url, image });
       }

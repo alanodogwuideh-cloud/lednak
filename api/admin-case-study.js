@@ -49,10 +49,67 @@ function inferStyle(section) {
   if(STYLE_VALUES.has(old)) return old; if(STYLE_VALUES.has(meta.presentation_style)) return meta.presentation_style; if(meta.card_variant==='card4')return 'card4'; if(meta.card_variant==='card3')return 'card3'; if(meta.card_variant==='card1')return 'card1'; if(meta.card_variant==='analytic_card')return 'analytic_card'; if(Array.isArray(meta.card4_items)&&meta.card4_items.length)return 'card4'; if(Array.isArray(meta.card2_items)&&meta.card2_items.length)return 'card2'; return '';
 }
 function assetKey(value){const raw=String(value||'').trim();if(!raw)return 'project_context';return raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+function normalizeImageSubsections(section, imageLayout) {
+  const meta = metadataObject(section?.metadata);
+  const images = Array.isArray(section?.images) ? section.images : [];
+  const validCols = value => [1,2,3,4].includes(Number(value)) ? Number(value) : 1;
+  const normalizeOne = (sub, fallbackImages, fallbackTitle = '') => {
+    const x = metadataObject(sub);
+    const ids = new Set((Array.isArray(x.image_ids) ? x.image_ids : []).map(String));
+    const selected = Array.isArray(x.images) ? x.images : fallbackImages.filter(img => ids.has(String(img.id)));
+    const resolved = selected.length ? selected : fallbackImages;
+    const layout = x.image_layout && typeof x.image_layout === 'object' ? x.image_layout : imageLayout;
+    return {
+      id: String(x.id || crypto.randomUUID()),
+      title: String(x.title || fallbackTitle || ''),
+      headerVisible: x.headerVisible !== undefined ? Boolean(x.headerVisible) : (x.header_visible !== undefined ? Boolean(x.header_visible) : false),
+      dividerVisible: x.dividerVisible !== undefined ? Boolean(x.dividerVisible) : (x.divider_visible !== undefined ? Boolean(x.divider_visible) : true),
+      images: resolved.map((img, i) => ({ ...img, display_order: Number(img.display_order ?? i) })),
+      image_ids: resolved.map(img => String(img.id)),
+      desktopColumns: validCols(x.desktopColumns ?? layout?.desktop ?? 1),
+      tabletColumns: validCols(x.tabletColumns ?? layout?.tablet ?? 1),
+      mobileColumns: validCols(x.mobileColumns ?? layout?.mobile ?? 1),
+      singleImageWidth: x.singleImageWidth === 'body' || x.single_image_width === 'body' ? 'body' : 'normal'
+    };
+  };
+  if (Object.prototype.hasOwnProperty.call(meta, 'image_subsections') && Array.isArray(meta.image_subsections)) {
+    return meta.image_subsections.map(sub => normalizeOne(sub, images.filter(img => (sub.image_ids || []).map(String).includes(String(img.id)))));
+  }
+  if (!images.length) return [];
+  const title = String(section?.title || '');
+  const groups = [];
+  const addGroup = (groupImages, groupTitle, visible = true) => { if (groupImages.length) groups.push(normalizeOne({ title: groupTitle, headerVisible: visible, dividerVisible: true, image_ids: groupImages.map(x => x.id), image_layout: imageLayout }, groupImages, groupTitle)); };
+  if (/final experience\s*&\s*accessibility/i.test(title)) {
+    addGroup(images.filter(x => x.image_type === 'mobile_final_ui'), 'Mobile Final UI');
+    addGroup(images.filter(x => x.image_type === 'web_final_ui'), 'Web Final UI');
+    addGroup(images.filter(x => !['mobile_final_ui','web_final_ui'].includes(x.image_type)), '');
+  } else if (/design exploration/i.test(title)) {
+    const paper = images.filter(x => x.image_type === 'paper_wireframe');
+    const lowfi = images.filter(x => x.image_type === 'low_fi_wireframe' || (x.image_type === 'wireframes' && /lowfi\s*wireframe.*offline\s*order\s*flow|offline\s*order\s*flow.*lowfi\s*wireframe/i.test(String(x.caption || ''))));
+    addGroup(paper, 'Paper Wireframe Explorations'); addGroup(lowfi, 'Low-Fi Wireframe Explorations'); addGroup(images.filter(x => !paper.includes(x) && !lowfi.includes(x)), 'Other Design Media');
+  } else if (images.some(x => ['marketing_desktop_final','marketing_tablet_final','marketing_mobile_final'].includes(x.image_type))) {
+    addGroup(images.filter(x => x.image_type === 'marketing_desktop_final'), 'Final Desktop Screens');
+    addGroup(images.filter(x => x.image_type === 'marketing_tablet_final'), 'Final Tablet Screens');
+    addGroup(images.filter(x => x.image_type === 'marketing_mobile_final'), 'Final Mobile Screens');
+    addGroup(images.filter(x => !['marketing_desktop_final','marketing_tablet_final','marketing_mobile_final'].includes(x.image_type)), '', false);
+  } else if (/from\s*sitemap\s*to\s*responsive\s*wireframes/i.test(title) || images.some(x => ['marketing_sitemap','marketing_paper_wireframe','marketing_digital_wireframe'].includes(x.image_type))) {
+    addGroup(images.filter(x => x.image_type === 'marketing_paper_wireframe'), 'Paper Wireframe');
+    addGroup(images.filter(x => x.image_type === 'marketing_tablet_final'), 'Final Tablet Screens');
+    images.filter(x => !['marketing_paper_wireframe','marketing_tablet_final'].includes(x.image_type)).forEach(x => addGroup([x], String(x.caption || x.alt_text || 'Project image')));
+  } else if (types.has('storyboard') && types.has('wireframes')) {
+    addGroup(images.filter(x => x.image_type === 'storyboard'), 'Storyboarding');
+    addGroup(images.filter(x => x.image_type === 'wireframes'), 'Design Exploration');
+    addGroup(images.filter(x => !['storyboard','wireframes'].includes(x.image_type)), 'Other Design Media');
+  } else {
+    addGroup(images, '', false);
+  }
+  return groups;
+}
 function normalizeSection(section, index) {
   const metadata = metadataObject(section?.metadata); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
+  metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
   const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, asset_type:assetType, type:presentation, section_type:presentation, presentation_style:style, title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: Array.isArray(section?.images) ? section.images : [], display_order: Number(section?.display_order || index + 1) };
   if (Array.isArray(metadata.items)) out.items = [...metadata.items]; if (metadata.item_display !== undefined) out.item_display = metadata.item_display; if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text; if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
