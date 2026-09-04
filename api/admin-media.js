@@ -16,6 +16,10 @@ const allowed = new Set([
   'research', 'chinedu_persona', 'fatima_persona', 'storyboard',
   'paper_wireframe', 'low_fi_wireframe', 'wireframes', 'usability_testing',
   'mobile_final_ui', 'web_final_ui',
+  'marketing_sitemap', 'marketing_paper_wireframe', 'marketing_digital_wireframe',
+  'marketing_desktop_before', 'marketing_desktop_after', 'marketing_mobile_before',
+  'marketing_mobile_after', 'marketing_desktop_final', 'marketing_tablet_final',
+  'marketing_mobile_final', 'marketing_hifi_desktop', 'marketing_hifi_mobile',
 ]);
 
 function normalizeContent(content) {
@@ -42,6 +46,11 @@ function sectionForAsset(sections, assetType) {
   if (['paper_wireframe', 'low_fi_wireframe', 'wireframes'].includes(assetType)) return sections.find(s => /design\s+exploration|low-fi\s+wireframe/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'process' || s.type === 'process');
   if (assetType === 'usability_testing') return sections.find(s => s.section_type === 'usability' || s.type === 'usability' || /usability/i.test(String(s.title || '')));
   if (assetType === 'mobile_final_ui' || assetType === 'web_final_ui') return sections.find(s => /final\s+experience\s*&\s*accessibility/i.test(String(s.title || ''))) || sections.find(s => s.section_type === 'final' || s.type === 'final' || s.section_type === 'outcome' || s.type === 'outcome');
+  const marketingSection = (pattern) => sections.find(s => pattern.test(String(s.title || '')));
+  if (assetType === 'marketing_sitemap' || assetType === 'marketing_paper_wireframe' || assetType === 'marketing_digital_wireframe') return marketingSection(/sitemap|wireframe/i);
+  if (assetType === 'marketing_desktop_before' || assetType === 'marketing_desktop_after' || assetType === 'marketing_mobile_before' || assetType === 'marketing_mobile_after') return marketingSection(/design\s+validation|heuristic/i);
+  if (assetType === 'marketing_desktop_final' || assetType === 'marketing_tablet_final' || assetType === 'marketing_mobile_final') return marketingSection(/high-fidelity|accessibility/i);
+  if (assetType === 'marketing_hifi_desktop' || assetType === 'marketing_hifi_mobile') return marketingSection(/high-fidelity/i);
   return null;
 }
 
