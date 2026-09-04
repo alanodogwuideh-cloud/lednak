@@ -1,7 +1,43 @@
-import { db } from 'hatchable';
-export const access='public';
-export const methods=['GET'];
-async function sendProxy(res,url){const r=await fetch(url);if(!r.ok)return res.status(r.status).send('Media preview could not be loaded.');res.setHeader('Content-Type',r.headers.get('content-type')||'application/octet-stream');res.setHeader('Cache-Control','private, max-age=300');return res.send(Buffer.from(await r.arrayBuffer()));}
-function sectionsOf(p){const s=p?.content?.sections;return Array.isArray(s)?s:[]}
-function parse(id){const m=String(id||'').match(/^([^:]+):([0-9]+):([0-9]+)$/);return m?{si:Number(m[2]),ii:Number(m[3])}:null}
-export default async function(req,res){try{const projectId=String(req.query?.project_id||'');if(!projectId)return res.status(400).send('Missing project_id.');const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[projectId]);const p=rows[0];if(!p)return res.status(404).send('Case study not found.');let url='';const imageId=String(req.query?.image_id||'');const fixed=String(req.query?.fixed||'');if(imageId){const x=parse(imageId),s=sectionsOf(p);url=x&&s[x.si]?.images?.[x.ii]?.image_url||'';}else if(fixed==='cover'||fixed==='hero'){url=p[fixed+'_image_url']||'';}else return res.status(400).send('Missing media target.');if(!url)return res.status(404).send('Media preview not found.');return await sendProxy(res,url);}catch(e){return res.status(500).send(e.message||'Media preview failed.');}}
+import { requireSupabaseAdmin } from 'lib/admin-auth';
+import { supabaseAdmin } from 'lib/supabase-admin';
+
+export const access = 'public';
+export const methods = ['GET'];
+
+async function sendProxy(res, url) {
+  const response = await fetch(url);
+  if (!response.ok) return res.status(response.status).send('Media preview could not be loaded.');
+  res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  return res.send(Buffer.from(await response.arrayBuffer()));
+}
+
+export default async function (req, res) {
+  try {
+    const auth = await requireSupabaseAdmin(req);
+    if (!auth.ok) return res.status(auth.status).send(auth.error);
+    const projectId = String(req.query?.project_id || '');
+    if (!projectId) return res.status(400).send('Missing project_id.');
+
+    const projects = await supabaseAdmin(`projects?id=eq.${encodeURIComponent(projectId)}&select=cover_image_url,hero_image_url&limit=1`);
+    const project = projects?.[0];
+    if (!project) return res.status(404).send('Case study not found.');
+
+    let url = '';
+    const imageId = String(req.query?.image_id || '');
+    const fixed = String(req.query?.fixed || '');
+    if (imageId) {
+      const images = await supabaseAdmin(`project_images?id=eq.${encodeURIComponent(imageId)}&project_id=eq.${encodeURIComponent(projectId)}&select=image_url&limit=1`);
+      url = images?.[0]?.image_url || '';
+    } else if (fixed === 'cover' || fixed === 'hero') {
+      url = project[fixed + '_image_url'] || '';
+    } else {
+      return res.status(400).send('Missing media target.');
+    }
+
+    if (!url) return res.status(404).send('Media preview not found.');
+    return sendProxy(res, url);
+  } catch (error) {
+    return res.status(500).send(error.message || 'Media preview failed.');
+  }
+}

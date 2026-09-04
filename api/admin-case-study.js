@@ -1,35 +1,176 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import { db } from 'hatchable';
-export const access='public';
-export const methods=['GET','POST','PUT','DELETE'];
-function getSections(project){const s=project?.content?.sections;return Array.isArray(s)?s:[]}
-function normalize(project){return getSections(project).map((s,i)=>{const sid=s._id||s.id||crypto.randomUUID();return {...s,_id:sid,id:sid,display_order:i+1,section_type:s.type||s.section_type||'content',body:s.body??s.text??'',text:s.text??s.body??'',images:Array.isArray(s.images)?s.images.map((img,j)=>({...img,id:img.id||`${sid}:${j}`})):[]};});}
-function allImages(project){return normalize(project).flatMap(s=>s.images||[])}
-async function getProject(id){const {rows}=await db.query('SELECT * FROM case_studies WHERE id=$1 LIMIT 1',[id]);return rows[0]}
-async function saveSections(id,sections){const {rows}=await db.query('UPDATE case_studies SET content=$1,updated_at=now() WHERE id=$2 RETURNING *',[{sections},id]);return rows[0]}
-export default async function(req,res){
- try{
-  const a=await requireSupabaseAdmin(req);if(!a.ok)return res.status(a.status).json({error:a.error});
-  const q=req.query||{},b=req.body||{},projectId=q.project_id||b.project_id;
-  if(!projectId)return res.status(400).json({error:'Missing project_id.'});
-  const project=await getProject(projectId);if(!project)return res.status(404).json({error:'Case study not found.'});
-  if(req.method==='GET')return res.json({project,sections:normalize(project),images:allImages(project)});
-  const sections=getSections(project);
-  if(req.method==='POST'){
-   sections.push({type:b.section_type||'content',title:b.title||'',body:b.body||'',text:b.body||'',items:Array.isArray(b.items)?b.items:undefined,metadata:b.metadata||{},images:Array.isArray(b.images)?b.images:[]});
-   const saved=await saveSections(projectId,sections);const out=normalize(saved);return res.status(201).json(out[out.length-1]);
+import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
+
+export const access = 'public';
+export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
+
+const BUCKET = 'portfolio-images';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeMetadata(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
+}
+
+function sectionFromRow(row, images) {
+  const metadata = normalizeMetadata(row.metadata);
+  const out = {
+    ...row,
+    id: row.id,
+    _id: row.id,
+    type: row.section_type || 'content',
+    section_type: row.section_type || 'content',
+    display_order: Number(row.display_order || 0),
+    body: row.body || '',
+    text: row.body || '',
+    metadata,
+    images: (images || []).filter(x => String(x.section_id) === String(row.id)),
+  };
+  if (Array.isArray(metadata.items)) out.items = [...metadata.items];
+  if (metadata.item_display) out.item_display = metadata.item_display;
+  if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text;
+  if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
+  return out;
+}
+
+async function getProject(id) {
+  const rows = await supabaseAdmin(`projects?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return rows?.[0] || null;
+}
+
+async function loadContent(projectId) {
+  const [project, sections, images] = await Promise.all([
+    getProject(projectId),
+    supabaseAdmin(`case_study_sections?project_id=eq.${encodeURIComponent(projectId)}&select=*&order=display_order.asc,created_at.asc`),
+    supabaseAdmin(`project_images?project_id=eq.${encodeURIComponent(projectId)}&select=*&order=display_order.asc,created_at.asc`),
+  ]);
+  if (!project) return null;
+  const normalizedSections = (sections || []).map(row => sectionFromRow(row, images || []));
+  return {
+    project,
+    sections: normalizedSections,
+    images: images || [],
+  };
+}
+
+function metadataFor(section) {
+  const metadata = normalizeMetadata(section.metadata);
+  if (Array.isArray(section.items)) metadata.items = section.items;
+  if (section.item_display !== undefined) metadata.item_display = section.item_display;
+  if (section.quote_text !== undefined) metadata.quote_text = section.quote_text;
+  if (section.quote_author !== undefined) metadata.quote_author = section.quote_author;
+  return metadata;
+}
+
+async function removeSectionImages(sectionId, images) {
+  for (const image of (images || []).filter(x => String(x.section_id) === String(sectionId))) {
+    const path = storagePathFromPublicUrl(image.image_url, BUCKET);
+    if (path) await deleteStorageObject(BUCKET, path).catch(() => {});
   }
-  if(req.method==='PUT'){
-   if(b.replace_all===true&&Array.isArray(b.sections)){const cleaned=b.sections.map((s)=>{const out={...s,_id:s._id||s.id||crypto.randomUUID(),type:s.section_type||s.type||'content',title:s.title??'',body:s.body??s.text??'',text:s.text??s.body??'',metadata:s.metadata||{},images:Array.isArray(s.images)?s.images:[]};if(Array.isArray(s.items))out.items=s.items;else delete out.items;delete out.id;delete out.display_order;delete out.section_type;return out;});const saved=await saveSections(projectId,cleaned);return res.json({project:saved,sections:normalize(saved),images:allImages(saved)});}
-   if(!b.id)return res.status(400).json({error:'Missing section id.'});
-   const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
-   sections[idx]={...sections[idx],type:b.section_type||sections[idx].type||'content',title:b.title??sections[idx].title,body:b.body??sections[idx].body??sections[idx].text??'',text:b.body??sections[idx].text??sections[idx].body??'',items:Array.isArray(b.items)?b.items:sections[idx].items,metadata:b.metadata??sections[idx].metadata??{},images:Array.isArray(b.images)?b.images:(sections[idx].images||[])};
-   const saved=await saveSections(projectId,sections);return res.json(normalize(saved)[idx]);
+  await supabaseAdmin(`project_images?section_id=eq.${encodeURIComponent(sectionId)}`, { method: 'DELETE' });
+}
+
+async function saveAllSections(projectId, incomingSections) {
+  const current = await loadContent(projectId);
+  if (!current) throw new Error('Case study not found.');
+  const currentIds = new Set(current.sections.map(s => String(s.id)));
+  const keptIds = new Set();
+  const savedRows = [];
+
+  for (let i = 0; i < incomingSections.length; i += 1) {
+    const section = incomingSections[i] || {};
+    const sectionType = String(section.section_type || section.type || 'content');
+    const payload = {
+      project_id: projectId,
+      section_type: sectionType,
+      title: String(section.title ?? ''),
+      body: String(section.body ?? section.text ?? ''),
+      metadata: metadataFor(section),
+      display_order: i + 1,
+    };
+
+    if (UUID_RE.test(String(section.id || '')) && currentIds.has(String(section.id))) {
+      const rows = await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(section.id)}&project_id=eq.${encodeURIComponent(projectId)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload),
+      });
+      if (rows?.[0]) savedRows.push(rows[0]);
+      keptIds.add(String(section.id));
+    } else {
+      const rows = await supabaseAdmin('case_study_sections', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload),
+      });
+      if (rows?.[0]) savedRows.push(rows[0]);
+      keptIds.add(String(rows?.[0]?.id || ''));
+    }
   }
-  if(req.method==='DELETE'){
-   if(!b.id)return res.status(400).json({error:'Missing section id.'});const idx=Number(String(b.id).split(':').pop());if(!Number.isInteger(idx)||idx<0||idx>=sections.length)return res.status(404).json({error:'Section not found.'});
-   sections.splice(idx,1);await saveSections(projectId,sections);return res.json({ok:true});
+
+  for (const currentSection of current.sections) {
+    if (!keptIds.has(String(currentSection.id))) {
+      await removeSectionImages(currentSection.id, current.images);
+      await supabaseAdmin(`case_study_sections?id=eq.${encodeURIComponent(currentSection.id)}&project_id=eq.${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+    }
   }
-  return res.status(405).json({error:'Method not allowed'});
- }catch(e){return res.status(500).json({error:e.message||'Case study section operation failed.'});}
+
+  return loadContent(projectId);
+}
+
+export default async function (req, res) {
+  try {
+    const auth = await requireSupabaseAdmin(req);
+    if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+
+    const query = req.query || {};
+    const body = req.body || {};
+    const projectId = query.project_id || body.project_id;
+    if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
+
+    const current = await loadContent(projectId);
+    if (!current) return res.status(404).json({ error: 'Case study not found.' });
+
+    if (req.method === 'GET') {
+      return res.json(current);
+    }
+
+    if (req.method === 'PUT' && body.replace_all === true && Array.isArray(body.sections)) {
+      const saved = await saveAllSections(projectId, body.sections);
+      return res.json(saved);
+    }
+
+    if (req.method === 'POST') {
+      const sections = [...current.sections, {
+        section_type: body.section_type || 'content',
+        title: body.title || '',
+        body: body.body || '',
+        metadata: body.metadata || {},
+        items: Array.isArray(body.items) ? body.items : undefined,
+      }];
+      const saved = await saveAllSections(projectId, sections);
+      return res.status(201).json(saved.sections[saved.sections.length - 1]);
+    }
+
+    if (req.method === 'PUT') {
+      if (!body.id) return res.status(400).json({ error: 'Missing section id.' });
+      const index = current.sections.findIndex(s => String(s.id) === String(body.id));
+      if (index < 0) return res.status(404).json({ error: 'Section not found.' });
+      const sections = current.sections.map((section, i) => i === index ? { ...section, ...body } : section);
+      const saved = await saveAllSections(projectId, sections);
+      return res.json(saved.sections.find(s => String(s.id) === String(body.id)) || saved.sections[index]);
+    }
+
+    if (req.method === 'DELETE') {
+      if (!body.id) return res.status(400).json({ error: 'Missing section id.' });
+      if (!current.sections.some(s => String(s.id) === String(body.id))) return res.status(404).json({ error: 'Section not found.' });
+      const sections = current.sections.filter(s => String(s.id) !== String(body.id));
+      const saved = await saveAllSections(projectId, sections);
+      return res.json({ ok: true, ...saved });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    console.error('admin-case-study error', error.message);
+    return res.status(500).json({ error: error.message || 'Case study section operation failed.' });
+  }
 }

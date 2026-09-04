@@ -1,41 +1,41 @@
-import { supabase } from '../lib/supabase.js';
-import { db, storage } from 'hatchable';
+import { supabaseAdmin } from 'lib/supabase-admin';
 
 export const access = 'public';
 export const methods = ['GET'];
 
-export default async function(req,res){
+export default async function (req, res) {
   try {
-    const [settingsRows, projects, branding] = await Promise.all([
-      db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1'),
-      supabase('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
-      db.query('SELECT favicon_key, updated_at FROM site_branding ORDER BY updated_at DESC LIMIT 1'),
+    const [settingsRows, projects] = await Promise.all([
+      supabaseAdmin('site_settings?select=setting_key,setting_value,updated_at&order=setting_key.asc'),
+      supabaseAdmin('projects?select=id,title,slug,short_description,overview,role,client,year,duration,category,cover_image_url,hero_image_url,featured,published,display_order&published=eq.true&order=display_order.asc,created_at.asc'),
     ]);
 
-    const a = settingsRows.rows[0] || null;
-    const settings = a ? {
-      site_name: a.site_name || 'Alan Odogwuideh',
-      role: a.role || 'UX Designer',
-      intro: a.intro || '',
-      about_text: a.about_text || '',
-      location: a.location || 'Abuja, Nigeria',
-      linkedin_url: a.linkedin_url || '',
-      email: a.email || '',
-      about_image_url: a.about_image_url ? '/api/about-image?v='+encodeURIComponent(a.updated_at || Date.now()) : '',
-      favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '',
-      favicon_updated_at: branding.rows[0]?.updated_at || '',
-    } : { favicon_url: branding.rows[0]?.favicon_key ? '/api/favicon' : '' };
+    const values = {};
+    for (const row of settingsRows || []) values[row.setting_key] = row.setting_value || '';
+    const faviconRow = (settingsRows || []).find(row => row.setting_key === 'favicon_url');
 
-    res.json({
-      settings,
-      projects: projects.map(p => ({
+    return res.json({
+      settings: {
+        site_name: values.site_name || 'Alan Odogwuideh',
+        role: values.role || 'UX Designer',
+        intro: values.headline || '',
+        about_text: values.bio || '',
+        location: values.location || 'Abuja, Nigeria',
+        linkedin_url: values.linkedin_url || '',
+        email: values.email || '',
+        about_image_url: values.profile_image_url || '',
+        favicon_url: values.favicon_url || '',
+        favicon_updated_at: faviconRow?.updated_at || '',
+      },
+      projects: (projects || []).map(p => ({
         ...p,
         short_description: p.short_description || p.overview || '',
         status: p.published ? 'published' : 'draft',
+        sort_order: Number(p.display_order || 0),
       })),
     });
   } catch (error) {
     console.error('portfolio error', error.message);
-    res.status(502).json({ error: 'Portfolio data is temporarily unavailable.' });
+    return res.status(502).json({ error: 'Portfolio data is temporarily unavailable.' });
   }
 }
