@@ -29,13 +29,8 @@ if(req.method==='POST'){
     if(existing?.favicon_key&&existing.favicon_key!==key)await storage.del(existing.favicon_key).catch(()=>{});
     return res.json({url:'/api/favicon?v='+Date.now(),key,saved:true});
   }
-  const storageKey='portfolio-about-'+Date.now()+'-'+crypto.randomUUID()+'-'+String(file.filename||'profile.jpg').replace(/[^a-zA-Z0-9._-]/g,'-');
-  await storage.put(storageKey,file.buffer,file.contentType||'image/jpeg');
-  const existing=(await db.query('SELECT id,about_image_url FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1')).rows[0];
-  if(existing?.id)await db.query('UPDATE portfolio_settings SET about_image_url=$1, updated_at=NOW() WHERE id=$2',[storageKey,existing.id]);
-  else await db.query('INSERT INTO portfolio_settings (about_image_url) VALUES ($1)',[storageKey]);
-  if(existing?.about_image_url){let oldKey=String(existing.about_image_url);if(oldKey.startsWith('http')){try{oldKey=new URL(oldKey).pathname.split('/').pop()||''}catch{oldKey=''}}if(oldKey&&oldKey!==storageKey)await storage.del(oldKey).catch(()=>{});}
-  return res.json({url:'/api/about-image?v='+Date.now(),key:storageKey,saved:true});
+  const url=await storage.put('portfolio-about-'+Date.now()+'-'+String(file.filename||'profile.jpg').replace(/[^a-zA-Z0-9._-]/g,'-'),file.buffer,file.contentType||'image/jpeg');
+  const existing=await sb('about?select=id&limit=1');const row={profile_image_url:url,updated_at:new Date().toISOString()};if(existing?.[0]?.id)await sb('about?id=eq.'+existing[0].id,{method:'PATCH',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});else await sb('about',{method:'POST',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.json({url});
 }
 if(req.method==='DELETE'){
   const existing=(await db.query('SELECT id, favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')).rows[0];
@@ -44,8 +39,8 @@ if(req.method==='DELETE'){
   return res.json({ok:true});
 }
 if(req.method==='GET'){
-  const [settings,branding]=await Promise.all([db.query('SELECT * FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1'),db.query('SELECT favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')]);
-  const row=settings.rows[0]||{};const key=branding.rows[0]?.favicon_key||'';const aboutUrl=row.about_image_url?'/api/about-image?v='+encodeURIComponent(row.updated_at||Date.now()):'';return res.json({...row,profile_image_url:aboutUrl,about_image_url:aboutUrl,favicon_url:key?'/api/favicon':''});
+  const [d,branding]=await Promise.all([sb('about?select=*&limit=1'),db.query('SELECT favicon_key FROM site_branding ORDER BY updated_at DESC LIMIT 1')]);
+  const row=d?.[0]||{};const key=branding.rows[0]?.favicon_key||'';return res.json({...row,favicon_url:key?'/api/favicon':''});
 }
-const b=req.body||{};const existing=(await db.query('SELECT id,about_image_url FROM portfolio_settings ORDER BY updated_at DESC LIMIT 1')).rows[0];const submittedImage=String(b.profile_image_url||b.about_image_url||'');const aboutKey=submittedImage.includes('/api/about-image')?(existing?.about_image_url||''):submittedImage;const row={site_name:b.name||b.site_name||'Alan Odogwuideh',role:b.role||'UX Designer',intro:b.headline||b.intro||'',about_text:b.bio||b.about_text||'',location:b.location||'',about_image_url:aboutKey,linkedin_url:b.linkedin_url||'',email:b.email||'',updated_at:new Date().toISOString()};let d;if(existing?.id)d=await db.query('UPDATE portfolio_settings SET site_name=$1,role=$2,intro=$3,about_text=$4,location=$5,about_image_url=$6,linkedin_url=$7,email=$8,updated_at=NOW() WHERE id=$9 RETURNING *',[row.site_name,row.role,row.intro,row.about_text,row.location,row.about_image_url,row.linkedin_url,row.email,existing.id]);else d=await db.query('INSERT INTO portfolio_settings (site_name,role,intro,about_text,location,about_image_url,linkedin_url,email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[row.site_name,row.role,row.intro,row.about_text,row.location,row.about_image_url,row.linkedin_url,row.email]);return res.json({...d.rows[0],profile_image_url:d.rows[0].about_image_url||''});
+const b=req.body||{};const existing=await sb('about?select=id&limit=1');const row={name:b.name||'',headline:b.headline||'',bio:b.bio||'',location:b.location||'',profile_image_url:b.profile_image_url||'',linkedin_url:b.linkedin_url||'',email:b.email||'',availability:b.availability||'',updated_at:new Date().toISOString()};let d;if(existing?.[0]?.id)d=await sb('about?id=eq.'+existing[0].id,{method:'PATCH',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});else d=await sb('about',{method:'POST',headers:{...headers(),Prefer:'return=representation'},body:JSON.stringify(row)});return res.json(d?.[0]||d);
 }catch(e){return res.status(500).json({error:e.message||'Site content operation failed.'});}}
