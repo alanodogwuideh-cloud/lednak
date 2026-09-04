@@ -14,10 +14,18 @@ function metadataObject(value) { return value && typeof value === 'object' && !A
 function normalizeSection(section, index) {
   const metadata = metadataObject(section?.metadata);
   const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, type: section?.type || section?.section_type || 'content', section_type: section?.section_type || section?.type || 'content', title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: Array.isArray(section?.images) ? section.images : [], display_order: Number(section?.display_order || index + 1) };
-  if (Array.isArray(metadata.items)) out.items = [...metadata.items];
-  if (metadata.item_display !== undefined) out.item_display = metadata.item_display;
-  if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text;
-  if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
+  // The editor treats the top-level section fields as the canonical values.
+  // Older records also contain mirrored copies inside metadata. Only use those
+  // mirrored values as fallbacks when the canonical field is absent, otherwise
+  // a stale metadata copy can silently overwrite a user's latest edit on save.
+  if (Array.isArray(section?.items)) out.items = [...section.items];
+  else if (Array.isArray(metadata.items)) out.items = [...metadata.items];
+  if (section?.item_display !== undefined) out.item_display = section.item_display;
+  else if (metadata.item_display !== undefined) out.item_display = metadata.item_display;
+  if (section?.quote_text !== undefined) out.quote_text = section.quote_text;
+  else if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text;
+  if (section?.quote_author !== undefined) out.quote_author = section.quote_author;
+  else if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
 }
 function normalizeContent(content) { return { ...(content && typeof content === 'object' && !Array.isArray(content) ? content : {}), sections: Array.isArray(content?.sections) ? content.sections.map(normalizeSection) : [] }; }
