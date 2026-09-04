@@ -1,8 +1,9 @@
 import { supabaseAdmin, uploadStorageObject, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
+import { requireSupabaseAdmin } from 'lib/admin-auth';
 import crypto from 'node:crypto';
 
-// Owner-only CMS endpoint. Edge auth avoids the Supabase Auth server dependency.
-export const access = 'admin';
+// Owner-only CMS endpoint authenticated by the portfolio's Supabase admin account.
+export const access = 'public';
 export const methods = ['GET', 'PUT', 'POST', 'DELETE'];
 
 const BUCKET = 'portfolio-images';
@@ -46,6 +47,8 @@ async function deleteOldPublicAsset(url) {
 }
 
 export default async function (req, res) {
+  const auth = await requireSupabaseAdmin(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
     if (req.method === 'GET') {
       const rows = await getSettings();

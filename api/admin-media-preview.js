@@ -1,7 +1,8 @@
 import { supabaseAdmin } from 'lib/supabase-admin';
+import { requireSupabaseAdmin } from 'lib/admin-auth';
 
-// Owner-only CMS preview endpoint. Edge auth avoids the Supabase Auth server dependency.
-export const access = 'admin';
+// Owner-only CMS preview endpoint authenticated by the portfolio's Supabase admin account.
+export const access = 'public';
 export const methods = ['GET'];
 
 async function sendProxy(res, url) {
@@ -12,6 +13,8 @@ async function sendProxy(res, url) {
 }
 
 export default async function (req, res) {
+  const auth = await requireSupabaseAdmin(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
     let projectId = String(req.query?.project_id || '');
     const imageId = String(req.query?.image_id || '');
