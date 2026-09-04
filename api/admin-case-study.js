@@ -44,7 +44,7 @@ async function saveSections(project, incoming) {
   const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
 }
-function response(project) { return { ...project, content: normalizeContent(project.content) }; }
+function response(project) { const content = normalizeContent(project.content); const sections = content.sections; const images = sections.flatMap((section, sectionIndex) => (Array.isArray(section.images) ? section.images : []).map((image, imageIndex) => ({ ...image, id: image.id || `${section.id}-image-${imageIndex + 1}`, project_id: project.id, section_id: section.id, section_title: section.title || '', display_order: Number(image.display_order ?? imageIndex) }))); return { ...project, content, sections, images }; }
 
 export default async function (req, res) {
   try {
