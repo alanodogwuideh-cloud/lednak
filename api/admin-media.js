@@ -1,4 +1,5 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
+import { db } from 'hatchable';
 export const access='public';
 export const methods=['GET','POST','PUT','PATCH','DELETE'];
 const base=()=>process.env.SUPABASE_URL;const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY;const h=()=>({apikey:key(),Authorization:'Bearer '+key()});
@@ -6,7 +7,7 @@ async function sb(path,opts={}){const r=await fetch(base()+'/rest/v1/'+path,{...
 function safeName(n){return String(n||'image').replace(/[^a-zA-Z0-9._-]/g,'-').slice(0,160)}
 function urlToPath(url){const marker='/storage/v1/object/public/portfolio-images/';const i=String(url||'').indexOf(marker);return i<0?'':String(url).slice(i+marker.length)}
 async function deleteUrl(url){const path=urlToPath(url);if(!path)return;await fetch(base()+'/storage/v1/object/portfolio-images/'+path,{method:'DELETE',headers:h()}).catch(()=>{});}
-async function project(id){return (await sb('projects?select=id,title,slug,cover_image_url,hero_image_url&id=eq.'+encodeURIComponent(id)+'&limit=1'))?.[0]||null}
+async function project(id){const local=(await (async()=>{try{const r=await fetch(base()+'/rest/v1/projects?select=id,title,slug,cover_image_url,hero_image_url&id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:h()});if(r.ok)return await r.json();return []}catch{return []}})())?.[0];if(local)return local;try{const {rows}=await db.query('SELECT id,title,slug,cover_image_url,hero_image_url FROM case_studies WHERE id=$1 LIMIT 1',[id]);const cs=rows[0];if(!cs)return null;const legacy=(await sb('projects?select=id,title,slug,cover_image_url,hero_image_url&slug=eq.'+encodeURIComponent(cs.slug)+'&limit=1'))?.[0];return legacy?{...legacy,_caseStudyId:cs.id,_caseStudy:cs}:null}catch{return null}}
 const allowed=['cover','hero','research','chinedu_persona','fatima_persona','storyboard','wireframes','usability_testing','mobile_final_ui','web_final_ui'];
 const sectionMap={research:'research',chinedu_persona:'personas',fatima_persona:'personas',storyboard:'process',wireframes:'process',usability_testing:'usability',mobile_final_ui:'final',web_final_ui:'final'};
 export default async function(req,res){try{
