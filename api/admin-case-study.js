@@ -36,9 +36,20 @@ function refine(section) {
   return metadata;
 }
 async function getProject(id) { const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
-async function saveSections(project, incoming) {
+async function saveSections(project, incoming, caseMeta) {
   if (!Array.isArray(incoming) || !incoming.length) throw new Error('Refusing to save an empty case study. Existing content was preserved.');
   const current = normalizeContent(project.content);
+  if (caseMeta && typeof caseMeta === 'object' && !Array.isArray(caseMeta)) {
+    const currentMeta = current.case_meta && typeof current.case_meta === 'object' && !Array.isArray(current.case_meta) ? current.case_meta : {};
+    current.case_meta = {
+      role_label: caseMeta.role_label ?? currentMeta.role_label ?? 'Role',
+      duration_label: caseMeta.duration_label ?? currentMeta.duration_label ?? 'Duration',
+      platform_label: caseMeta.platform_label ?? currentMeta.platform_label ?? 'Platform',
+      project_type_label: caseMeta.project_type_label ?? currentMeta.project_type_label ?? 'Project type',
+      platform: caseMeta.platform ?? currentMeta.platform ?? 'Mobile + Web',
+      project_type: caseMeta.project_type ?? currentMeta.project_type ?? 'End-to-end'
+    };
+  }
   const sections = incoming.map((s, i) => {
     const x = normalizeSection(s, i);
     x.metadata = refine(x);
@@ -68,7 +79,7 @@ export default async function (req, res) {
     if (!project) return res.status(404).json({ error: 'Case study not found.' });
     if (req.method === 'GET') return res.json(response(project));
     const current = normalizeContent(project.content);
-    if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections)));
+    if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections, body.case_meta)));
     if (req.method === 'POST') {
       const sections = [...current.sections, { type: body.type || body.section_type || 'content', section_type: body.section_type || body.type || 'content', title: body.title || '', body: body.body || body.text || '', text: body.text || body.body || '', metadata: body.metadata || {}, items: body.items, images: body.images || [] }];
       return res.status(201).json(response(await saveSections(project, sections)));
