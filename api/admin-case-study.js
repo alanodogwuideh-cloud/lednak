@@ -186,7 +186,7 @@ function refine(section) {
   if (section.item_display !== undefined) metadata.item_display = section.item_display;
   if (section.quote_text !== undefined) metadata.quote_text = section.quote_text;
   if (section.quote_author !== undefined) metadata.quote_author = section.quote_author;
-  if (/final experience\s*&\s*accessibility/i.test(String(section.title || ''))) {
+  if (/final experience\s*&\s*accessibility/i.test(String(section.title || '')) || /refining\s+the\s+design|design\s+refinement/i.test(String(section.title || ''))) {
     const refining = metadataObject(metadata.refining_design);
     const items = Array.isArray(refining.items) ? [...refining.items] : [];
     DEFAULT_REFINING_ITEMS.forEach((fallback, i) => { if (items[i] == null) items[i] = fallback; });
