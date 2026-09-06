@@ -84,7 +84,17 @@ function inferStyle(section) {
   const old=String(section?.section_type||section?.type||''); const meta=metadataObject(section?.metadata);
   if(STYLE_VALUES.has(old)) return old; if(STYLE_VALUES.has(meta.presentation_style)) return meta.presentation_style; if(meta.card_variant==='card4')return 'card4'; if(meta.card_variant==='card3')return 'card3'; if(meta.card_variant==='card1')return 'card1'; if(meta.card_variant==='analytic_card')return 'analytic_card'; if(Array.isArray(meta.card4_items)&&meta.card4_items.length)return 'card4'; if(Array.isArray(meta.card2_items)&&meta.card2_items.length)return 'card2'; return '';
 }
-function assetKey(value){const raw=String(value||'').trim();if(!raw)return 'project_context';return raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+function assetKey(value){const raw=String(value||'').trim();if(!raw)return '';const key=raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');const canonical=ASSET_TYPES.find(x=>x.toLowerCase()===raw.toLowerCase());return canonical?canonical.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g):key;}
+function resolveAssetType(section){
+  const saved=[section?.asset_type, section?.metadata?.asset_type].map(v=>String(v||'').trim()).find(Boolean);
+  if(saved){
+    const key=assetKey(saved);
+    const known=ASSET_TYPES.some(label=>assetKey(label)===key);
+    return known?key:saved;
+  }
+  const inferred=inferAssetType(section);
+  return assetKey(inferred);
+}
 function normalizeCardItems(metadata){
   const meta=metadataObject(metadata);
   for(const key of ['card2_items','card4_items']){
@@ -159,7 +169,7 @@ function normalizeImageSubsections(section, imageLayout) {
   return groups;
 }
 function normalizeSection(section, index) {
-  let metadata = normalizePrototypeButtons(normalizeCardItems(section?.metadata)); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
+  let metadata = normalizePrototypeButtons(normalizeCardItems(section?.metadata)); const assetType=resolveAssetType({...section,metadata}); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
   metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
