@@ -62,6 +62,7 @@ function normalizePrototypeButtons(metadata) {
 const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','analytic_card']);
 function inferAssetType(section) {
   const title=String(section?.title||'').trim(); const old=String(section?.section_type||section?.type||'');
+  if(old==='prototype_buttons') return '';
   const direct=ASSET_TYPES.find(x=>x.toLowerCase()===title.toLowerCase()); if(direct)return direct;
   const rules=[[/project\s*snapshot/i,'Project Overview'],[/challenge/i,'The Challenge'],[/goal/i,'The Goal'],[/my\s*role/i,'My Role'],[/project\s*context|understanding\s*the\s*product/i,'Project Context'],[/research\s*overview|^research$/i,'Research Overview'],[/research\s*method/i,'Research Methods'],[/key\s*research\s*findings|research\s*findings/i,'Research Findings'],[/key\s*insights/i,'Key Insights'],[/who\s*i\s*designed\s*for|persona/i,'User Personas'],[/user\s*needs/i,'User Needs'],[/problem\s*statement/i,'Problem Statement'],[/ideation/i,'Ideation'],[/information\s*architecture/i,'Information Architecture'],[/user\s*flow/i,'User Flow'],[/wireframing|wireframe/i,'Wireframing'],[/from\s*context\s*to\s*concept|ideation/i,'Ideation'],[/prototyping/i,'High-Fidelity Prototype'],[/low[- ]fi/i,'Low-Fidelity Prototype'],[/high[- ]fidelity/i,'High-Fidelity Prototype'],[/heuristic/i,'Heuristic Review'],[/usability\s*testing|what\s*usability\s*testing/i,'Usability Testing'],[/pain\s*point|user\s*needs/i,'User Needs'],[/key\s*product\s*decisions|design\s*decisions/i,'Design Decisions'],[/design\s*iteration/i,'Design Iteration'],[/design\s*refinement/i,'Design Refinement'],[/visual\s*design/i,'Visual Design'],[/design\s*system/i,'Design System'],[/accessibility/i,'Accessibility'],[/responsive/i,'Responsive Design'],[/final\s*experience|final\s*solution/i,'Final Solution'],[/impact|outcome|takeaways/i,'Outcome'],[/what\s*i\s*learned|learnings/i,'Learnings'],[/next\s*steps/i,'Next Steps'],[/sitemap/i,'Sitemap'],[/paper\s*wireframe/i,'Paper Wireframe'],[/digital\s*wireframe/i,'Digital Wireframe']];
   const hit=rules.find(([re])=>re.test(title)); if(hit)return hit[1];
@@ -86,8 +87,6 @@ function inferStyle(section) {
 }
 function assetKey(value){const raw=String(value||'').trim();if(!raw)return '';const key=raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');const canonical=ASSET_TYPES.find(x=>x.toLowerCase()===raw.toLowerCase());return canonical?canonical.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g):key;}
 function resolveAssetType(section){
-  const presentation=String(section?.section_type||section?.type||section?.metadata?.presentation_type||'').trim().toLowerCase();
-  if(presentation==='prototype_buttons') return '';
   const saved=[section?.asset_type, section?.metadata?.asset_type].map(v=>String(v||'').trim()).find(Boolean);
   if(saved){
     const key=assetKey(saved);
