@@ -28,7 +28,7 @@ function inferImageLayout(section) {
   else if (isDesign && types.has('wireframes')) defaults = [1, 1, 1];
   return { desktop: [1,2,3,4].includes(Number(saved.desktop)) ? Number(saved.desktop) : defaults[0], tablet: [1,2,3,4].includes(Number(saved.tablet)) ? Number(saved.tablet) : defaults[1], mobile: [1,2,3,4].includes(Number(saved.mobile)) ? Number(saved.mobile) : defaults[2] };
 }
-const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow','Prototype Buttons Section'];
+const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow'];
 const PRESENTATIONS = new Set(['text_box','card','list','quote','prototype_buttons']);
 const PROTOTYPE_BUTTON_TYPES = new Set(['primary','secondary','outline','ghost','custom']);
 function normalizePrototypeButtons(metadata) {
@@ -86,6 +86,8 @@ function inferStyle(section) {
 }
 function assetKey(value){const raw=String(value||'').trim();if(!raw)return '';const key=raw.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');const canonical=ASSET_TYPES.find(x=>x.toLowerCase()===raw.toLowerCase());return canonical?canonical.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g):key;}
 function resolveAssetType(section){
+  const presentation=String(section?.section_type||section?.type||section?.metadata?.presentation_type||'').trim().toLowerCase();
+  if(presentation==='prototype_buttons') return '';
   const saved=[section?.asset_type, section?.metadata?.asset_type].map(v=>String(v||'').trim()).find(Boolean);
   if(saved){
     const key=assetKey(saved);
