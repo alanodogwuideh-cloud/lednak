@@ -46,7 +46,7 @@ function normalizePrototypeButtons(metadata) {
       ...x,
       id,
       label: String(x.label || ''),
-      url: String(x.url || ''),
+      url: String(x.url || x.link || x.href || ''),
       type,
       backgroundColor: String(x.backgroundColor || x.background_color || '#000000'),
       textColor: String(x.textColor || x.text_color || '#FFFFFF'),
