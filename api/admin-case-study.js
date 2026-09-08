@@ -28,8 +28,37 @@ function inferImageLayout(section) {
   else if (isDesign && types.has('wireframes')) defaults = [1, 1, 1];
   return { desktop: [1,2,3,4].includes(Number(saved.desktop)) ? Number(saved.desktop) : defaults[0], tablet: [1,2,3,4].includes(Number(saved.tablet)) ? Number(saved.tablet) : defaults[1], mobile: [1,2,3,4].includes(Number(saved.mobile)) ? Number(saved.mobile) : defaults[2] };
 }
-const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow'];
-const PRESENTATIONS = new Set(['text_box','card','list','quote']);
+const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow','Prototype Buttons Section'];
+const PRESENTATIONS = new Set(['text_box','card','list','quote','prototype_buttons']);
+const PROTOTYPE_BUTTON_TYPES = new Set(['primary','secondary','outline','ghost','custom']);
+function normalizePrototypeButtons(metadata) {
+  const meta = metadataObject(metadata);
+  if (!Array.isArray(meta.prototype_buttons)) return meta;
+  const used = new Set();
+  meta.prototype_buttons = meta.prototype_buttons.map((item, index) => {
+    const x = metadataObject(item);
+    let id = String(x.id || '').trim();
+    if (!id || used.has(id)) id = crypto.randomUUID();
+    used.add(id);
+    const type = PROTOTYPE_BUTTON_TYPES.has(String(x.type || '').toLowerCase()) ? String(x.type).toLowerCase() : 'primary';
+    const radius = Number(x.radius);
+    return {
+      ...x,
+      id,
+      label: String(x.label || ''),
+      url: String(x.url || ''),
+      type,
+      backgroundColor: String(x.backgroundColor || x.background_color || '#000000'),
+      textColor: String(x.textColor || x.text_color || '#FFFFFF'),
+      radius: Number.isFinite(radius) ? Math.max(0, Math.min(999, radius)) : 12,
+      enabled: x.enabled !== false,
+      order: Number.isFinite(Number(x.order)) ? Number(x.order) : index + 1,
+      openBehavior: String(x.openBehavior || x.open_behavior || 'modal'),
+      modalBehavior: String(x.modalBehavior || x.modal_behavior || 'embed')
+    };
+  }).sort((a,b) => a.order - b.order).map((x,i) => ({...x, order:i+1}));
+  return meta;
+}
 const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','analytic_card']);
 function inferAssetType(section) {
   const title=String(section?.title||'').trim(); const old=String(section?.section_type||section?.type||'');
@@ -130,7 +159,7 @@ function normalizeImageSubsections(section, imageLayout) {
   return groups;
 }
 function normalizeSection(section, index) {
-  let metadata = normalizeCardItems(section?.metadata); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
+  let metadata = normalizePrototypeButtons(normalizeCardItems(section?.metadata)); const assetType=assetKey(section?.asset_type||metadata.asset_type||inferAssetType(section)); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
   metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
