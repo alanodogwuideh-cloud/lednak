@@ -107,7 +107,8 @@ export default async function (req, res) {
     }
 
     res.setHeader('Cache-Control', 'no-store, max-age=0');
-    const content = object(project.content);
+    const rawContent = object(project.content);
+    const { preview_token: _previewToken, ...content } = rawContent;
     const caseMeta = object(content.case_meta);
     const sections = normalizeSections(content);
 
