@@ -98,6 +98,14 @@ export default async function (req, res) {
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 
+    const requestedPreviewToken = String(req.query?.preview || '').trim();
+    const contentForAccess = object(project.content);
+    const storedPreviewToken = String(contentForAccess.preview_token || '').trim();
+    const isPreview = Boolean(requestedPreviewToken && storedPreviewToken && requestedPreviewToken === storedPreviewToken);
+    if (String(project.status || 'draft') !== 'published' && !isPreview) {
+      return res.status(404).json({ error: 'Case study not found' });
+    }
+
     res.setHeader('Cache-Control', 'no-store, max-age=0');
     const content = object(project.content);
     const caseMeta = object(content.case_meta);
