@@ -15,7 +15,7 @@ async function r2Put(key, body, contentType) {
   const now = new Date();
   const amz = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
   const date = amz.slice(0, 8);
-  const payloadHash = await SHA(body);
+  const payloadHash = "UNSIGNED-PAYLOAD";
   const path = `/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
   const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amz}\n`;
   const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
