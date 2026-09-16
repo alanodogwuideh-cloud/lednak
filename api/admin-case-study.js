@@ -1,4 +1,4 @@
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 // Owner-only CMS endpoint authenticated by the portfolio's Supabase admin account.
@@ -205,7 +205,7 @@ function refine(section) {
   }
   return metadata;
 }
-async function getProject(id) { const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
+async function getProject(id) { const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
 async function saveSections(project, incoming, caseMeta) {
   if (!Array.isArray(incoming) || !incoming.length) throw new Error('Refusing to save an empty case study. Existing content was preserved.');
   const current = normalizeContent(project.content);
@@ -231,7 +231,7 @@ async function saveSections(project, incoming, caseMeta) {
     return x;
   });
   const content = { ...current, sections };
-  const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
+  const { rows } = await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
 }
 function response(project) { const content = normalizeContent(project.content); const sections = content.sections; const images = sections.flatMap((section, sectionIndex) => (Array.isArray(section.images) ? section.images : []).map((image, imageIndex) => ({ ...image, id: image.id || `${section.id}-image-${imageIndex + 1}`, project_id: project.id, section_id: section.id, section_title: section.title || '', display_order: Number(image.display_order ?? imageIndex) }))); return { ...project, content, sections, images }; }
@@ -270,7 +270,7 @@ export default async function (req, res) {
       // a delete must be an atomic persisted operation, not merely a client-side
       // array mutation that can be overwritten by a later save/reload.
       const content = { ...current, sections: sections.map((s, i) => ({ ...s, display_order: i + 1 })) };
-      const { rows } = await db.query(
+      const { rows } = await tursoQuery(
         `UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
         [JSON.stringify(content), project.id]
       );

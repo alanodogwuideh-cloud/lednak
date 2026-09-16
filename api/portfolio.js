@@ -1,33 +1,33 @@
-import { supabaseAdmin } from 'lib/supabase-admin';
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 
 export const access = 'public';
 export const methods = ['GET'];
 
 export default async function (req, res) {
   try {
-    const [settingsRows, projectResult] = await Promise.all([
-      supabaseAdmin('site_settings?select=setting_key,setting_value,updated_at&order=setting_key.asc'),
-      db.query(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 ORDER BY sort_order ASC, created_at ASC`, ['published']),
+    const [settingsResult, projectResult] = await Promise.all([
+      tursoQuery('SELECT site_name,role,intro,about_text,location,linkedin_url,email,about_image_url FROM portfolio_settings LIMIT 1'),
+      tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = ? ORDER BY sort_order ASC, created_at ASC`, ['published']),
     ]);
     const projects = projectResult?.rows || [];
+    const settings = settingsResult?.rows?.[0] || {};
 
-    const values = {};
-    for (const row of settingsRows || []) values[row.setting_key] = row.setting_value || '';
-    const faviconRow = (settingsRows || []).find(row => row.setting_key === 'favicon_url');
+    const faviconResult = await tursoQuery('SELECT favicon_key,updated_at FROM site_branding LIMIT 1');
+    const branding = faviconResult?.rows?.[0] || {};
+    const faviconKey = branding.favicon_key || '';
 
     return res.json({
       settings: {
-        site_name: values.site_name || 'Alan Odogwuideh',
-        role: values.role || 'UX Designer',
-        intro: values.headline || '',
-        about_text: values.bio || '',
-        location: values.location || 'Abuja, Nigeria',
-        linkedin_url: values.linkedin_url || '',
-        email: values.email || '',
-        about_image_url: values.profile_image_url || '',
-        favicon_url: values.favicon_url || '',
-        favicon_updated_at: faviconRow?.updated_at || '',
+        site_name: settings.site_name || 'Alan Odogwuideh',
+        role: settings.role || 'UX Designer',
+        intro: settings.intro || '',
+        about_text: settings.about_text || '',
+        location: settings.location || 'Abuja, Nigeria',
+        linkedin_url: settings.linkedin_url || '',
+        email: settings.email || '',
+        about_image_url: settings.about_image_url || '',
+        favicon_url: faviconKey ? '/api/favicon' : '',
+        favicon_updated_at: branding.updated_at || '',
       },
       projects: (projects || []).map(p => ({
         ...p,
