@@ -12,3 +12,13 @@ key = "SUPABASE_PUBLISHABLE_KEY"
 key = "SUPABASE_SERVICE_ROLE_KEY"
 required = true
 expose = true
+
+[[secret]]
+key = "TURSO_DATABASE_URL"
+required = true
+expose = true
+
+[[secret]]
+key = "TURSO_AUTH_TOKEN"
+required = true
+expose = true
