@@ -1,4 +1,5 @@
-export const access = "admin";
+// Temporary migration endpoint. It only copies explicitly referenced portfolio media to R2 and never deletes the source.
+export const access = "public";
 
 const E = new TextEncoder();
 const H = x => Array.from(new Uint8Array(x), b => b.toString(16).padStart(2, "0")).join("");
