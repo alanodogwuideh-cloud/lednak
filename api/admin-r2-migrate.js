@@ -36,6 +36,7 @@ async function r2Put(key, body, contentType) {
       "Content-Type": contentType || "application/octet-stream",
     },
     body,
+    ...(body instanceof Uint8Array ? {} : {}),
   });
 }
 
@@ -48,8 +49,8 @@ export default async function (req, res) {
   const sourceUrl = `${base}/storage/v1/object/portfolio-images/${sourcePath.split("/").map(encodeURIComponent).join("/")}`;
   const source = await fetch(sourceUrl, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } });
   if (!source.ok) return res.status(502).json({ error: `Supabase source returned ${source.status}.`, path: sourcePath });
-  const body = new Uint8Array(await source.arrayBuffer());
-  const put = await r2Put(sourcePath, body, source.headers.get("content-type") || "application/octet-stream");
+  const contentLength = Number(source.headers.get("content-length") || 0);
+  const put = await r2Put(sourcePath, source.body, source.headers.get("content-type") || "application/octet-stream");
   if (!put.ok) return res.status(502).json({ error: `R2 upload returned ${put.status}.`, path: sourcePath });
-  return res.json({ ok: true, path: sourcePath, bytes: body.byteLength, contentType: source.headers.get("content-type") || "application/octet-stream" });
+  return res.json({ ok: true, path: sourcePath, bytes: contentLength || null, contentType: source.headers.get("content-type") || "application/octet-stream" });
 }
