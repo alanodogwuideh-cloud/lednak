@@ -1,49 +1,77 @@
-import { supabaseAdmin, uploadStorageObject, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
+import { tursoQuery } from 'lib/turso';
+import { r2PublicUrl, r2KeyFromPublicUrl, uploadR2Object, deleteR2Object } from 'lib/r2';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
-import crypto from 'node:crypto';
 
-// Owner-only CMS endpoint authenticated by the portfolio's Supabase admin account.
+// Owner-only CMS endpoint. Authentication remains on the existing admin session
+// while content and media are migrated away from Supabase.
 export const access = 'public';
 export const methods = ['GET', 'PUT', 'POST', 'DELETE'];
 
-const BUCKET = 'portfolio-images';
+const SETTING_KEYS = ['site_name', 'headline', 'location', 'email', 'linkedin_url', 'profile_image_url', 'bio', 'availability'];
 const safeName = n => String(n || 'file').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
 
-const SETTING_KEYS = ['site_name', 'headline', 'location', 'email', 'linkedin_url', 'profile_image_url', 'bio', 'availability', 'favicon_url'];
-
 async function getSettings() {
-  const rows = await supabaseAdmin('site_settings?select=setting_key,setting_value,updated_at&order=setting_key.asc');
-  return rows || [];
+  const { rows } = await tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`);
+  const { rows: brandingRows } = await tursoQuery(`SELECT * FROM site_branding LIMIT 1`);
+  return { settings: rows?.[0] || null, branding: brandingRows?.[0] || null };
 }
 
-function settingsObject(rows) {
-  const out = {};
-  for (const row of rows || []) out[row.setting_key] = row.setting_value || '';
-  return out;
+function settingsObject(data) {
+  const row = data?.settings || {};
+  const branding = data?.branding || {};
+  const faviconKey = String(branding.favicon_key || '');
+  return {
+    site_name: row.site_name || '',
+    headline: row.intro || '',
+    role: row.role || 'UX Designer',
+    location: row.location || '',
+    email: row.email || '',
+    linkedin_url: row.linkedin_url || '',
+    profile_image_url: row.about_image_url || '',
+    bio: row.about_text || '',
+    availability: '',
+    favicon_url: faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : ''),
+    favicon_updated_at: branding.updated_at || '',
+  };
 }
 
-async function setSetting(settingKey, value) {
-  const existing = await supabaseAdmin(`site_settings?setting_key=eq.${encodeURIComponent(settingKey)}&select=id&limit=1`);
-  const payload = { setting_value: String(value ?? ''), updated_at: new Date().toISOString() };
-  if (existing?.[0]) {
-    const rows = await supabaseAdmin(`site_settings?setting_key=eq.${encodeURIComponent(settingKey)}`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify(payload),
-    });
-    return rows?.[0] || null;
+async function setSettings(values) {
+  const current = await getSettings();
+  const row = current.settings;
+  const id = row?.id || '1';
+  const payload = {
+    site_name: String(values.site_name ?? row?.site_name ?? ''),
+    role: String(values.role ?? row?.role ?? 'UX Designer'),
+    intro: String(values.headline ?? row?.intro ?? ''),
+    location: String(values.location ?? row?.location ?? ''),
+    email: String(values.email ?? row?.email ?? ''),
+    linkedin_url: String(values.linkedin_url ?? row?.linkedin_url ?? ''),
+    about_text: String(values.bio ?? row?.about_text ?? ''),
+    about_image_url: String(values.profile_image_url ?? row?.about_image_url ?? ''),
+  };
+  if (row) {
+    const { rows } = await tursoQuery(`UPDATE portfolio_settings SET site_name=$1, role=$2, intro=$3, location=$4, email=$5, linkedin_url=$6, about_text=$7, about_image_url=$8, updated_at=NOW() WHERE id=$9 RETURNING *`, [payload.site_name,payload.role,payload.intro,payload.location,payload.email,payload.linkedin_url,payload.about_text,payload.about_image_url,id]);
+    return rows?.[0] || payload;
   }
-  const rows = await supabaseAdmin('site_settings', {
-    method: 'POST',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ setting_key: settingKey, ...payload }),
-  });
-  return rows?.[0] || null;
+  const { rows } = await tursoQuery(`INSERT INTO portfolio_settings (id,site_name,role,intro,location,email,linkedin_url,about_text,about_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [id,payload.site_name,payload.role,payload.intro,payload.location,payload.email,payload.linkedin_url,payload.about_text,payload.about_image_url]);
+  return rows?.[0] || payload;
 }
 
-async function deleteOldPublicAsset(url) {
-  const path = storagePathFromPublicUrl(url, BUCKET);
-  if (path) await deleteStorageObject(BUCKET, path).catch(() => {});
+async function setFaviconKey(key) {
+  const current = await getSettings();
+  const row = current.branding;
+  const id = row?.id || '1';
+  if (row) {
+    const { rows } = await tursoQuery(`UPDATE site_branding SET favicon_key=$1, updated_at=NOW() WHERE id=$2 RETURNING *`, [String(key || ''), id]);
+    return rows?.[0] || { id, favicon_key: key || '' };
+  }
+  const { rows } = await tursoQuery(`INSERT INTO site_branding (id,favicon_key) VALUES ($1,$2) RETURNING *`, [id, String(key || '')]);
+  return rows?.[0] || { id, favicon_key: key || '' };
+}
+
+async function deleteR2Asset(url) {
+  const key = r2KeyFromPublicUrl(url);
+  if (key) await deleteR2Object(key).catch(() => {});
 }
 
 export default async function (req, res) {
@@ -51,18 +79,8 @@ export default async function (req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
     if (req.method === 'GET') {
-      const rows = await getSettings();
-      const values = settingsObject(rows);
-      const faviconRow = rows.find(x => x.setting_key === 'favicon_url');
-      const latest = rows.reduce((a, b) => String(a?.updated_at || '') > String(b?.updated_at || '') ? a : b, null);
-      return res.json({
-        ...values,
-        name: values.site_name || '',
-        headline: values.headline || '',
-        profile_image_url: values.profile_image_url || '',
-        favicon_url: values.favicon_url || '',
-        favicon_updated_at: faviconRow?.updated_at || latest?.updated_at || '',
-      });
+      const data = await getSettings();
+      return res.json(settingsObject(data));
     }
 
     if (req.method === 'POST') {
@@ -74,53 +92,49 @@ export default async function (req, res) {
       if (kind === 'favicon') {
         const allowed = new Set(['image/png', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/webp']);
         if (!allowed.has(String(file.contentType))) return res.status(415).json({ error: 'Favicon must be PNG, SVG, ICO, or WebP.' });
-        const uploadedBuffer = Buffer.from(file.buffer);
-        const base64 = uploadedBuffer.toString('base64');
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><clipPath id="circle"><circle cx="32" cy="32" r="32"/></clipPath></defs><image href="data:${String(file.contentType)};base64,${base64}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#circle)"/></svg>`;
-        const path = `site/favicon/${Date.now()}-${crypto.randomUUID()}.svg`;
-        const rows = await getSettings();
-        const oldUrl = rows.find(x => x.setting_key === 'favicon_url')?.setting_value || '';
-        const url = await uploadStorageObject(BUCKET, path, Buffer.from(svg, 'utf8'), 'image/svg+xml');
-        await setSetting('favicon_url', url);
-        await deleteOldPublicAsset(oldUrl);
-        return res.json({ url: '/api/favicon?v=' + Date.now(), storage_url: url, saved: true });
+        const ext = String(file.filename || '').split('.').pop().replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'svg';
+        const key = `site/favicon/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const current = await getSettings();
+        const oldKey = String(current.branding?.favicon_key || '');
+        await uploadR2Object(key, file.buffer, file.contentType);
+        await setFaviconKey(key);
+        if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(() => {});
+        return res.json({ url: r2PublicUrl(key), key, saved: true });
       }
 
-      const rows = await getSettings();
-      const oldUrl = rows.find(x => x.setting_key === 'profile_image_url')?.setting_value || '';
-      const path = `site/profile/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'profile.jpg')}`;
-      const url = await uploadStorageObject(BUCKET, path, file.buffer, file.contentType || 'image/jpeg');
-      await setSetting('profile_image_url', url);
-      await deleteOldPublicAsset(oldUrl);
-      return res.json({ url, key: path, saved: true });
+      const current = await getSettings();
+      const oldUrl = String(current.settings?.about_image_url || '');
+      const key = `site/profile/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'profile.jpg')}`;
+      const url = await uploadR2Object(key, file.buffer, file.contentType || 'image/jpeg');
+      await setSettings({ profile_image_url: url });
+      await deleteR2Asset(oldUrl);
+      return res.json({ url, key, saved: true });
     }
 
     if (req.method === 'DELETE') {
-      const rows = await getSettings();
-      const oldUrl = rows.find(x => x.setting_key === 'favicon_url')?.setting_value || '';
-      await setSetting('favicon_url', '');
-      await deleteOldPublicAsset(oldUrl);
+      const current = await getSettings();
+      const oldKey = String(current.branding?.favicon_key || '');
+      await setFaviconKey('');
+      if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(() => {});
       return res.json({ ok: true });
     }
 
     if (req.method === 'PUT') {
       const body = req.body || {};
+      const current = settingsObject(await getSettings());
       const values = {
-        site_name: body.name ?? body.site_name ?? '',
-        headline: body.headline ?? body.intro ?? '',
-        location: body.location ?? '',
-        email: body.email ?? '',
-        linkedin_url: body.linkedin_url ?? '',
-        profile_image_url: body.profile_image_url ?? '',
-        bio: body.bio ?? body.about_text ?? '',
-        availability: body.availability ?? '',
+        headline: body.headline ?? body.intro ?? current.headline,
+        role: body.role ?? current.role ?? 'UX Designer',
+        site_name: body.name ?? body.site_name ?? current.site_name,
+        location: body.location ?? current.location,
+        email: body.email ?? current.email,
+        linkedin_url: body.linkedin_url ?? current.linkedin_url,
+        profile_image_url: body.profile_image_url ?? current.profile_image_url,
+        bio: body.bio ?? body.about_text ?? current.bio,
       };
-      const rows = await getSettings();
-      const existingProfileUrl = rows.find(x => x.setting_key === 'profile_image_url')?.setting_value || '';
-      if (String(values.profile_image_url).includes('/api/about-image')) values.profile_image_url = existingProfileUrl;
-      for (const key of Object.keys(values)) await setSetting(key, values[key]);
-      const fresh = settingsObject(await getSettings());
-      return res.json({ ...fresh, name: fresh.site_name || '', headline: fresh.headline || '', profile_image_url: fresh.profile_image_url || '' });
+      if (String(values.profile_image_url).includes('/api/about-image')) values.profile_image_url = current.profile_image_url;
+      await setSettings(values);
+      return res.json(settingsObject(await getSettings()));
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

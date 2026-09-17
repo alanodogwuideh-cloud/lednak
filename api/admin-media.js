@@ -1,4 +1,4 @@
-import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
+import { signR2Put, r2PublicUrl, r2KeyFromPublicUrl, deleteR2Object, normalizeR2Url } from 'lib/r2';
 import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
@@ -6,10 +6,6 @@ import { requireSupabaseAdmin } from 'lib/admin-auth';
 export const access = 'public';
 export const methods = ['GET', 'POST', 'PATCH', 'DELETE'];
 
-const BUCKET = 'portfolio-images';
-const base = () => String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
-const headers = () => ({ apikey: serviceKey(), Authorization: `Bearer ${serviceKey()}` });
 const safeName = n => String(n || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
 const uuid = () => crypto.randomUUID();
 
@@ -51,6 +47,7 @@ function flatten(project) {
   content.sections.forEach((section, sectionIndex) => {
     section.images.forEach((image, index) => images.push({
       ...image,
+      image_url: normalizeR2Url(image.image_url || ''),
       asset_type: image.asset_type || image.image_type || '',
       id: image.id || `${section.id}-image-${index + 1}`,
       project_id: project.id,
@@ -63,19 +60,8 @@ function flatten(project) {
   return images;
 }
 
-async function signedUpload(path) {
-  const response = await fetch(`${base()}/storage/v1/object/upload/sign/${path}`, {
-    method: 'POST',
-    headers: { ...headers(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ upsert: true }),
-  });
-  const text = await response.text();
-  let data;
-  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  if (!response.ok || !data?.url || !data?.token) throw new Error(data?.message || 'Could not create a Supabase upload URL.');
-  const raw = String(data.url);
-  const url = new URL(raw.startsWith('/storage/v1/') ? base() + raw : base() + '/storage/v1' + (raw.startsWith('/') ? raw : '/' + raw)).toString();
-  return { url, token: String(data.token) };
+async function signedUpload(path, contentType) {
+  return signR2Put(path, contentType);
 }
 
 async function saveContent(project, content) {
@@ -113,20 +99,16 @@ export default async function (req, res) {
       if (query.preview_image_id) {
         const item = findImage(content, query.preview_image_id)?.image;
         if (!item?.image_url) return res.status(404).send('Media preview not found.');
-        const file = await fetch(item.image_url);
-        if (!file.ok) return res.status(404).send('Media preview not found.');
-        res.setHeader('Content-Type', file.headers.get('content-type') || 'application/octet-stream');
-        return res.send(Buffer.from(await file.arrayBuffer()));
+        res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+        return res.redirect(normalizeR2Url(item.image_url));
       }
       if (query.preview_fixed) {
-        const url = query.preview_fixed === 'cover' ? project.cover_image_url : query.preview_fixed === 'hero' ? project.hero_image_url : '';
+        const url = query.preview_fixed === 'cover' ? normalizeR2Url(project.cover_image_url || '') : query.preview_fixed === 'hero' ? normalizeR2Url(project.hero_image_url || '') : '';
         if (!url) return res.status(404).send('Media preview not found.');
-        const file = await fetch(url);
-        if (!file.ok) return res.status(404).send('Media preview not found.');
-        res.setHeader('Content-Type', file.headers.get('content-type') || 'application/octet-stream');
-        return res.send(Buffer.from(await file.arrayBuffer()));
+        res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+        return res.redirect(url);
       }
-      return res.json({ project, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, index: i, title: s.title || '', asset_type: s.asset_type || s.metadata?.asset_type || '', section_type: s.section_type || s.type || 'content', presentation_style: s.presentation_style || s.metadata?.presentation_style || s.metadata?.card_variant || '', display_order: Number(s.display_order || i + 1) })) });
+      return res.json({ project: { ...project, cover_image_url: normalizeR2Url(project.cover_image_url || ''), hero_image_url: normalizeR2Url(project.hero_image_url || '') }, images: flatten(project), sections: content.sections.map((s, i) => ({ id: s.id, index: i, title: s.title || '', asset_type: s.asset_type || s.metadata?.asset_type || '', section_type: s.section_type || s.type || 'content', presentation_style: s.presentation_style || s.metadata?.presentation_style || s.metadata?.card_variant || '', display_order: Number(s.display_order || i + 1) })) });
     }
 
     if (req.method === 'POST') {
@@ -137,14 +119,13 @@ export default async function (req, res) {
         if (!supported.has(contentType)) return res.status(400).json({ error: 'Unsupported media type.' });
         if (body.replace_image_id && !findImage(content, body.replace_image_id)) return res.status(404).json({ error: 'Media item not found in this case study.' });
         const path = `portfolio/${project.slug}/${Date.now()}-${safeName(body.filename)}`;
-        const signed = await signedUpload(`portfolio-images/${path}`);
-        const storageHost = base().replace(/\.supabase\.co$/i, '.storage.supabase.co');
-        return res.json({ signedUrl: signed.url, uploadToken: signed.token, resumableEndpoint: `${storageHost}/storage/v1/upload/resumable`, objectPath: path, bucketName: BUCKET, publicUrl: `${base()}/storage/v1/object/public/${BUCKET}/${path}`, contentType, projectId, replaceFixed: body.replace_fixed || null, replaceImageId: body.replace_image_id || null });
+        const signed = await signedUpload(path, contentType);
+        return res.json({ signedUrl: signed.url, objectPath: path, publicUrl: r2PublicUrl(path), contentType, projectId, replaceFixed: body.replace_fixed || null, replaceImageId: body.replace_image_id || null });
       }
 
       if (body.action === 'finalize_upload') {
-        const publicPrefix = `${base()}/storage/v1/object/public/${BUCKET}/`;
-        if (!body.url || !String(body.url).startsWith(publicPrefix)) return res.status(400).json({ error: 'Invalid Supabase Storage URL.' });
+        const publicPrefix = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/';
+        if (!body.url || !String(body.url).startsWith(publicPrefix)) return res.status(400).json({ error: 'Invalid R2 media URL.' });
 
         if (body.replace_fixed) {
           if (!['cover', 'hero'].includes(body.replace_fixed)) return res.status(400).json({ error: 'Invalid fixed replacement target.' });
@@ -254,14 +235,13 @@ export default async function (req, res) {
       // an uploaded object. Do not remove the storage object when it is still
       // referenced by another case study or by another fixed asset.
       if (deletedUrl) {
-        const marker = `/storage/v1/object/public/${BUCKET}/`;
         const { rows: otherRefs } = await tursoQuery(
           `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR content::text LIKE $3) LIMIT 1`,
           [project.id, deletedUrl, `%${deletedUrl}%`]
         );
         if (!otherRefs?.length) {
-          const storagePath = storagePathFromPublicUrl(deletedUrl, BUCKET);
-          if (storagePath) await deleteStorageObject(BUCKET, storagePath);
+          const storagePath = r2KeyFromPublicUrl(deletedUrl);
+          if (storagePath) await deleteR2Object(storagePath);
         }
       }
       return res.json({ ok: true });

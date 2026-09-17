@@ -1,4 +1,5 @@
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
+import { normalizeR2Url } from 'lib/r2';
 
 export const access = 'public';
 export const methods = ['GET'];
@@ -65,6 +66,7 @@ function normalizeSections(content) {
     const rawImages = Array.isArray(section.images) ? section.images : [];
     const images = rawImages.map((image, imageIndex) => ({
       ...image,
+      image_url: normalizeR2Url(image.image_url || ''),
       id: image.id || `${sectionId}-image-${imageIndex + 1}`,
       section_id: sectionId,
       display_order: Number(image.display_order ?? imageIndex),
@@ -94,7 +96,7 @@ export default async function (req, res) {
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
     const lookup = aliases[slug] || slug;
-    const { rows } = await db.query(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
+    const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 
@@ -130,8 +132,8 @@ export default async function (req, res) {
         platform: caseMeta.platform || 'Mobile + Web',
         project_type: caseMeta.project_type || 'End-to-end',
       },
-      cover_image_url: project.cover_image_url || '',
-      hero_image_url: project.hero_image_url || '',
+      cover_image_url: normalizeR2Url(project.cover_image_url || ''),
+      hero_image_url: normalizeR2Url(project.hero_image_url || ''),
       content: { ...content, sections },
     });
   } catch (error) {

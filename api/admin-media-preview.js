@@ -1,21 +1,14 @@
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
-// Owner-only CMS preview endpoint authenticated by the portfolio's Supabase admin account.
+// Owner-only CMS preview endpoint. It redirects the browser to the stored
+// media URL so large R2 files never pass through Hatchable memory/bandwidth.
 export const access = 'public';
 export const methods = ['GET'];
 
-async function sendProxy(res, url) {
-  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-  return res.redirect(url);
-}
-
 function normalizeContent(content) {
   const value = content && typeof content === 'object' && !Array.isArray(content) ? content : {};
-  return {
-    ...value,
-    sections: Array.isArray(value.sections) ? value.sections : [],
-  };
+  return { ...value, sections: Array.isArray(value.sections) ? value.sections : [] };
 }
 
 function findImage(content, id) {
@@ -36,7 +29,7 @@ export default async function (req, res) {
     const fixed = String(req.query?.fixed || '');
     if (!projectId) return res.status(400).send('Missing project_id.');
 
-    const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [projectId]);
+    const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [projectId]);
     const project = rows?.[0];
     if (!project) return res.status(404).send('Case study not found.');
 
@@ -53,7 +46,8 @@ export default async function (req, res) {
     }
 
     if (!url) return res.status(404).send('Media preview not found.');
-    return sendProxy(res, url);
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    return res.redirect(url);
   } catch (error) {
     return res.status(500).send(error.message || 'Media preview failed.');
   }
