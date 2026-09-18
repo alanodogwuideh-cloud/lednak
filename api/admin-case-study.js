@@ -30,7 +30,7 @@ function inferImageLayout(section) {
   return { desktop: [1,2,3,4].includes(Number(saved.desktop)) ? Number(saved.desktop) : defaults[0], tablet: [1,2,3,4].includes(Number(saved.tablet)) ? Number(saved.tablet) : defaults[1], mobile: [1,2,3,4].includes(Number(saved.mobile)) ? Number(saved.mobile) : defaults[2] };
 }
 const ASSET_TYPES = ['Project Cover','Case-study Hero','Project Overview','The Challenge','The Goal','My Role','Project Context','Research Overview','Research Methods','Research Findings','Key Insights','User Personas','User Needs','Problem Statement','Ideation','Information Architecture','User Flow','Wireframing','Low-Fidelity Prototype','High-Fidelity Prototype','Heuristic Review','Usability Testing','Design Decisions','Design Iteration','Design Refinement','Visual Design','Design System','Accessibility','Responsive Design','Final Solution','Outcome','Learnings','Next Steps','Sitemap','Paper Wireframe','Digital Wireframe','Desktop Before Heuristic Review','Desktop After Heuristic Review','Mobile Before Heuristic Review','Mobile After Heuristic Review','Final Desktop Screens','Final Tablet Screens','Final Mobile Screens','High-Fidelity Desktop Onboarding Flow','High-Fidelity Mobile Onboarding Flow'];
-const PRESENTATIONS = new Set(['text_box','card','list','quote','prototype_buttons']);
+const PRESENTATIONS = new Set(['text_box','card','list','quote','prototype_buttons','subsection_showcase']);
 const PROTOTYPE_BUTTON_TYPES = new Set(['primary','secondary','outline','ghost','custom']);
 function normalizePrototypeButtons(metadata) {
   const meta = metadataObject(metadata);
@@ -110,6 +110,14 @@ function normalizeCardItems(metadata){
   }
   return meta;
 }
+function normalizeSubsectionShowcase(section){
+  const meta=metadataObject(section?.metadata);
+  const raw=Array.isArray(meta.showcase_subsections)?meta.showcase_subsections:[];
+  const images=Array.isArray(section?.images)?section.images:[];
+  const imageMap=new Map(images.map(img=>[String(img.id),img]));
+  const valid=new Set(['card1','card2','card3','card4','card5','analytic_card']);
+  return raw.map((sub,index)=>{const x=metadataObject(sub);const imageId=String(x.image_id||'').trim();return {id:String(x.id||crypto.randomUUID()),title:String(x.title||''),description:String(x.description||''),image_id:imageId,image:imageMap.get(imageId)||null,presentation_style:valid.has(String(x.presentation_style))?String(x.presentation_style):'card1',display_order:Number(x.display_order||index+1)||index+1};});
+}
 function normalizeImageSubsections(section, imageLayout) {
   const meta = metadataObject(section?.metadata);
   const images = Array.isArray(section?.images) ? section.images : [];
@@ -174,7 +182,7 @@ function normalizeSection(section, index) {
   let metadata = normalizePrototypeButtons(normalizeCardItems(section?.metadata)); const assetType=resolveAssetType({...section,metadata}); const presentation=section?.section_type&&PRESENTATIONS.has(section.section_type)?section.section_type:inferPresentation(section); const style=section?.presentation_style||metadata.presentation_style||inferStyle(section);
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
-  metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
+  metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout); metadata.showcase_subsections = normalizeSubsectionShowcase(section);
   const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, asset_type:assetType, type:presentation, section_type:presentation, presentation_style:style, title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: (Array.isArray(section?.images) ? section.images : []).map(image => ({ ...image, image_url: normalizeR2Url(image?.image_url || '') })), display_order: Number(section?.display_order || index + 1) };
   if (Array.isArray(metadata.items)) out.items = [...metadata.items]; if (metadata.item_display !== undefined) out.item_display = metadata.item_display; if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text; if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
