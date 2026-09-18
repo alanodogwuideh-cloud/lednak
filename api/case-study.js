@@ -29,20 +29,6 @@ function inferImageLayout(section) {
   };
 }
 
-function normalizePresentationSubsections(section, parentImages){
-  const meta=object(section?.metadata);
-  const raw=Array.isArray(meta.presentation_subsections)?meta.presentation_subsections:[];
-  if(!raw.length)return [];
-  const imageMap=new Map(parentImages.map(image=>[String(image.id),image]));
-  return raw.map((sub,index)=>{
-    const x=object(sub);
-    const imageId=String(x.image_id||'').trim();
-    const image=imageId?imageMap.get(imageId):null;
-    const style=['card1','card2','card3','card4','card5','analytic_card'].includes(String(x.presentation_style))?String(x.presentation_style):'card1';
-    return {id:String(x.id||`presentation-subsection-${index+1}`),title:String(x.title||''),description:String(x.description||''),image_id:image?String(image.id):imageId,image:image||null,presentation_style:style,display_order:Number(x.display_order||index+1)||index+1};
-  });
-}
-
 function normalizeImageSubsections(section, parentImages, parentLayout) {
   const meta = object(section?.metadata);
   const raw = Array.isArray(meta.image_subsections) ? meta.image_subsections : [];
@@ -87,7 +73,6 @@ function normalizeSections(content) {
     }));
     const imageLayout = inferImageLayout({ ...section, images, metadata: meta });
     const imageSubsections = normalizeImageSubsections({ ...section, metadata: meta }, images, imageLayout);
-    const presentationSubsections = normalizePresentationSubsections({ ...section, metadata: meta }, images);
     return {
       ...section,
       id: sectionId,
@@ -99,7 +84,7 @@ function normalizeSections(content) {
       title: section.title || '',
       body: section.body || section.text || '',
       text: section.text || section.body || '',
-      metadata: { ...meta, image_layout: imageLayout, ...(imageSubsections.length ? { image_subsections: imageSubsections } : {}), ...(presentationSubsections.length ? { presentation_subsections: presentationSubsections } : {}) },
+      metadata: { ...meta, image_layout: imageLayout, ...(imageSubsections.length ? { image_subsections: imageSubsections } : {}) },
       images,
       display_order: Number(section.display_order || index + 1),
     };
