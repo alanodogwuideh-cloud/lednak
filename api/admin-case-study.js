@@ -116,7 +116,15 @@ function normalizeSubsectionShowcase(section){
   const images=Array.isArray(section?.images)?section.images:[];
   const imageMap=new Map(images.map(img=>[String(img.id),img]));
   const valid=new Set(['card1','card2','card3','card4','card5','analytic_card']);
-  return raw.map((sub,index)=>{const x=metadataObject(sub);const imageId=String(x.image_id||'').trim();return {id:String(x.id||crypto.randomUUID()),title:String(x.title||''),description:String(x.description||''),image_id:imageId,image:imageMap.get(imageId)||null,presentation_style:valid.has(String(x.presentation_style))?String(x.presentation_style):'card1',display_order:Number(x.display_order||index+1)||index+1};});
+  const validCols=value=>[1,2,3,4].includes(Number(value))?Number(value):1;
+  return raw.map((sub,index)=>{
+    const x=metadataObject(sub); const legacyId=String(x.image_id||'').trim();
+    const rawIds=Array.isArray(x.image_ids)?x.image_ids.map(String):legacyId?[legacyId]:[];
+    const imageIds=[...new Set(rawIds)].filter(id=>imageMap.has(id));
+    const layout=String(x.layout||'grid')==='list'?'list':'grid';
+    const selectedIds=layout==='grid'?imageIds.slice(0,1):imageIds;
+    return {id:String(x.id||crypto.randomUUID()),title:String(x.title||''),description:String(x.description||''),image_id:selectedIds[0]||'',image_ids:selectedIds,images:selectedIds.map(id=>imageMap.get(id)).filter(Boolean),presentation_style:valid.has(String(x.presentation_style))?String(x.presentation_style):'card1',display_order:Number(x.display_order||index+1)||index+1,layout,desktopColumns:validCols(x.desktopColumns??2),tabletColumns:validCols(x.tabletColumns??2),mobileColumns:validCols(x.mobileColumns??1),singleImageWidth:x.singleImageWidth==='body'||x.single_image_width==='body'?'body':'normal'};
+  });
 }
 function normalizeImageSubsections(section, imageLayout) {
   const meta = metadataObject(section?.metadata);
