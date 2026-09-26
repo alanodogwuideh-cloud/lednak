@@ -57,8 +57,16 @@ export default async function (req, res) {
     const collect = value => {
       if (value == null) return;
       if (typeof value === 'string') {
-        const re = /https?:\/\/[^\\s\"']+\/storage\/v1\/object\/public\/portfolio-images\/[^\\s\"']+/g;
-        for (const match of value.matchAll(re)) referencedUrls.add(match[0].replace(/[),.]+$/g, ''));
+        const marker = '/storage/v1/object/public/portfolio-images/';
+        let start = 0;
+        while (true) {
+          const i = value.indexOf(marker, start);
+          if (i < 0) break;
+          let tail = value.slice(i + marker.length).split(/[\\s\"'<>]+/)[0].replace(/[),.]+$/g, '');
+          try { tail = decodeURIComponent(tail); } catch {}
+          referencedUrls.add(tail);
+          start = i + marker.length + tail.length;
+        }
       } else if (Array.isArray(value)) value.forEach(collect);
       else if (typeof value === 'object') Object.values(value).forEach(collect);
     };
@@ -69,8 +77,8 @@ export default async function (req, res) {
     const { rows: currentCaseStudies } = await db.query('SELECT id, slug, title, cover_image_url, hero_image_url, content FROM case_studies ORDER BY created_at ASC');
     collect(currentCaseStudies);
     const storageUrl = name => `${base()}/storage/v1/object/public/portfolio-images/${String(name).split('/').map(encodeURIComponent).join('/')}`;
-    const referencedFiles = storage.filter(f => referencedUrls.has(storageUrl(f.name)));
-    const unreferencedFiles = storage.filter(f => !referencedUrls.has(storageUrl(f.name)));
+    const referencedFiles = storage.filter(f => referencedUrls.has(f.name));
+    const unreferencedFiles = storage.filter(f => !referencedUrls.has(f.name));
     const byPrefix = {};
     const byMime = {};
     for (const f of storage) {
