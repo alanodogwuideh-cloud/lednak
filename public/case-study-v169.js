@@ -17,7 +17,11 @@ function renderSubsectionShowcase(b){
   const cols=[2,3,4].includes(Number(b.metadata?.showcase_columns))?Number(b.metadata.showcase_columns):2;
   const items=subs.map(sub=>{
     const style=['card1','card2','card3','card4','card5','analytic_card'].includes(String(sub.presentation_style))?String(sub.presentation_style):'card1';
-    const image=sub.image?renderImages([sub.image],{desktop:1,tablet:1,mobile:1},'normal'):'';
+    const images=Array.isArray(sub.images)?sub.images:(Array.isArray(sub.image_ids)?sub.image_ids.map(id=>(b.images||[]).find(img=>String(img.id)===String(id))).filter(Boolean):sub.image?[sub.image]:[]);
+    const selected=layout==='grid'?images.slice(0,1):images;
+    const imageLayout={desktop:Number(sub.desktopColumns)||1,tablet:Number(sub.tabletColumns)||1,mobile:Number(sub.mobileColumns)||1};
+    const width=sub.singleImageWidth==='body'?'body':'normal';
+    const image=selected.length?renderImages(selected,imageLayout,width):'';
     return '<article class="showcase-subsection showcase-style-'+esc(style)+'"><h3 class="showcase-subsection-title">'+esc(sub.title||'')+'</h3>'+(sub.description?'<p class="showcase-subsection-description">'+esc(sub.description)+'</p>':'')+image+'</article>';
   }).join('');
   return '<div class="subsection-showcase subsection-showcase-'+layout+' subsection-showcase-columns-'+cols+'">'+items+'</div>';
