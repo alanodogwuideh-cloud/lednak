@@ -75,7 +75,7 @@ export default async function (req, res) {
     const caseStudies = await supa('/rest/v1/case_studies?select=id,slug,title,cover_image_url,hero_image_url,content&order=created_at.asc&limit=100');
     collect(caseStudies.data);
     const { rows: currentCaseStudies } = await db.query('SELECT id, slug, title, cover_image_url, hero_image_url, content FROM case_studies ORDER BY created_at ASC');
-    collect(currentCaseStudies);
+    collect(JSON.stringify(currentCaseStudies));
     const storageUrl = name => `${base()}/storage/v1/object/public/portfolio-images/${String(name).split('/').map(encodeURIComponent).join('/')}`;
     const referencedFiles = storage.filter(f => referencedUrls.has(f.name));
     const unreferencedFiles = storage.filter(f => !referencedUrls.has(f.name));
