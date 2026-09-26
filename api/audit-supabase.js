@@ -110,6 +110,7 @@ export default async function (req, res) {
         by_mime_type: byMime,
         referenced_file_count: referencedFiles.length,
         referenced_mb: Math.round(referencedBytes / 1048576 * 100) / 100,
+        referenced_files: referencedFiles.map(f => f.name),
         unreferenced_file_count: unreferencedFiles.length,
         unreferenced_mb: Math.round(unreferencedBytes / 1048576 * 100) / 100,
         duplicate_groups_by_etag: duplicateGroups,
