@@ -29,6 +29,10 @@ function inferImageLayout(section) {
   };
 }
 
+function normalizeSubsectionShowcase(section,parentImages){
+  const meta=object(section?.metadata);const raw=Array.isArray(meta.showcase_subsections)?meta.showcase_subsections:[];const map=new Map(parentImages.map(image=>[String(image.id),image]));const valid=new Set(['card1','card2','card3','card4','card5','analytic_card']);
+  return raw.map((sub,index)=>{const x=object(sub);const imageId=String(x.image_id||'').trim();return {id:String(x.id||`showcase-subsection-${index+1}`),title:String(x.title||''),description:String(x.description||''),image_id:imageId,image:map.get(imageId)||null,presentation_style:valid.has(String(x.presentation_style))?String(x.presentation_style):'card1',display_order:Number(x.display_order||index+1)||index+1};});
+}
 function normalizeImageSubsections(section, parentImages, parentLayout) {
   const meta = object(section?.metadata);
   const raw = Array.isArray(meta.image_subsections) ? meta.image_subsections : [];
@@ -73,6 +77,7 @@ function normalizeSections(content) {
     }));
     const imageLayout = inferImageLayout({ ...section, images, metadata: meta });
     const imageSubsections = normalizeImageSubsections({ ...section, metadata: meta }, images, imageLayout);
+    const showcaseSubsections = normalizeSubsectionShowcase({ ...section, metadata: meta }, images);
     return {
       ...section,
       id: sectionId,
@@ -84,7 +89,7 @@ function normalizeSections(content) {
       title: section.title || '',
       body: section.body || section.text || '',
       text: section.text || section.body || '',
-      metadata: { ...meta, image_layout: imageLayout, ...(imageSubsections.length ? { image_subsections: imageSubsections } : {}) },
+      metadata: { ...meta, image_layout: imageLayout, ...(imageSubsections.length ? { image_subsections: imageSubsections } : {}), ...(showcaseSubsections.length ? { showcase_subsections: showcaseSubsections } : {}) },
       images,
       display_order: Number(section.display_order || index + 1),
     };
