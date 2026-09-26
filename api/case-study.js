@@ -89,7 +89,7 @@ function normalizeSections(content) {
       title: section.title || '',
       body: section.body || section.text || '',
       text: section.text || section.body || '',
-      metadata: { ...meta, image_layout: imageLayout, ...(imageSubsections.length ? { image_subsections: imageSubsections } : {}), ...(showcaseSubsections.length ? { showcase_subsections: showcaseSubsections } : {}) },
+      metadata: { ...meta, image_layout: imageLayout, ...(Object.prototype.hasOwnProperty.call(meta, 'image_subsections') ? { image_subsections: imageSubsections } : {}), ...(showcaseSubsections.length ? { showcase_subsections: showcaseSubsections } : {}) },
       images,
       display_order: Number(section.display_order || index + 1),
     };
