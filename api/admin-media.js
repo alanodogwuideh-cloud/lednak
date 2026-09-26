@@ -1,4 +1,4 @@
-import { signR2Put, r2PublicUrl, r2KeyFromPublicUrl, deleteR2Object, normalizeR2Url } from 'lib/r2';
+import { signR2Put, verifyR2Object, r2PublicUrl, r2KeyFromPublicUrl, deleteR2Object, normalizeR2Url } from 'lib/r2';
 import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
@@ -126,6 +126,9 @@ export default async function (req, res) {
       if (body.action === 'finalize_upload') {
         const publicPrefix = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/';
         if (!body.url || !String(body.url).startsWith(publicPrefix)) return res.status(400).json({ error: 'Invalid R2 media URL.' });
+        const objectKey = r2KeyFromPublicUrl(body.url);
+        if (!objectKey) return res.status(400).json({ error: 'Invalid R2 object key.' });
+        await verifyR2Object(objectKey);
 
         if (body.replace_fixed) {
           if (!['cover', 'hero'].includes(body.replace_fixed)) return res.status(400).json({ error: 'Invalid fixed replacement target.' });
@@ -156,7 +159,7 @@ export default async function (req, res) {
 
         const section = body.section_id ? content.sections.find(s => String(s.id) === String(body.section_id)) : sectionForAsset(content.sections, body.asset_type);
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}.` });
-        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), playback_controls: body.playback_controls === true || String(body.playback_controls || '').toLowerCase() === 'on', project_id: project.id, section_id: section.id };
+        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
         section.images = [...section.images, image];
         const sectionMeta = section.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : (section.metadata = {});
         if (Array.isArray(sectionMeta.image_subsections) && sectionMeta.image_subsections.length) {
@@ -191,7 +194,7 @@ export default async function (req, res) {
       }
       if (body.alt_text !== undefined) image.alt_text = String(body.alt_text);
       if (body.caption !== undefined) image.caption = String(body.caption);
-      if (body.playback_controls !== undefined) image.playback_controls = body.playback_controls === true || String(body.playback_controls).toLowerCase() === 'on';
+      // Playback controls were intentionally removed; media uses native browser behavior.
       const requestedSectionId = body.section_id !== undefined ? String(body.section_id || '') : '';
       const requestedSectionIndex = body.section_index !== undefined ? String(body.section_index || '') : '';
       if (requestedSectionId || requestedSectionIndex) {
