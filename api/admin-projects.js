@@ -1,4 +1,5 @@
 import { tursoQuery } from 'lib/turso';
+import { normalizeR2Url } from 'lib/r2';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 // Owner-only CMS endpoint. Authentication is handled by the portfolio's
@@ -11,6 +12,8 @@ function mapProject(p) {
   const meta = content?.case_meta && typeof content.case_meta === 'object' && !Array.isArray(content.case_meta) ? content.case_meta : {};
   return {
     ...p,
+    cover_image_url: normalizeR2Url(p?.cover_image_url || ''),
+    hero_image_url: normalizeR2Url(p?.hero_image_url || ''),
     client: p?.client ?? content.client ?? '',
     short_description: p?.subtitle || '',
     overview: p?.description || '',

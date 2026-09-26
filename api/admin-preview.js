@@ -1,4 +1,4 @@
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 export const access = 'public';
@@ -17,7 +17,7 @@ export default async function (req, res) {
     const projectId = String(body.project_id || '').trim();
     if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
 
-    const { rows } = await db.query(`SELECT id,slug,content FROM case_studies WHERE id = $1 LIMIT 1`, [projectId]);
+    const { rows } = await tursoQuery(`SELECT id,slug,content FROM case_studies WHERE id = $1 LIMIT 1`, [projectId]);
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found.' });
 
@@ -27,7 +27,7 @@ export default async function (req, res) {
     if (!token) {
       token = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
       const nextContent = { ...content, preview_token: token };
-      await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(nextContent), project.id]);
+      await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(nextContent), project.id]);
     }
 
     const previewUrl = `/case-study.html?slug=${encodeURIComponent(project.slug)}&preview=${encodeURIComponent(token)}`;

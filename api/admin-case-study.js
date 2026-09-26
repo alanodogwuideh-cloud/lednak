@@ -1,4 +1,5 @@
 import { tursoQuery } from 'lib/turso';
+import { normalizeR2Url } from 'lib/r2';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 // Owner-only CMS endpoint authenticated by the portfolio's Supabase admin account.
@@ -174,7 +175,7 @@ function normalizeSection(section, index) {
   metadata.asset_type=assetType; metadata.presentation_type=presentation; if(style)metadata.presentation_style=style;
   metadata.image_layout = inferImageLayout(section);
   metadata.image_subsections = normalizeImageSubsections(section, metadata.image_layout);
-  const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, asset_type:assetType, type:presentation, section_type:presentation, presentation_style:style, title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: Array.isArray(section?.images) ? section.images : [], display_order: Number(section?.display_order || index + 1) };
+  const out = { ...section, id: section?.id || section?._id || `section-${index + 1}`, _id: section?._id || section?.id || `section-${index + 1}`, asset_type:assetType, type:presentation, section_type:presentation, presentation_style:style, title: section?.title || '', body: section?.body || section?.text || '', text: section?.text || section?.body || '', metadata, images: (Array.isArray(section?.images) ? section.images : []).map(image => ({ ...image, image_url: normalizeR2Url(image?.image_url || '') })), display_order: Number(section?.display_order || index + 1) };
   if (Array.isArray(metadata.items)) out.items = [...metadata.items]; if (metadata.item_display !== undefined) out.item_display = metadata.item_display; if (metadata.quote_text !== undefined) out.quote_text = metadata.quote_text; if (metadata.quote_author !== undefined) out.quote_author = metadata.quote_author;
   return out;
 }
@@ -234,7 +235,7 @@ async function saveSections(project, incoming, caseMeta) {
   const { rows } = await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
 }
-function response(project) { const content = normalizeContent(project.content); const sections = content.sections; const images = sections.flatMap((section, sectionIndex) => (Array.isArray(section.images) ? section.images : []).map((image, imageIndex) => ({ ...image, id: image.id || `${section.id}-image-${imageIndex + 1}`, project_id: project.id, section_id: section.id, section_title: section.title || '', display_order: Number(image.display_order ?? imageIndex) }))); return { ...project, content, sections, images }; }
+function response(project) { const content = normalizeContent(project.content); const sections = content.sections; const images = sections.flatMap((section, sectionIndex) => (Array.isArray(section.images) ? section.images : []).map((image, imageIndex) => ({ ...image, image_url: normalizeR2Url(image.image_url || ''), id: image.id || `${section.id}-image-${imageIndex + 1}`, project_id: project.id, section_id: section.id, section_title: section.title || '', display_order: Number(image.display_order ?? imageIndex) }))); return { ...project, cover_image_url: normalizeR2Url(project.cover_image_url || ''), hero_image_url: normalizeR2Url(project.hero_image_url || ''), content, sections, images }; }
 
 export default async function (req, res) {
   const auth = await requireSupabaseAdmin(req);
