@@ -1,4 +1,4 @@
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 
 export const access = 'public';
 export const methods = ['GET'];
@@ -94,7 +94,7 @@ export default async function (req, res) {
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
     const lookup = aliases[slug] || slug;
-    const { rows } = await db.query(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
+    const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE slug = ? LIMIT 1`, [lookup]);
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 

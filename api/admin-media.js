@@ -1,5 +1,5 @@
 import { supabaseAdmin, deleteStorageObject, storagePathFromPublicUrl } from 'lib/supabase-admin';
-import { db } from 'hatchable';
+import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 // Owner-only CMS endpoint authenticated by the portfolio's Supabase admin account.
@@ -30,7 +30,7 @@ function normalizeContent(content) {
 }
 
 async function getProject(id) {
-  const { rows } = await db.query(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]);
+  const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]);
   return rows?.[0] || null;
 }
 
@@ -79,7 +79,7 @@ async function signedUpload(path) {
 }
 
 async function saveContent(project, content) {
-  const { rows } = await db.query(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
+  const { rows } = await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [JSON.stringify(content), project.id]);
   return rows?.[0] || project;
 }
 
@@ -100,7 +100,7 @@ export default async function (req, res) {
     let projectId = query.project_id || body.project_id;
 
     if (!projectId && (req.method === 'PATCH' || req.method === 'DELETE') && body.id) {
-      const { rows } = await db.query(`SELECT id FROM case_studies WHERE content::text LIKE $1 LIMIT 1`, [`%${String(body.id)}%`]);
+      const { rows } = await tursoQuery(`SELECT id FROM case_studies WHERE CAST(content AS TEXT) LIKE $1 LIMIT 1`, [`%${String(body.id)}%`]);
       projectId = rows?.[0]?.id || '';
     }
     if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
@@ -148,7 +148,7 @@ export default async function (req, res) {
 
         if (body.replace_fixed) {
           if (!['cover', 'hero'].includes(body.replace_fixed)) return res.status(400).json({ error: 'Invalid fixed replacement target.' });
-          const saved = await db.query(`UPDATE case_studies SET ${body.replace_fixed === 'cover' ? 'cover_image_url' : 'hero_image_url'} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
+          const saved = await tursoQuery(`UPDATE case_studies SET ${body.replace_fixed === 'cover' ? 'cover_image_url' : 'hero_image_url'} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
           return res.json({ kind: body.replace_fixed, url: body.url, project: saved.rows?.[0] || project });
         }
 
@@ -169,7 +169,7 @@ export default async function (req, res) {
         // replace_fixed; this also makes first-time cover/hero uploads work.
         if (body.asset_type === 'cover' || body.asset_type === 'hero' || body.asset_type === 'project_cover' || body.asset_type === 'case_study_hero') {
           const column = body.asset_type === 'cover' || body.asset_type === 'project_cover' ? 'cover_image_url' : 'hero_image_url';
-          const saved = await db.query(`UPDATE case_studies SET ${column} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
+          const saved = await tursoQuery(`UPDATE case_studies SET ${column} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [body.url, project.id]);
           return res.status(201).json({ kind: body.asset_type, url: body.url, project: saved.rows?.[0] || project });
         }
 
@@ -240,7 +240,7 @@ export default async function (req, res) {
     if (req.method === 'DELETE') {
       if (body.fixed) {
         if (!['cover', 'hero'].includes(body.fixed)) return res.status(400).json({ error: 'Invalid fixed image.' });
-        const saved = await db.query(`UPDATE case_studies SET ${body.fixed === 'cover' ? 'cover_image_url' : 'hero_image_url'} = '', updated_at = NOW() WHERE id = $1 RETURNING *`, [project.id]);
+        const saved = await tursoQuery(`UPDATE case_studies SET ${body.fixed === 'cover' ? 'cover_image_url' : 'hero_image_url'} = '', updated_at = NOW() WHERE id = $1 RETURNING *`, [project.id]);
         return res.json({ ok: true, project: saved.rows?.[0] || project });
       }
       if (!body.id) return res.status(400).json({ error: 'Missing image id.' });
@@ -255,7 +255,7 @@ export default async function (req, res) {
       // referenced by another case study or by another fixed asset.
       if (deletedUrl) {
         const marker = `/storage/v1/object/public/${BUCKET}/`;
-        const { rows: otherRefs } = await db.query(
+        const { rows: otherRefs } = await tursoQuery(
           `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR content::text LIKE $3) LIMIT 1`,
           [project.id, deletedUrl, `%${deletedUrl}%`]
         );
