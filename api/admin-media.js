@@ -156,7 +156,7 @@ export default async function (req, res) {
 
         const section = body.section_id ? content.sections.find(s => String(s.id) === String(body.section_id)) : sectionForAsset(content.sections, body.asset_type);
         if (!section) return res.status(400).json({ error: `No matching case-study section exists for ${body.asset_type}.` });
-        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), project_id: project.id, section_id: section.id };
+        const image = { id: uuid(), image_url: body.url, image_type: body.asset_type, asset_type: body.asset_type, alt_text: String(body.alt_text || ''), caption: String(body.caption || ''), display_order: Math.max(0, Number(body.display_order || section.images.length)), playback_controls: body.playback_controls === true || String(body.playback_controls || '').toLowerCase() === 'on', project_id: project.id, section_id: section.id };
         section.images = [...section.images, image];
         const sectionMeta = section.metadata && typeof section.metadata === 'object' && !Array.isArray(section.metadata) ? section.metadata : (section.metadata = {});
         if (Array.isArray(sectionMeta.image_subsections) && sectionMeta.image_subsections.length) {
@@ -191,6 +191,7 @@ export default async function (req, res) {
       }
       if (body.alt_text !== undefined) image.alt_text = String(body.alt_text);
       if (body.caption !== undefined) image.caption = String(body.caption);
+      if (body.playback_controls !== undefined) image.playback_controls = body.playback_controls === true || String(body.playback_controls).toLowerCase() === 'on';
       const requestedSectionId = body.section_id !== undefined ? String(body.section_id || '') : '';
       const requestedSectionIndex = body.section_index !== undefined ? String(body.section_index || '') : '';
       if (requestedSectionId || requestedSectionIndex) {
