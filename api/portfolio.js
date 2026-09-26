@@ -25,7 +25,7 @@ export default async function (req, res) {
         location: values.location || 'Abuja, Nigeria',
         linkedin_url: values.linkedin_url || '',
         email: values.email || '',
-        about_image_url: values.profile_image_url ? '/api/about-image' : '',
+        about_image_url: values.profile_image_url || '',
         favicon_url: values.favicon_url || '',
         favicon_updated_at: faviconRow?.updated_at || '',
       },
