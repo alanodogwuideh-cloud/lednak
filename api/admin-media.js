@@ -6,7 +6,7 @@ import { requireSupabaseAdmin } from 'lib/admin-auth';
 export const access = 'public';
 export const methods = ['GET', 'POST', 'PATCH', 'DELETE'];
 
-const safeName = n => String(n || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').replace(/\.{2,}/g, '.').replace(/^\.+/, '').slice(0, 160) || 'image';
+const safeName = n => String(n || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
 const uuid = () => crypto.randomUUID();
 
 const allowed = new Set(['project_cover','case_study_hero','project_overview','the_challenge','the_goal','my_role','project_context','research_overview','research_methods','research_findings','key_insights','user_personas','user_needs','problem_statement','ideation','information_architecture','user_flow','wireframing','low_fidelity_prototype','high_fidelity_prototype','heuristic_review','usability_testing','design_decisions','design_iteration','design_refinement','visual_design','design_system','accessibility','responsive_design','final_solution','outcome','learnings','next_steps','sitemap','paper_wireframe','digital_wireframe','design_exploration','desktop_before_heuristic','desktop_after_heuristic','mobile_before_heuristic','mobile_after_heuristic','final_desktop_screens','final_tablet_screens','final_mobile_screens','hifi_desktop_onboarding','hifi_mobile_onboarding','research','storyboard','wireframes_legacy','mobile_final_ui','web_final_ui','cover','hero','chinedu_persona','fatima_persona','low_fi_wireframe','wireframes','marketing_sitemap','marketing_paper_wireframe','marketing_digital_wireframe','marketing_desktop_before','marketing_desktop_after','marketing_mobile_before','marketing_mobile_after','marketing_desktop_final','marketing_tablet_final','marketing_mobile_final','marketing_hifi_desktop','marketing_hifi_mobile']);
@@ -126,8 +126,8 @@ export default async function (req, res) {
       if (body.action === 'finalize_upload') {
         const publicPrefix = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/';
         if (!body.url || !String(body.url).startsWith(publicPrefix)) return res.status(400).json({ error: 'Invalid R2 media URL.' });
-        const objectKey = String(body.object_path || r2KeyFromPublicUrl(body.url) || '').trim();
-        if (!objectKey || objectKey.startsWith('/') || objectKey.includes('\\') || objectKey.split('/').some(part => part === '..')) return res.status(400).json({ error: 'Invalid R2 object key.' });
+        const objectKey = r2KeyFromPublicUrl(body.url);
+        if (!objectKey) return res.status(400).json({ error: 'Invalid R2 object key.' });
         await verifyR2Object(objectKey);
 
         if (body.replace_fixed) {
