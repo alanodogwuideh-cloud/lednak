@@ -18,8 +18,8 @@ function renderSubsectionShowcase(b){
   const items=subs.map(sub=>{
     const style=['card1','card2','card3','card4','card5','analytic_card'].includes(String(sub.presentation_style))?String(sub.presentation_style):'card1';
     const images=Array.isArray(sub.images)?sub.images:(Array.isArray(sub.image_ids)?sub.image_ids.map(id=>(b.images||[]).find(img=>String(img.id)===String(id))).filter(Boolean):sub.image?[sub.image]:[]);
-    const selected=layout==='grid'?images.slice(0,1):images;
-    const imageLayout={desktop:Number(sub.desktopColumns)||1,tablet:Number(sub.tabletColumns)||1,mobile:Number(sub.mobileColumns)||1};
+    const selected=images;
+    const imageLayout={desktop:[1,2,3,4].includes(Number(sub.desktopColumns))?Number(sub.desktopColumns):1,tablet:[1,2,3,4].includes(Number(sub.tabletColumns))?Number(sub.tabletColumns):1,mobile:[1,2,3,4].includes(Number(sub.mobileColumns))?Number(sub.mobileColumns):1};
     const width=sub.singleImageWidth==='body'?'body':'normal';
     const image=selected.length?renderImages(selected,imageLayout,width):'';
     return '<article class="showcase-subsection showcase-style-'+esc(style)+'"><h3 class="showcase-subsection-title">'+esc(sub.title||'')+'</h3>'+(sub.description?'<p class="showcase-subsection-description">'+esc(sub.description)+'</p>':'')+image+'</article>';
