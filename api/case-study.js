@@ -108,7 +108,7 @@ export default async function (req, res) {
     const requestedPreviewToken = String(req.headers?.['x-preview-token'] || req.query?.preview_token || req.query?.preview || '').trim();
     const contentForAccess = object(project.content);
     const storedPreviewToken = String(contentForAccess.preview_token || '').trim();
-    const isPreview = Boolean(requestedPreviewToken && storedPreviewToken && requestedPreviewToken === storedPreviewToken); console.log('preview-auth-debug', { queryToken: Boolean(req.query?.preview_token || req.query?.preview), headerToken: Boolean(req.headers?.['x-preview-token']), requestedLength: requestedPreviewToken.length, storedLength: storedPreviewToken.length, equal: requestedPreviewToken === storedPreviewToken });
+    const isPreview = Boolean(requestedPreviewToken && storedPreviewToken && requestedPreviewToken === storedPreviewToken); console.log('preview-auth-debug', JSON.stringify({ queryToken: Boolean(req.query?.preview_token || req.query?.preview), headerToken: Boolean(req.headers?.['x-preview-token']), requestedLength: requestedPreviewToken.length, storedLength: storedPreviewToken.length, equal: requestedPreviewToken === storedPreviewToken }));
     if (String(project.status || 'draft') !== 'published' && !isPreview) {
       return res.status(404).json({ error: 'Case study not found' });
     }
