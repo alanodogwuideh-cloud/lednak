@@ -30,7 +30,7 @@ export default async function (req, res) {
       await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(nextContent), project.id]);
     }
 
-    const previewUrl = `/case-study.html?slug=${encodeURIComponent(project.slug)}&preview=${encodeURIComponent(token)}`;
+    const previewUrl = `/case-study.html?slug=${encodeURIComponent(project.slug)}&preview_token=${encodeURIComponent(token)}`;
     return res.json({ preview_url: previewUrl });
   } catch (error) {
     console.error('admin-preview error', error.message);
