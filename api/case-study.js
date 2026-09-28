@@ -105,7 +105,7 @@ export default async function (req, res) {
     const project = rows?.[0];
     if (!project) return res.status(404).json({ error: 'Case study not found' });
 
-    const requestedPreviewToken = String(req.query?.preview_token || req.query?.preview || '').trim();
+    const requestedPreviewToken = String(req.headers?.['x-preview-token'] || req.query?.preview_token || req.query?.preview || '').trim();
     const contentForAccess = object(project.content);
     const storedPreviewToken = String(contentForAccess.preview_token || '').trim();
     const isPreview = Boolean(requestedPreviewToken && storedPreviewToken && requestedPreviewToken === storedPreviewToken);
