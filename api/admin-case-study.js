@@ -129,6 +129,7 @@ function normalizeSubsectionShowcase(section){
 function normalizeImageSubsections(section, imageLayout) {
   const meta = metadataObject(section?.metadata);
   const images = Array.isArray(section?.images) ? section.images : [];
+  const types = new Set(images.map(x => String(x?.image_type || '')).filter(Boolean));
   const validCols = value => [1,2,3,4].includes(Number(value)) ? Number(value) : 1;
   const normalizeOne = (sub, fallbackImages, fallbackTitle = '') => {
     const x = metadataObject(sub);
