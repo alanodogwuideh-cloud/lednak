@@ -87,6 +87,7 @@ function normalizeSections(content) {
       section_type: section.section_type || section.type || 'content',
       presentation_style: section.presentation_style || meta.presentation_style || meta.card_variant || '',
       title: section.title || '',
+      subtitle: section.subtitle || section.sub_title || meta.subtitle || '',
       body: section.body || section.text || '',
       text: section.text || section.body || '',
       metadata: { ...meta, image_layout: imageLayout, ...(Object.prototype.hasOwnProperty.call(meta, 'image_subsections') ? { image_subsections: imageSubsections } : {}), ...(showcaseSubsections.length ? { showcase_subsections: showcaseSubsections } : {}) },
