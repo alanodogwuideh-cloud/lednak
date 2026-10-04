@@ -32,7 +32,7 @@ export default async function (req, res) {
     }
     const { rows: maxRows } = await tursoQuery('SELECT MAX(sort_order) AS max_order FROM case_studies');
     const content = cloneContent(source.content);
-    const { rows: created } = await tursoQuery('INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *', [String(source.title || 'Case study') + ' (Copy)', slug, source.subtitle || '', source.description || '', source.role || '', source.year || '', source.duration || '', source.category || '', 'draft', Number(maxRows?.[0]?.max_order || 0) + 1, JSON.stringify(content), source.cover_image_url || '', source.hero_image_url || '']);
+    const { rows: created } = await tursoQuery('INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING *', [String(source.title || 'Case study') + ' (Copy)', slug, source.subtitle || '', source.description || '', source.role || '', source.year || '', source.duration || '', source.category || '', 'draft', Number(maxRows?.[0]?.max_order || 0) + 1, JSON.stringify(content), source.cover_image_url || '', source.hero_image_url || '']);
     return res.status(201).json({ ...created[0], status: 'draft' });
   } catch (error) {
     console.error('admin-duplicate-case-study error', error.message);
