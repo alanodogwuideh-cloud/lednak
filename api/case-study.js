@@ -1,4 +1,4 @@
-import { tursoQuery } from 'lib/turso';
+import { tursoQuery, ensureTrashSchema } from 'lib/turso';
 import { normalizeR2Url } from 'lib/r2';
 
 export const access = 'public';
@@ -99,12 +99,13 @@ function normalizeSections(content) {
 
 export default async function (req, res) {
   try {
+    await ensureTrashSchema();
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
     const lookup = aliases[slug] || slug;
     const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
     const project = rows?.[0];
-    if (!project) return res.status(404).json({ error: 'Case study not found' });
+    if (!project || project.deleted_at) return res.status(404).json({ error: 'Case study not found' });
 
     const requestedPreviewToken = String(req.query?.preview || '').trim();
     const contentForAccess = object(project.content);

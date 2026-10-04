@@ -1,4 +1,4 @@
-import { tursoQuery } from 'lib/turso';
+import { tursoQuery, ensureTrashSchema } from 'lib/turso';
 import { r2PublicUrl, normalizeR2Url } from 'lib/r2';
 
 export const access = 'public';
@@ -6,9 +6,10 @@ export const methods = ['GET'];
 
 export default async function (req, res) {
   try {
+    await ensureTrashSchema();
     const [{ rows: settingsRows }, { rows: projectRows }, { rows: brandingRows }] = await Promise.all([
       tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`),
-      tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 ORDER BY sort_order ASC, created_at ASC`, ['published']),
+      tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`, ['published']),
       tursoQuery(`SELECT favicon_key,updated_at FROM site_branding LIMIT 1`),
     ]);
     const settings = settingsRows?.[0] || {};

@@ -1,4 +1,4 @@
-import { tursoQuery } from 'lib/turso';
+import { tursoQuery, ensureTrashSchema } from 'lib/turso';
 import { normalizeR2Url } from 'lib/r2';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
@@ -32,17 +32,28 @@ function payload(body, partial = false) {
   const out = {}; for (const [k, v] of Object.entries(fields)) if (!partial || v !== undefined) out[k] = v; return out;
 }
 async function getProject(id) { const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE id = $1 LIMIT 1`, [id]); return rows?.[0] || null; }
+function normalizeSlug(value) { return String(value || '').normalize('NFKD').replace(/\p{M}+/gu,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+/g,'-').replace(/^-+|-+$/g,'').slice(0,90); }
+const reservedSlugs = new Set(['admin','api','about','work','contact','login','logout','media','trash','case-study','case-studies','assets','favicon']);
+async function validateSlug(raw,id='',auto=false) {
+ let slug=normalizeSlug(raw);
+ if(!slug)throw new Error('Enter a valid title and slug before saving.');
+ if(reservedSlugs.has(slug)){if(!auto)throw new Error('This slug is reserved for a portfolio route. Choose another slug.');slug=(slug+'-project').slice(0,90)}
+ const base=slug;for(let n=2;n<100;n++){const {rows}=await tursoQuery('SELECT id FROM case_studies WHERE slug=$1 AND id<>$2 LIMIT 1',[slug,id||'']);if(!rows.length)return slug;if(!auto)throw new Error('This slug is already in use. Customize it to make it unique.');const suffix='-'+n;slug=base.slice(0,90-suffix.length)+suffix}
+ throw new Error('Could not generate a unique slug. Please customize it and retry.');
+}
 export default async function (req, res) {
   const auth = await requireSupabaseAdmin(req);
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
-    if (req.method === 'GET') { const { rows } = await tursoQuery(`SELECT * FROM case_studies ORDER BY sort_order ASC, created_at ASC`); return res.json(rows.map(mapProject)); }
+    await ensureTrashSchema();
+    if (req.method === 'GET') { const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`); return res.json(rows.map(mapProject)); }
     const body = req.body || {};
-    if (req.method === 'POST') { if (!body.title || !body.slug) return res.status(400).json({ error: 'Title and slug are required.' }); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end' } }; const { rows } = await tursoQuery(`INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
+    if (req.method === 'POST') { if (!String(body.title||'').trim() || !body.slug) return res.status(400).json({ error: 'Title and slug are required.' }); body.slug = await validateSlug(body.slug,'',body.slug_auto===true); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end' } }; const { rows } = await tursoQuery(`INSERT INTO case_studies (title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
     if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
     const existing = await getProject(body.id); if (!existing) return res.status(404).json({ error: 'Case study not found.' });
     if (req.method === 'PUT') {
       const p = payload(body,true);
+      if (p.slug !== undefined) p.slug = await validateSlug(p.slug, body.id, body.slug_auto===true); else if (p.status === 'published') await validateSlug(existing.slug,body.id,false);
       const keys = Object.keys(p);
       const vals = Object.values(p);
       const setParts = keys.map((k,i)=>`${k} = $${i+1}`);
@@ -76,7 +87,7 @@ export default async function (req, res) {
       const { rows } = await tursoQuery(`UPDATE case_studies SET ${setParts.join(', ')}, updated_at = NOW() WHERE id = $${vals.length} RETURNING *`, vals);
       return res.json(mapProject(rows[0]));
     }
-    if (req.method === 'DELETE') { await tursoQuery(`DELETE FROM case_studies WHERE id = $1`, [body.id]); return res.json({ok:true}); }
+    if (req.method === 'DELETE') { const { rows } = await tursoQuery("UPDATE case_studies SET deleted_at=CURRENT_TIMESTAMP, deleted_by=$1, previous_status=status, previous_slug=slug, status='draft', updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND deleted_at IS NULL RETURNING id", [auth.email||'admin',body.id]); return rows.length?res.json({ok:true}):res.status(409).json({error:'Case study is already in Trash.'}); }
     return res.status(405).json({error:'Method not allowed'});
   } catch (error) { console.error('admin-projects error', error.message); return res.status(500).json({error:error.message||'Case study operation failed.'}); }
 }
