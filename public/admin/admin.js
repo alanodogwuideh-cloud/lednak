@@ -362,6 +362,66 @@ document.addEventListener('change',e=>{const nestedType=e.target?.closest?.('.ne
     if(style&&style.value){s.presentation_style=style.value;s.metadata.presentation_style=style.value;}
     if(asset&&asset.value){s.asset_type=asset.value;s.metadata.asset_type=asset.value;}
     if(itemDisplay){s.item_display=itemDisplay.value;s.metadata.item_display=itemDisplay.value;s.metadata.card_variant=itemDisplay.value;}
+    // Sync nested showcase fields from the rendered editor before the main Save action.
+    // These inputs update the in-memory section while typing, but previously were not
+    // copied back from the DOM during Save, so title/description edits could remain
+    // visible in the CMS while the database and public case study kept the old text.
+    if(Array.isArray(s.metadata.showcase_subsections)){
+      const nested=[...card.querySelectorAll('.showcase-subsection-editor')];
+      nested.forEach((el,i)=>{
+        const sub=s.metadata.showcase_subsections[i];
+        if(!sub)return;
+        const title=el.querySelector('.showcase-title');
+        const description=el.querySelector('.showcase-description');
+        if(title)sub.title=title.value;
+        if(description)sub.description=description.value;
+        const images=[...el.querySelectorAll('.showcase-image')];
+        if(images.length){
+          if(images[0].type==='checkbox'){
+            sub.image_ids=images.filter(input=>input.checked).map(input=>String(input.value));
+            sub.image_id=sub.image_ids[0]||'';
+          }else{
+            sub.image_id=String(images[0].value||'');
+            sub.image_ids=sub.image_id?[sub.image_id]:[];
+          }
+        }
+        const style=el.querySelector('.showcase-style');
+        if(style)sub.presentation_style=style.value;
+        const desktop=el.querySelector('.showcase-desktop');
+        const tablet=el.querySelector('.showcase-tablet');
+        const mobile=el.querySelector('.showcase-mobile');
+        const width=el.querySelector('.showcase-single-width');
+        if(desktop)sub.desktopColumns=Number(desktop.value)||1;
+        if(tablet)sub.tabletColumns=Number(tablet.value)||1;
+        if(mobile)sub.mobileColumns=Number(mobile.value)||1;
+        if(width)sub.singleImageWidth=width.value==='body'?'body':'normal';
+      });
+    }
+    // Also sync image-subsection fields so the main Save action cannot lose
+    // nested title, visibility, divider, image, or layout changes.
+    if(Array.isArray(s.metadata.image_subsections)){
+      const nested=[...card.querySelectorAll('.image-subsection-editor')];
+      nested.forEach((el,i)=>{
+        const sub=s.metadata.image_subsections[i];
+        if(!sub)return;
+        const title=el.querySelector('.image-subsection-title');
+        const header=el.querySelector('.image-subsection-header');
+        const divider=el.querySelector('.image-subsection-divider');
+        if(title)sub.title=title.value;
+        if(header)sub.headerVisible=header.value==='show';
+        if(divider)sub.dividerVisible=divider.value==='show';
+        const images=[...el.querySelectorAll('.image-subsection-image')];
+        if(images.length)sub.image_ids=images.filter(input=>input.checked).map(input=>String(input.value));
+        const desktop=el.querySelector('.sub-image-layout-desktop');
+        const tablet=el.querySelector('.sub-image-layout-tablet');
+        const mobile=el.querySelector('.sub-image-layout-mobile');
+        const width=el.querySelector('.sub-single-image-width');
+        if(desktop)sub.desktopColumns=Number(desktop.value)||1;
+        if(tablet)sub.tabletColumns=Number(tablet.value)||1;
+        if(mobile)sub.mobileColumns=Number(mobile.value)||1;
+        if(width)sub.singleImageWidth=width.value==='body'?'body':'normal';
+      });
+    }
     const isCard2=s.presentation_style==='card2'||s.section_type==='card2'||s.type==='card2';
     const isCard4=s.presentation_style==='card4'||s.section_type==='card4'||s.type==='card4';
     const isCard1=s.presentation_style==='card1'||s.section_type==='cards'||s.type==='cards';
