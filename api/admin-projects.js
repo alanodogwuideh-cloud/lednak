@@ -48,6 +48,20 @@ export default async function (req, res) {
     await ensureTrashSchema();
     if (req.method === 'GET') { const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`); return res.json(rows.map(mapProject)); }
     const body = req.body || {};
+    if (req.method === 'PUT' && body.action === 'reorder') {
+      const orderedIds = Array.isArray(body.ordered_ids) ? body.ordered_ids.map(String) : [];
+      if (!orderedIds.length) return res.status(400).json({ error: 'Provide at least one case study to reorder.' });
+      const { rows: currentRows } = await tursoQuery('SELECT id FROM case_studies WHERE deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC');
+      const currentIds = currentRows.map(row => String(row.id));
+      if (orderedIds.length !== currentIds.length || new Set(orderedIds).size !== currentIds.length || orderedIds.some(id => !currentIds.includes(id))) {
+        return res.status(409).json({ error: 'The case study list changed. Refresh the CMS and try reordering again.' });
+      }
+      for (let index = 0; index < orderedIds.length; index++) {
+        await tursoQuery('UPDATE case_studies SET sort_order=$1, updated_at=NOW() WHERE id=$2 AND deleted_at IS NULL', [index, orderedIds[index]]);
+      }
+      const { rows } = await tursoQuery('SELECT * FROM case_studies WHERE deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC');
+      return res.json({ ok: true, projects: rows.map(mapProject) });
+    }
     if (req.method === 'POST') { body.title = String(body.title || '').trim() || 'Untitled Case Study'; const requestedSlug = normalizeSlug(body.slug) || normalizeSlug(body.title) || 'untitled-case-study'; body.slug = await validateSlug(requestedSlug,'',true); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end' } }; const newId = crypto.randomUUID(); const { rows } = await tursoQuery(`INSERT INTO case_studies (id,title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING *`, [newId,body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
     if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
     const existing = await getProject(body.id); if (!existing) return res.status(404).json({ error: 'Case study not found.' });
