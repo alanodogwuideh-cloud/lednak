@@ -61,6 +61,17 @@ function normalizePrototypeButtons(metadata) {
   return meta;
 }
 const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','analytic_card']);
+const DESCRIPTION_CAPTION_COLORS = new Set(['#167C3A','#B42318','#175CD3','#8A5A00','#6941C6']);
+function normalizeDescriptionSections(item) {
+  const x = metadataObject(item);
+  if (!Array.isArray(x.description_sections)) return x;
+  x.description_sections = x.description_sections.map(part => {
+    const p = metadataObject(part);
+    const color = String(p.caption_color || '').trim().toUpperCase();
+    return { ...p, ...(DESCRIPTION_CAPTION_COLORS.has(color) ? { caption_color: color } : { caption_color: '' }) };
+  });
+  return x;
+}
 function inferAssetType(section) {
   const title=String(section?.title||'').trim(); const old=String(section?.section_type||section?.type||'');
   if(old==='prototype_buttons') return '';
@@ -103,7 +114,7 @@ function normalizeCardItems(metadata){
     if(!Array.isArray(meta[key])) continue;
     const used=new Set();
     meta[key]=meta[key].map((item,index)=>{
-      const x=metadataObject(item); let id=String(x.id||'').trim();
+      const x=key==='card2_items'?normalizeDescriptionSections(item):metadataObject(item); let id=String(x.id||'').trim();
       if(!id||used.has(id)) id=crypto.randomUUID(); used.add(id);
       return {...x,id};
     });
