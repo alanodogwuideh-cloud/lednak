@@ -73,7 +73,10 @@ export async function uploadR2Object(env, key, bytes, contentType) {
   const response = await fetch(signed.url, { method: 'PUT', headers: { 'content-type': signed.contentType }, body: bytes });
   if (!response.ok) {
     const details = await response.text().catch(() => '');
-    throw new Error('R2 upload failed: ' + response.status + (details ? ' ' + details.slice(0, 500) : ''));
+    // R2 returns structured XML error codes (for example SignatureDoesNotMatch).
+    // Preserve a short sanitized excerpt in server logs to diagnose rejected uploads.
+    const safeDetails = String(details || '').replace(/(AWSAccessKeyId|Credential|Signature|X-Amz-[A-Za-z-]+)=?[^<&\s]*/gi, '$1=[redacted]').slice(0, 500);
+    throw new Error('R2 upload failed: ' + response.status + (safeDetails ? ' ' + safeDetails : ''));
   }
   return r2PublicUrl(key);
 }
