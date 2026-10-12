@@ -84,6 +84,8 @@ function inferAssetType(section) {
 function inferPresentation(section) {
   const old=String(section?.section_type||section?.type||''); const meta=metadataObject(section?.metadata);
   const style=String(section?.presentation_style||meta.presentation_style||meta.card_variant||'');
+  // Prototype button metadata is authoritative: older sections may still have a text_box type.
+  if (Array.isArray(meta.prototype_buttons) || meta.presentation_type === 'prototype_buttons' || style === 'prototype_buttons') return 'prototype_buttons';
   if(PRESENTATIONS.has(old)) return old;
   if(old==='quote') return 'quote';
   if(['card2','card4','card3','cards','card1','card5','analytic_card'].includes(old)) return 'card';
