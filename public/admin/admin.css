@@ -96,6 +96,26 @@
 #editor .nested-content-item{background:#f8f8f6!important;border-color:#e5e4df!important}
 #editor .nested-content-editor .section-top{border-color:#e2e1dc!important}
 #editor .nested-content-editor select,#editor .nested-content-item input,#editor .nested-content-item textarea{border-color:#e0dfd9!important}
+/* Modern editor spacing rhythm and consistent corner radii. */
+#editor>#projectForm{gap:24px!important}
+#editor .editor-grid{gap:20px!important}
+#editor .editor-grid>.panel,#editor .sections-panel{padding:24px!important;border-radius:16px!important}
+#editor .sections-panel>.section-head{gap:16px!important;margin-bottom:20px!important;padding-bottom:18px!important}
+#editor .section-editor{gap:20px!important}
+#editor .section-card{padding:22px!important;border-radius:14px!important}
+#editor .section-card .section-top{gap:14px!important;margin-bottom:18px!important;padding-bottom:14px!important}
+#editor .section-card label{gap:8px!important;margin-bottom:16px!important}
+#editor .section-card input,#editor .section-card textarea,#editor .section-card select{border-radius:9px!important;padding:12px 13px!important}
+#editor .section-card .card2-description-sections,#editor .section-card .card2-items,#editor .section-card .nested-sections,#editor .nested-content-editor{padding:16px!important;border-radius:12px!important}
+#editor .section-card .section-actions{gap:8px!important}
+#editor .section-card .section-actions button{border-radius:9px!important}
+/* Slightly darker light-grey surface for Additional content only. */
+#editor .nested-content-editor{background:#e8e8e5!important;border-color:#e0e0db!important;padding:18px!important;border-radius:12px!important}
+#editor .nested-content-item{background:#f5f5f2!important;border-color:#e3e3dd!important;border-radius:10px!important;padding:14px!important}
+#editor .nested-content-editor .section-top{margin-bottom:14px!important;padding-bottom:12px!important;border-color:#deded8!important}
+#editor .nested-content-editor select,#editor .nested-content-item input,#editor .nested-content-item textarea{border-radius:9px!important}
+@media(max-width:900px){#editor>#projectForm{gap:20px!important}#editor .editor-grid{gap:16px!important}#editor .editor-grid>.panel,#editor .sections-panel{padding:20px!important}#editor .section-card{padding:18px!important}#editor .nested-content-editor{padding:15px!important}}
+@media(max-width:640px){#editor>#projectForm{gap:16px!important}#editor .editor-grid>.panel,#editor .sections-panel{padding:16px!important;border-radius:14px!important}#editor .section-editor{gap:14px!important}#editor .section-card{padding:14px!important;border-radius:12px!important}#editor .nested-content-editor{padding:12px!important;border-radius:10px!important}#editor .nested-content-item{padding:11px!important}}
 #editor .section-card .add-card2-part,#editor .section-card .add-card2,#editor .section-card .add-desc{background:#e3e0d9!important;border:1px solid #c9c3b8!important;color:#39362f!important}
 #editor .section-card .add-card2-part:hover,#editor .section-card .add-card2:hover,#editor .section-card .add-desc:hover{background:#d8d4cb!important}
 #editor .section-card .section-top{background:transparent!important}
