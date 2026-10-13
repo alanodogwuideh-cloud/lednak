@@ -169,6 +169,7 @@
 #editor .editor-action-buttons #saveProjectChanges:focus-visible::before,#editor .editor-action-buttons #deleteProject:focus-visible::before{outline:3px solid rgba(169,75,0,.25)!important;outline-offset:3px!important}
 #editor .editor-head-actions .icon-btn{border:0!important;border-radius:50%!important;background:transparent!important;color:#292720!important}
 #editor .editor-head-actions .icon-btn:hover{background:#f3f1ed!important}
+}
 /* Mobile icon actions: keep the button surface transparent; confine hover feedback to the circular icon. */
 @media(max-width:640px){
 #editor .editor-action-buttons #saveProjectChanges,
@@ -188,7 +189,7 @@
 #editor .editor-head-actions .icon-btn:hover{background:transparent!important}
 #editor .editor-head-actions .icon-btn:active{background:#f0efec!important}
 }
-#editor .editor-save-status{display:none!important}#editor>#projectForm{padding:18px 14px 28px!important;gap:16px!important}#editor .editor-grid{gap:14px!important}#editor .editor-grid>.panel{padding:16px!important}#editor .sections-panel{padding:14px!important}.section-card{padding:14px!important;border-radius:13px!important}.section-card .section-top{gap:12px!important}#editor .section-nav{display:none!important}}
+#editor .editor-save-status{display:none!important}#editor>#projectForm{padding:18px 14px 28px!important;gap:16px!important}#editor .editor-grid{gap:14px!important}#editor .editor-grid>.panel{padding:16px!important}#editor .sections-panel{padding:14px!important}.section-card{padding:14px!important;border-radius:13px!important}.section-card .section-top{gap:12px!important}#editor .section-nav{display:none!important}
 .section-card .section-top{padding-bottom:12px!important;border-bottom:1px solid #d5cec2!important}
 .section-card .section-top strong,.section-card .section-top h4,.section-card label{color:#292720!important}
 .section-card input,.section-card textarea,.section-card select{background:#fff!important;color:#1a1a18!important;border:1px solid #aaa398!important}
