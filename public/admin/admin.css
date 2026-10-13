@@ -112,6 +112,18 @@
 /* Slightly darker light-grey surface for Additional content only. */
 #editor .nested-content-editor{background:#e8e8e5!important;border-color:#e0e0db!important;padding:18px!important;border-radius:12px!important}
 #editor .nested-content-item{background:#f5f5f2!important;border-color:#e3e3dd!important;border-radius:10px!important;padding:14px!important}
+/* Card 2 editor: apply the spacing system to each card item and its nested description parts. */
+#editor .section-card .card2-items{display:grid!important;gap:16px!important;padding:0!important;background:transparent!important;border:0!important}
+#editor .section-card .card2-row{display:flex!important;flex-direction:column!important;gap:14px!important;padding:18px!important;margin:0 0 16px!important;border:1px solid #e4e0d9!important;border-radius:12px!important;background:#f5f3ee!important;min-width:0!important}
+#editor .section-card .card2-row>label{margin:0!important}
+#editor .section-card .card2-row .card2-description-sections{display:grid!important;gap:12px!important;margin-top:4px!important;padding:14px!important;border:1px solid #e4e0d9!important;border-radius:10px!important;background:#eeece7!important}
+#editor .section-card .card2-row .card2-description-part{display:grid!important;gap:10px!important;padding:14px!important;margin:0!important;border:1px solid #e4e0d9!important;border-radius:10px!important;background:#f8f7f4!important}
+#editor .section-card .card2-row .card2-description-part label{margin:0!important}
+#editor .section-card .card2-row .card2-description-part .remove-card2-part{justify-self:start!important;margin:0 0 4px!important}
+#editor .section-card .card2-row .remove-card2{align-self:flex-start!important;margin:2px 0 0!important}
+#editor .section-card .card2-row input,#editor .section-card .card2-row textarea{margin:0!important}
+@media(max-width:900px){#editor .section-card .card2-row{padding:16px!important;gap:12px!important}#editor .section-card .card2-row .card2-description-sections{padding:12px!important}#editor .section-card .card2-row .card2-description-part{padding:12px!important}}
+@media(max-width:640px){#editor .section-card .card2-row{padding:12px!important;gap:10px!important;margin-bottom:12px!important}#editor .section-card .card2-row .card2-description-sections{padding:10px!important;gap:10px!important}#editor .section-card .card2-row .card2-description-part{padding:10px!important}}
 #editor .nested-content-editor .section-top{margin-bottom:14px!important;padding-bottom:12px!important;border-color:#deded8!important}
 #editor .nested-content-editor select,#editor .nested-content-item input,#editor .nested-content-item textarea{border-radius:9px!important}
 @media(max-width:900px){#editor>#projectForm{gap:20px!important}#editor .editor-grid{gap:16px!important}#editor .editor-grid>.panel,#editor .sections-panel{padding:20px!important}#editor .section-card{padding:18px!important}#editor .nested-content-editor{padding:15px!important}}
