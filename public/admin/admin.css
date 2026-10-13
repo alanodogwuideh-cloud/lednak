@@ -10,7 +10,37 @@
 .admin-shell main{background:#f8f6f2!important}
 .panel,.editor-grid>.panel{background:#fff!important;border:1px solid #d5d1c9!important;box-shadow:0 4px 16px rgba(26,26,24,.045)!important}
 .sections-panel{background:#fff!important;border:1px solid #c9c3b8!important;border-radius:16px!important}
-.section-card{background:#f2efe9!important;border:1px solid #bcb5a9!important;border-left:4px solid #f8831d!important;border-radius:12px!important;box-shadow:0 2px 8px rgba(26,26,24,.06)!important}
+/* Case-study editor redesign: calm surfaces, clear hierarchy, no decorative orange rail. */
+#editor{border:1px solid #d9d6cf!important;border-radius:20px!important;box-shadow:0 28px 90px rgba(20,20,18,.18)!important;background:#fff!important}
+#editor>.editor-head{padding:28px 32px 22px!important;border-bottom:1px solid #e7e4de!important;background:rgba(255,255,255,.98)!important}
+#editorTitle{font-size:clamp(25px,2vw,30px)!important;letter-spacing:-1.1px!important;font-weight:800!important}
+#editor>.editor-head .eyebrow{font-size:10px!important;letter-spacing:1.8px!important;font-weight:800!important}
+#editor>#projectForm{padding:28px 32px 36px!important;gap:22px!important;background:#f8f7f4!important}
+#editor .editor-grid{gap:18px!important;margin-bottom:0!important}
+#editor .editor-grid>.panel{padding:24px!important;border:1px solid #e4e0d8!important;border-radius:16px!important;box-shadow:0 2px 8px rgba(26,26,24,.025)!important}
+#editor .editor-grid>.panel h3{font-size:16px!important;letter-spacing:-.3px!important;margin-bottom:18px!important}
+#editor .sections-panel{padding:24px!important;border:1px solid #e4e0d8!important;border-radius:18px!important;background:#fff!important;box-shadow:0 2px 8px rgba(26,26,24,.025)!important}
+#editor .sections-panel>.section-head{align-items:center!important;padding-bottom:18px!important;margin-bottom:20px!important;border-bottom:1px solid #eeeae3!important}
+#editor .sections-panel>.section-head h3{font-size:19px!important;letter-spacing:-.5px!important;margin-bottom:5px!important}
+.section-card{background:#f7f6f3!important;border:1px solid #ddd9d1!important;border-left:1px solid #ddd9d1!important;border-radius:16px!important;box-shadow:0 2px 5px rgba(26,26,24,.025)!important;padding:22px!important;transition:border-color .16s ease,box-shadow .16s ease!important}
+.section-card:hover{border-color:#c8c2b7!important;box-shadow:0 5px 18px rgba(26,26,24,.045)!important}
+.section-card .section-top{padding-bottom:16px!important;margin-bottom:18px!important;border-bottom:1px solid #e2ded6!important;align-items:center!important}
+.section-card .section-top strong,.section-card .section-top h4{font-size:14px!important;font-weight:800!important;color:#25241f!important;letter-spacing:-.2px!important}
+.section-card .section-actions{gap:7px!important}
+.section-card .section-actions button{min-height:36px!important;padding:8px 11px!important;border-radius:9px!important}
+.section-card label{font-size:11px!important;font-weight:750!important;letter-spacing:.05px!important;color:#44413a!important;gap:7px!important;margin-bottom:14px!important}
+.section-card input,.section-card textarea,.section-card select{background:#fff!important;color:#24231f!important;border:1px solid #d0cbc1!important;border-radius:10px!important;padding:12px 13px!important;font-size:13px!important;transition:border-color .15s ease,box-shadow .15s ease!important}
+.section-card textarea{min-height:132px!important;line-height:1.65!important}
+.section-card input:hover,.section-card textarea:hover,.section-card select:hover{border-color:#aaa397!important}
+.section-card input:focus-visible,.section-card textarea:focus-visible,.section-card select:focus-visible{border-color:#a94b00!important;outline:3px solid rgba(169,75,0,.18)!important;outline-offset:1px!important;box-shadow:none!important}
+#editor .editor-action-buttons button{min-height:44px!important;padding:12px 18px!important;border-radius:11px!important}
+#editor .editor-action-buttons .danger{background:#f9e9e7!important;color:#a52e29!important;border:1px solid #f0d1cd!important}
+#editor .editor-action-buttons .secondary{background:#fff!important;border:1px solid #dedad2!important;color:#282721!important}
+#editor .editor-action-buttons .primary{background:#f8831d!important;color:#1a1a18!important;border:1px solid #f8831d!important;box-shadow:0 3px 8px rgba(248,131,29,.14)!important}
+#editor .icon-btn{width:38px!important;height:38px!important;border-radius:10px!important;font-size:25px!important}
+#editor .icon-btn:hover{background:#f1efeb!important;color:#24231f!important}
+@media(max-width:900px){#editor>.editor-head{padding:22px 20px 18px!important}#editor>#projectForm{padding:20px 20px 28px!important}#editor .sections-panel{padding:18px!important}.section-card{padding:17px!important}}
+@media(max-width:640px){#editor>.editor-head{padding:18px 16px 14px!important}#editor>#projectForm{padding:16px 12px 24px!important;gap:14px!important}#editor .editor-grid>.panel{padding:17px!important}#editor .sections-panel{padding:14px!important}.section-card{padding:14px!important;border-radius:13px!important}.section-card .section-top{gap:12px!important}}
 .section-card .section-top{padding-bottom:12px!important;border-bottom:1px solid #d5cec2!important}
 .section-card .section-top strong,.section-card .section-top h4,.section-card label{color:#292720!important}
 .section-card input,.section-card textarea,.section-card select{background:#fff!important;color:#1a1a18!important;border:1px solid #aaa398!important}
