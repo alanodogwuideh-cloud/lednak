@@ -89,6 +89,13 @@
 #editor .section-card .section-card,#editor .section-card .nested-section,#editor .section-card .subsection-card,#editor .section-card .card2-row,#editor .section-card .card2-description-part,#editor .section-card .content-block-card{background:#f5f3ee!important;border:1px solid #d8d3c9!important;border-radius:12px!important;box-shadow:none!important}
 #editor .section-card .card2-description-sections,#editor .section-card .card2-items,#editor .section-card .nested-sections{background:#f5f3ee!important;border:1px solid #d8d3c9!important;border-radius:12px!important;padding:12px!important}
 #editor .section-card .card2-description-part input,#editor .section-card .card2-description-part textarea,#editor .section-card .card2-row input,#editor .section-card .card2-row textarea{background:#fff!important}
+/* Requested colour-only adjustment: preserve the main section surface; lighten subsection and additional-content surfaces and strokes. */
+#editor .section-card{border-color:#e6e2db!important;border-left-color:#e6e2db!important}
+#editor .section-card .section-card,#editor .section-card .nested-section,#editor .section-card .subsection-card,#editor .section-card .card2-row,#editor .section-card .card2-description-part,#editor .section-card .content-block-card,#editor .section-card .showcase-subsection-editor{border-color:#e4e0d9!important}
+#editor .nested-content-editor{background:#f1f1ef!important;border-color:#e2e1dc!important}
+#editor .nested-content-item{background:#f8f8f6!important;border-color:#e5e4df!important}
+#editor .nested-content-editor .section-top{border-color:#e2e1dc!important}
+#editor .nested-content-editor select,#editor .nested-content-item input,#editor .nested-content-item textarea{border-color:#e0dfd9!important}
 #editor .section-card .add-card2-part,#editor .section-card .add-card2,#editor .section-card .add-desc{background:#e3e0d9!important;border:1px solid #c9c3b8!important;color:#39362f!important}
 #editor .section-card .add-card2-part:hover,#editor .section-card .add-card2:hover,#editor .section-card .add-desc:hover{background:#d8d4cb!important}
 #editor .section-card .section-top{background:transparent!important}
