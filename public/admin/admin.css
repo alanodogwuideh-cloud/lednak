@@ -151,10 +151,10 @@
 #editor .editor-action-buttons .primary{background:#f8831d!important;color:#1a1a18!important;border:1px solid #f8831d!important;box-shadow:0 3px 8px rgba(248,131,29,.14)!important}
 /* Desktop and tablet only: dark Save action with restrained lift on hover. */
 @media(min-width:641px){
-#editor .editor-action-buttons #deleteProject{background:#171816!important;color:#fff!important;border:1px solid #171816!important;box-shadow:0 2px 4px rgba(0,0,0,.12)!important;transform:translateY(0);transition:background-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease!important}
-#editor .editor-action-buttons #deleteProject:hover{background:#2b2c28!important;color:#fff!important;border-color:#2b2c28!important;transform:translateY(-2px)!important;box-shadow:0 5px 12px rgba(0,0,0,.16)!important}
-#editor .editor-action-buttons #deleteProject:active{background:#343530!important;color:#f7f7f5!important;transform:translateY(0) scale(.99)!important;box-shadow:0 1px 3px rgba(0,0,0,.12)!important}
-#editor .editor-action-buttons #deleteProject:focus-visible{outline:3px solid rgba(23,24,22,.25)!important;outline-offset:3px!important}
+#editor .editor-action-buttons #deleteProject{background:#f7e2df!important;color:#b83d36!important;border:1px solid #f0d0cc!important;box-shadow:0 2px 4px rgba(0,0,0,.06)!important;transform:translateY(0);transition:background-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease!important}
+#editor .editor-action-buttons #deleteProject:hover{background:#f4d7d3!important;color:#b83d36!important;border-color:#e9c1bc!important;transform:translateY(-2px)!important;box-shadow:0 5px 12px rgba(0,0,0,.10)!important}
+#editor .editor-action-buttons #deleteProject:active{background:#efceca!important;color:#b83d36!important;transform:translateY(0) scale(.99)!important;box-shadow:0 1px 3px rgba(0,0,0,.08)!important}
+#editor .editor-action-buttons #deleteProject:focus-visible{outline:3px solid rgba(184,61,54,.22)!important;outline-offset:3px!important}
 #editor .editor-action-buttons #saveProjectChanges{background:#171816!important;color:#fff!important;border:1px solid #171816!important;box-shadow:0 2px 4px rgba(0,0,0,.12)!important;transform:translateY(0);transition:background-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease!important}
 #editor .editor-action-buttons #saveProjectChanges:hover{background:#2b2c28!important;color:#fff!important;border-color:#2b2c28!important;transform:translateY(-2px)!important;box-shadow:0 5px 12px rgba(0,0,0,.16)!important}
 #editor .editor-action-buttons #saveProjectChanges:active{background:#343530!important;color:#f7f7f5!important;transform:translateY(0) scale(.99)!important;box-shadow:0 1px 3px rgba(0,0,0,.12)!important}
