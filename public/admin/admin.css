@@ -62,6 +62,46 @@
  #editor .editor-save-status{font-size:11px!important}
 }
 @media(max-width:420px){#editor .editor-head{padding:16px 12px!important}#editor .editor-head-actions{gap:5px!important}#editor .editor-action-buttons{gap:5px!important}#editor .editor-action-buttons button{width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;flex-basis:36px!important}#editor .editor-head-actions .icon-btn{width:34px!important;height:34px!important;min-width:34px!important;flex-basis:34px!important}}@media(max-width:1050px){.project-row{grid-template-columns:75px minmax(0,1fr);align-items:start}.project-row .project-actions{grid-column:2;grid-row:auto;width:100%;justify-content:flex-start}.project-actions{gap:7px}.project-actions button{max-width:100%}}@media(max-width:900px){.admin-shell{display:block;height:auto;min-height:100vh;overflow:visible}.admin-shell aside{height:auto;min-height:0;padding:18px;overflow:visible}.admin-brand{margin-bottom:12px}.admin-shell nav{display:flex;flex-wrap:wrap;gap:5px}.tab,.view{flex:0 0 auto}.view{display:inline-block;margin-top:8px}.admin-user{margin-top:12px}.admin-shell main{min-height:calc(100vh - 230px);height:auto;overflow:visible;padding:28px 18px 40px;max-width:none}}@media(max-width:640px){.admin-shell aside{padding:14px}.admin-brand{font-size:24px}.admin-shell nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.tab,.view{width:100%;padding:10px}.view{margin-top:5px}.admin-user{margin-top:8px}.admin-shell main{padding:20px 12px 32px;min-height:0}.top{flex-direction:column;align-items:stretch;gap:14px;margin-bottom:20px}.top .primary{width:100%}.project-row{grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:12px}.project-row .thumb{grid-column:1/-1;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px}.project-row h3{font-size:16px;overflow-wrap:anywhere}.project-row p{overflow-wrap:anywhere}.project-row .project-actions{grid-column:1/-1;display:contents}.project-row .project-actions>.muted{grid-column:1;grid-row:3;align-self:center;margin:0}.project-row .project-actions>.duplicate-project{grid-column:2;grid-row:3}.project-row .project-actions>.delete-project-icon{grid-column:3;grid-row:3}.project-row .project-actions>.preview-project{grid-column:1/-1;grid-row:4;width:100%}.project-row .project-actions>.publish-toggle{grid-column:1/-1;grid-row:5;width:100%}.project-row .project-actions>.edit-project{grid-column:1/-1;grid-row:6;width:100%}.project-row .project-actions>.manage-media{grid-column:1/-1;grid-row:7;width:100%}.project-row .project-actions>.duplicate-project,.project-row .project-actions>.delete-project-icon{width:38px;height:38px;min-width:38px;border-radius:50%;font-size:0}.project-row .project-actions>.duplicate-project svg,.project-row .project-actions>.delete-project-icon svg{width:18px;height:18px}.status{justify-self:start}.toolbar{gap:8px}.toolbar input,.toolbar select{max-width:none}.panel{padding:16px}.editor-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:minmax(0,1fr)}.media-layout{grid-template-columns:1fr}.section-card .section-top{align-items:flex-start}.section-card .section-actions{width:100%}.section-card .section-actions button{min-height:36px}.media-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.media-actions button{min-height:38px}.editor-action-buttons{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.editor-action-buttons button{min-height:40px;font-size:12px}.editor-save-status{grid-column:1/-1}.editor-head-actions{column-gap:7px}.editor-head-actions .icon-btn{font-size:28px}.editor-head-actions .editor-action-buttons{grid-column:1}.editor-head-actions .icon-btn{grid-column:2}.cms-toast{min-width:0}}
+/* Responsive editor correction: respond to the editor's actual width, not only the viewport. */
+#editor>#projectForm{container-type:inline-size;container-name:case-study-form}
+#editor .editor-grid>.panel{container-type:inline-size;container-name:case-study-panel}
+@container case-study-form (max-width:760px){
+  #editor .editor-grid{grid-template-columns:minmax(0,1fr)!important}
+}
+@container case-study-panel (max-width:520px){
+  #editor .editor-grid>.panel .form-grid{grid-template-columns:minmax(0,1fr)!important}
+  #editor .editor-grid>.panel .form-grid>.wide{grid-column:1/-1!important}
+}
+/* Match the automatic/manual slug control to the editor's field system. */
+#slugModeToggle.text-action{
+  align-self:flex-start!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  width:auto!important;
+  min-height:34px!important;
+  margin:2px 0 0!important;
+  padding:7px 11px!important;
+  border:1px solid #d8d4cc!important;
+  border-radius:8px!important;
+  background:#f8f6f2!important;
+  color:#39362f!important;
+  font:600 12px/1.3 'DM Sans',sans-serif!important;
+  box-shadow:none!important;
+  transition:background-color .16s ease,border-color .16s ease,transform .16s ease!important;
+}
+#slugModeToggle.text-action:hover{
+  background:#efede8!important;
+  border-color:#bcb5a9!important;
+  transform:translateY(-1px)!important;
+}
+#slugModeToggle.text-action:active{transform:translateY(0)!important}
+#slugModeToggle.text-action:focus-visible{outline:3px solid rgba(248,131,29,.35)!important;outline-offset:2px!important}
+@media(max-width:640px){
+  #editor>#projectForm{container-type:normal}
+  #editor .editor-grid>.panel{container-type:normal}
+}
 /* Accessible portfolio palette: these final rules intentionally override older refresh styles. */
 :root{--bg:#f8f6f2;--surface:#fff;--text:#1a1a18;--muted:#5f5c55;--line:#d5d1c9;--accent:#f8831d;--soft:#f0ede8}
 .admin-shell aside{background:#11120f!important;color:#fff!important;border-right:1px solid #30302b!important}
