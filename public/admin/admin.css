@@ -149,6 +149,13 @@
 #editor .editor-action-buttons .danger{background:#f9e9e7!important;color:#a52e29!important;border:1px solid #f0d1cd!important}
 #editor .editor-action-buttons .secondary{background:#fff!important;border:1px solid #dedad2!important;color:#282721!important}
 #editor .editor-action-buttons .primary{background:#f8831d!important;color:#1a1a18!important;border:1px solid #f8831d!important;box-shadow:0 3px 8px rgba(248,131,29,.14)!important}
+/* Desktop and tablet only: dark Save action with restrained lift on hover. */
+@media(min-width:641px){
+#editor .editor-action-buttons #saveProjectChanges{background:#171816!important;color:#fff!important;border:1px solid #171816!important;box-shadow:0 2px 4px rgba(0,0,0,.12)!important;transform:translateY(0);transition:background-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease!important}
+#editor .editor-action-buttons #saveProjectChanges:hover{background:#2b2c28!important;color:#fff!important;border-color:#2b2c28!important;transform:translateY(-2px)!important;box-shadow:0 5px 12px rgba(0,0,0,.16)!important}
+#editor .editor-action-buttons #saveProjectChanges:active{background:#343530!important;color:#f7f7f5!important;transform:translateY(0) scale(.99)!important;box-shadow:0 1px 3px rgba(0,0,0,.12)!important}
+#editor .editor-action-buttons #saveProjectChanges:focus-visible{outline:3px solid rgba(23,24,22,.25)!important;outline-offset:3px!important}
+}
 #editor .icon-btn{width:38px!important;height:38px!important;border-radius:10px!important;font-size:25px!important}
 #editor .icon-btn:hover{background:#f1efeb!important;color:#24231f!important}
 @media(max-width:900px){#editor>.editor-head{padding:22px 20px 18px!important}#editor>#projectForm{padding:20px 20px 28px!important}#editor .sections-panel{padding:18px!important}.section-card{padding:17px!important}}
