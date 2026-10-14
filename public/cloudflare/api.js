@@ -121,7 +121,7 @@ async function portfolio(request, env) {
   await ensureTrashSchema(env);
   const [settingsResult, projectsResult, brandingResult] = await Promise.all([
     tursoQuery(env, 'SELECT * FROM portfolio_settings LIMIT 1'),
-    tursoQuery(env, "SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND (deleted_at IS NULL OR deleted_at = '') ORDER BY sort_order ASC, created_at ASC", ['published']),
+    tursoQuery(env, "SELECT id,title,slug,subtitle,description,role,year,duration,category,content,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND (deleted_at IS NULL OR deleted_at = '') ORDER BY sort_order ASC, created_at ASC", ['published']),
     tursoQuery(env, 'SELECT favicon_key,updated_at FROM site_branding LIMIT 1')
   ]);
   const settings = settingsResult.rows[0] || {};
@@ -140,14 +140,25 @@ async function portfolio(request, env) {
       favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
       favicon_updated_at: branding.updated_at || ''
     },
-    projects: projectsResult.rows.map(project => ({
-      ...project,
-      cover_image_url: normalizeR2Url(project.cover_image_url || ''),
-      hero_image_url: normalizeR2Url(project.hero_image_url || ''),
-      short_description: project.subtitle || project.description || '',
-      status: project.status || 'draft',
-      sort_order: Number(project.sort_order || 0)
-    }))
+    projects: projectsResult.rows.map(project => {
+      // The homepage filters need the saved category from case_meta. Without
+      // this field, the frontend defaults every Cloudflare-served project to 'all'.
+      const content = object(project.content);
+      const meta = object(content.case_meta);
+      const savedDisplayCategory = String(meta.display_category || '').toLowerCase();
+      const display_category = ['mobile', 'web', 'both'].includes(savedDisplayCategory)
+        ? savedDisplayCategory
+        : 'all';
+      return {
+        ...project,
+        display_category,
+        cover_image_url: normalizeR2Url(project.cover_image_url || ''),
+        hero_image_url: normalizeR2Url(project.hero_image_url || ''),
+        short_description: project.subtitle || project.description || '',
+        status: project.status || 'draft',
+        sort_order: Number(project.sort_order || 0)
+      };
+    })
   });
 }
 async function caseStudy(request, env) {
