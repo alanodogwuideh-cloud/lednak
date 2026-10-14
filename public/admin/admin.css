@@ -85,26 +85,7 @@ button:not(:disabled):hover{transform:translateY(-2px)!important}
 button:not(:disabled){transition:transform .16s ease}
 button:not(:disabled):active{transform:translateY(0)!important}
 }
-/* Shared custom select controls with viewport-aware floating menus. */
-.cms-select-wrap{position:relative;display:block;width:100%;min-width:0}
-.cms-select-wrap>.cms-native-select{position:absolute!important;width:1px!important;height:1px!important;min-height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;opacity:0!important;pointer-events:none!important}
-.cms-select-trigger{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;width:100%!important;min-width:0!important;min-height:44px!important;padding:11px 13px!important;border:1px solid #d9d6cf!important;border-radius:11px!important;background:#fff!important;color:#22231f!important;text-align:left!important;font:500 13px/1.4 'DM Sans',sans-serif!important;box-shadow:0 1px 2px #16181108!important;cursor:pointer!important;transform:none!important}
-.cms-select-trigger:hover{border-color:#aaa59a!important;background:#fff!important;transform:none!important;box-shadow:0 3px 10px #1718140b!important}
-.cms-select-trigger:focus-visible{outline:3px solid #f8831d55!important;outline-offset:2px!important;border-color:#b96a23!important}
-.cms-select-value{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cms-select-chevron{flex:0 0 18px;color:#77776f;transition:transform .16s ease}
-.cms-select-wrap.is-open .cms-select-chevron{transform:rotate(180deg)}
-.cms-select-wrap.is-disabled .cms-select-trigger{opacity:.55;cursor:not-allowed!important;background:#f4f3f0!important}
-.cms-select-menu{position:fixed;z-index:100000;display:grid;gap:3px;overflow-y:auto;overscroll-behavior:contain;padding:6px;border:1px solid #e4e1da;border-radius:14px;background:#fff;box-shadow:0 18px 55px #17181424,0 3px 8px #1718140c;animation:cmsSelectIn .13s ease-out;scrollbar-width:thin;scrollbar-color:#cbc7be transparent}
-.cms-select-option{display:block;width:100%;min-height:38px;padding:9px 11px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:#34352f!important;text-align:left!important;font:500 13px/1.4 'DM Sans',sans-serif!important;white-space:normal!important;overflow-wrap:anywhere;cursor:pointer!important;transform:none!important;box-shadow:none!important}
-.cms-select-option:hover,.cms-select-option.is-focused{background:#f5f3ee!important;color:#171814!important;transform:none!important}
-.cms-select-option[aria-selected="true"]{background:#fff0e2!important;color:#7b3d0b!important;font-weight:700!important}
-.cms-select-option[aria-selected="true"]::after{content:'✓';float:right;margin-left:10px;color:#a34f0b;font-weight:800}
-.cms-select-option:disabled{opacity:.42;cursor:not-allowed!important}
-.cms-select-option.is-placeholder{color:#77776f!important;font-weight:500!important}
-@keyframes cmsSelectIn{from{opacity:0;transform:translateY(4px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(prefers-reduced-motion:reduce){.cms-select-menu,.cms-select-chevron{animation:none!important;transition:none!important}}
-@media(max-width:560px){.cms-select-trigger{min-height:44px;padding:11px 12px!important}.cms-select-menu{border-radius:12px}}
+/* Custom dropdown styles reverted pending a context-aware implementation. */
 /* Accessible portfolio palette: these final rules intentionally override older refresh styles. */
 :root{--bg:#f8f6f2;--surface:#fff;--text:#1a1a18;--muted:#5f5c55;--line:#d5d1c9;--accent:#f8831d;--soft:#f0ede8}
 .admin-shell aside{background:#11120f!important;color:#fff!important;border-right:1px solid #30302b!important}
