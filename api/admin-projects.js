@@ -7,13 +7,8 @@ import { requireSupabaseAdmin } from 'lib/admin-auth';
 export const access = 'public';
 export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
-function parseContent(value) {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
-  if (typeof value === 'string') { try { const parsed = JSON.parse(value); return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}; } catch {} }
-  return {};
-}
 function mapProject(p) {
-  const content = parseContent(p?.content);
+  const content = p?.content && typeof p.content === 'object' && !Array.isArray(p.content) ? p.content : {};
   const meta = content?.case_meta && typeof content.case_meta === 'object' && !Array.isArray(content.case_meta) ? content.case_meta : {};
   return {
     ...p,
@@ -85,7 +80,7 @@ export default async function (req, res) {
       const hasClient = body.client !== undefined;
       const hasCaseMeta = ['role_label','duration_label','platform_label','project_type_label','platform','project_type','display_category'].some(k => body[k] !== undefined);
       if (hasClient || hasCaseMeta) {
-        const existingContent = parseContent(existing?.content);
+        const existingContent = existing?.content && typeof existing.content === 'object' && !Array.isArray(existing.content) ? existing.content : {};
         const nextContent = { ...existingContent };
         if (hasClient) nextContent.client = String(body.client ?? '');
         if (hasCaseMeta) {
