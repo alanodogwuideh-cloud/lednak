@@ -23,6 +23,7 @@ function mapProject(p) {
     duration_label: meta.duration_label ?? 'Duration',
     platform_label: meta.platform_label ?? 'Platform',
     project_type_label: meta.project_type_label ?? 'Project type',
+    display_category: ['mobile','web'].includes(String(meta.display_category||'').toLowerCase()) ? String(meta.display_category).toLowerCase() : 'all',
     status: p?.status || 'draft',
     sort_order: Number(p?.sort_order || 0)
   };
@@ -62,7 +63,7 @@ export default async function (req, res) {
       const { rows } = await tursoQuery('SELECT * FROM case_studies WHERE deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC');
       return res.json({ ok: true, projects: rows.map(mapProject) });
     }
-    if (req.method === 'POST') { body.title = String(body.title || '').trim() || 'Untitled Case Study'; const requestedSlug = normalizeSlug(body.slug) || normalizeSlug(body.title) || 'untitled-case-study'; body.slug = await validateSlug(requestedSlug,'',true); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end' } }; const newId = crypto.randomUUID(); const { rows } = await tursoQuery(`INSERT INTO case_studies (id,title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING *`, [newId,body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
+    if (req.method === 'POST') { body.title = String(body.title || '').trim() || 'Untitled Case Study'; const requestedSlug = normalizeSlug(body.slug) || normalizeSlug(body.title) || 'untitled-case-study'; body.slug = await validateSlug(requestedSlug,'',true); const content = { sections: [], client: body.client || '', case_meta: { role_label: body.role_label || 'Role', duration_label: body.duration_label || 'Duration', platform_label: body.platform_label || 'Platform', project_type_label: body.project_type_label || 'Project type', platform: body.platform || 'Mobile + Web', project_type: body.project_type || 'End-to-end', display_category: ['mobile','web'].includes(String(body.display_category||'').toLowerCase()) ? String(body.display_category).toLowerCase() : 'all' } }; const newId = crypto.randomUUID(); const { rows } = await tursoQuery(`INSERT INTO case_studies (id,title,slug,subtitle,description,role,year,duration,category,status,sort_order,content,cover_image_url,hero_image_url,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING *`, [newId,body.title,body.slug,body.short_description||body.subtitle||'',body.overview||body.description||'',body.role||'',body.year||'',body.duration||'',body.category||'',body.status||'draft',Number(body.sort_order||0),JSON.stringify(content),body.cover_image_url||'',body.hero_image_url||'']); return res.status(201).json(mapProject(rows[0])); }
     if (!body.id) return res.status(400).json({ error: 'Missing case study id.' });
     const existing = await getProject(body.id); if (!existing) return res.status(404).json({ error: 'Case study not found.' });
     if (req.method === 'PUT') {
@@ -77,7 +78,7 @@ export default async function (req, res) {
       // assignment, which PostgreSQL rejects as "multiple assignments to same
       // column content" when the editor saves both at the same time.
       const hasClient = body.client !== undefined;
-      const hasCaseMeta = ['role_label','duration_label','platform_label','project_type_label','platform','project_type'].some(k => body[k] !== undefined);
+      const hasCaseMeta = ['role_label','duration_label','platform_label','project_type_label','platform','project_type','display_category'].some(k => body[k] !== undefined);
       if (hasClient || hasCaseMeta) {
         const existingContent = existing?.content && typeof existing.content === 'object' && !Array.isArray(existing.content) ? existing.content : {};
         const nextContent = { ...existingContent };
@@ -90,7 +91,8 @@ export default async function (req, res) {
             platform_label: body.platform_label ?? existingMeta.platform_label ?? 'Platform',
             project_type_label: body.project_type_label ?? existingMeta.project_type_label ?? 'Project type',
             platform: body.platform ?? existingMeta.platform ?? 'Mobile + Web',
-            project_type: body.project_type ?? existingMeta.project_type ?? 'End-to-end'
+            project_type: body.project_type ?? existingMeta.project_type ?? 'End-to-end',
+            display_category: ['mobile','web'].includes(String(body.display_category ?? existingMeta.display_category ?? '').toLowerCase()) ? String(body.display_category ?? existingMeta.display_category).toLowerCase() : 'all'
           };
         }
         vals.push(JSON.stringify(nextContent));
