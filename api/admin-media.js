@@ -241,7 +241,7 @@ export default async function (req, res) {
       if (deletedUrl) {
         const { rows: otherRefs } = await tursoQuery(
           `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR CAST(content AS TEXT) LIKE $3) LIMIT 1`,
-          [project.id, deletedUrl, `%${deletedUrl}%`]
+          [project.id, deletedUrl, deletedUrl, `%${deletedUrl}%`]
         );
         if (!otherRefs?.length) {
           const storagePath = r2KeyFromPublicUrl(deletedUrl);
