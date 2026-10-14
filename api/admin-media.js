@@ -240,7 +240,7 @@ export default async function (req, res) {
       // referenced by another case study or by another fixed asset.
       if (deletedUrl) {
         const { rows: otherRefs } = await tursoQuery(
-          `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR content::text LIKE $3) LIMIT 1`,
+          `SELECT id FROM case_studies WHERE id <> $1 AND (cover_image_url = $2 OR hero_image_url = $2 OR CAST(content AS TEXT) LIKE $3) LIMIT 1`,
           [project.id, deletedUrl, `%${deletedUrl}%`]
         );
         if (!otherRefs?.length) {
