@@ -248,7 +248,8 @@ async function saveSections(project, incoming, caseMeta) {
       platform_label: caseMeta.platform_label ?? currentMeta.platform_label ?? 'Platform',
       project_type_label: caseMeta.project_type_label ?? currentMeta.project_type_label ?? 'Project type',
       platform: caseMeta.platform ?? currentMeta.platform ?? 'Mobile + Web',
-      project_type: caseMeta.project_type ?? currentMeta.project_type ?? 'End-to-end'
+      project_type: caseMeta.project_type ?? currentMeta.project_type ?? 'End-to-end',
+      display_category: ['mobile','web','both'].includes(String(caseMeta.display_category ?? currentMeta.display_category ?? '').toLowerCase()) ? String(caseMeta.display_category ?? currentMeta.display_category).toLowerCase() : 'all'
     };
   }
   const existingById = new Map(current.sections.map((s, i) => [String(s.id || s._id || `section-${i + 1}`), s]));
