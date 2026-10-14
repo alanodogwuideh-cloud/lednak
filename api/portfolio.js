@@ -31,7 +31,7 @@ export default async function (req, res) {
       },
       projects: (projectRows || []).map(p => ({
         ...p,
-        display_category: ['mobile','web'].includes(String(p?.content?.case_meta?.display_category||'').toLowerCase()) ? String(p.content.case_meta.display_category).toLowerCase() : 'all',
+        display_category: ['mobile','web','both'].includes(String(p?.content?.case_meta?.display_category||'').toLowerCase()) ? String(p.content.case_meta.display_category).toLowerCase() : 'all',
         cover_image_url: normalizeR2Url(p.cover_image_url || ''),
         hero_image_url: normalizeR2Url(p.hero_image_url || ''),
         short_description: p.short_description || p.description || '',
