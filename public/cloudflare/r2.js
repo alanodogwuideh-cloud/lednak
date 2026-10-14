@@ -52,7 +52,7 @@ async function signQuery(env, method, key, expires = 3600, contentType = '') {
   const canonicalQuery = Object.keys(params).sort().map(keyName => awsEncode(keyName) + '=' + awsEncode(params[keyName])).join('&');
   const canonicalHeaders = contentType ? 'content-type:' + contentType + '\nhost:' + host + '\n' : 'host:' + host + '\n';
   const signedHeaders = contentType ? 'content-type;host' : 'host';
-  const canonicalRequest = method + '\n' + path + '\n' + canonicalQuery + '\n' + canonicalHeaders + signedHeaders + '\nUNSIGNED-PAYLOAD';
+  const canonicalRequest = method + '\n' + path + '\n' + canonicalQuery + '\n' + canonicalHeaders + '\n' + signedHeaders + '\nUNSIGNED-PAYLOAD';
   const stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + scope + '\n' + await sha256(encoder.encode(canonicalRequest));
   let signingKey = await hmac(encoder.encode('AWS4' + secret), date);
   signingKey = await hmac(signingKey, 'auto');
