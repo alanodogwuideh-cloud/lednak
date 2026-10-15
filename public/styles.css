@@ -13,7 +13,7 @@ html,body{width:100%;max-width:100%;min-width:0}body{overflow-wrap:anywhere}.sit
 .motion-load{animation:portfolioFadeUp .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--motion-delay,0ms)}
 .motion-reveal{opacity:0;transform:translateY(20px);transition:opacity .65s cubic-bezier(.2,.7,.2,1),transform .65s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform}
 .motion-reveal.is-visible{opacity:1;transform:translateY(0)}
-.motion-image{opacity:0;transform:translateY(10px) scale(.98);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .6s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform}
+.motion-image{opacity:1;transform:none;transition:transform .6s cubic-bezier(.2,.7,.2,1);will-change:transform}
 .motion-image.is-visible{opacity:1;transform:translateY(0) scale(1)}
 .button,.quiet-link,.linkedin,.nav nav a{transition:color .2s ease,background-color .2s ease,opacity .2s ease}
 .project-card{transition:transform .25s cubic-bezier(.2,.7,.2,1),opacity .2s ease}
