@@ -9,6 +9,8 @@ export const methods = ['GET', 'PUT', 'POST', 'DELETE'];
 
 const SETTING_KEYS = ['site_name', 'headline', 'location', 'email', 'linkedin_url', 'profile_image_url', 'bio', 'availability'];
 const safeName = n => String(n || 'file').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
+let brandingSchemaReady;
+async function ensureResumeColumn(){if(!brandingSchemaReady)brandingSchemaReady=(async()=>{try{await tursoQuery('ALTER TABLE site_branding ADD COLUMN resume_key TEXT')}catch(e){if(!/duplicate column|already exists/i.test(e.message||''))throw e}})();return brandingSchemaReady;}
 
 async function getSettings() {
   const { rows } = await tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`);
@@ -20,6 +22,7 @@ function settingsObject(data) {
   const row = data?.settings || {};
   const branding = data?.branding || {};
   const faviconKey = String(branding.favicon_key || '');
+  const resumeKey = String(branding.resume_key || '');
   return {
     site_name: row.site_name || '',
     headline: row.intro || '',
@@ -32,6 +35,8 @@ function settingsObject(data) {
     availability: '',
     favicon_url: faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : ''),
     favicon_updated_at: branding.updated_at || '',
+    resume_url: resumeKey ? (resumeKey.startsWith('http') ? resumeKey : r2PublicUrl(resumeKey)) : '',
+    resume_key: resumeKey,
   };
 }
 
@@ -79,6 +84,7 @@ export default async function (req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   try {
     if (req.method === 'GET') {
+      await ensureResumeColumn();
       const data = await getSettings();
       return res.json(settingsObject(data));
     }
@@ -86,6 +92,20 @@ export default async function (req, res) {
     if (req.method === 'POST') {
       const kind = String(req.body?.kind || 'about');
       const file = req.files?.find(x => x.field === 'file') || req.files?.[0];
+      if (kind === 'resume') {
+        await ensureResumeColumn();
+        if (!file || (file.contentType !== 'application/pdf' && !String(file.filename || '').toLowerCase().endsWith('.pdf'))) return res.status(415).json({ error: 'Please choose a PDF resume.' });
+        if (file.buffer.length > 15 * 1024 * 1024) return res.status(413).json({ error: 'PDF is too large. Maximum size is 15 MB.' });
+        const current = await getSettings();
+        const oldKey = String(current.branding?.resume_key || '');
+        const key = `site/resume/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'resume.pdf')}`;
+        await uploadR2Object(key, file.buffer, 'application/pdf');
+        const row = current.branding; const rowId = row?.id || '1';
+        if (row) await tursoQuery('UPDATE site_branding SET resume_key=$1, updated_at=NOW() WHERE id=$2', [key,rowId]);
+        else await tursoQuery('INSERT INTO site_branding (id,favicon_key,resume_key) VALUES ($1,$2,$3)', [rowId,'',key]);
+        if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(()=>{});
+        return res.json({ url:r2PublicUrl(key), key, saved:true });
+      }
       if (!file || !String(file.contentType || '').startsWith('image/')) return res.status(400).json({ error: 'Please choose an image file.' });
       if (file.buffer.length > 5 * 1024 * 1024) return res.status(413).json({ error: 'Image is too large. Maximum size is 5 MB.' });
 
@@ -112,6 +132,14 @@ export default async function (req, res) {
     }
 
     if (req.method === 'DELETE') {
+      if (String(req.body?.kind || '') === 'resume') {
+        await ensureResumeColumn();
+        const current = await getSettings();
+        const oldKey = String(current.branding?.resume_key || '');
+        if (current.branding) await tursoQuery('UPDATE site_branding SET resume_key=NULL, updated_at=NOW() WHERE id=$1', [current.branding.id || '1']);
+        if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(()=>{});
+        return res.json({ ok:true });
+      }
       const current = await getSettings();
       const oldKey = String(current.branding?.favicon_key || '');
       await setFaviconKey('');

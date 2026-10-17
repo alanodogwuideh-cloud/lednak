@@ -7,10 +7,11 @@ export const methods = ['GET'];
 export default async function (req, res) {
   try {
     await ensureTrashSchema();
+    try { await tursoQuery('ALTER TABLE site_branding ADD COLUMN resume_key TEXT'); } catch (e) { if (!/duplicate column|already exists/i.test(e.message || '')) throw e; }
     const [{ rows: settingsRows }, { rows: projectRows }, { rows: brandingRows }] = await Promise.all([
       tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`),
       tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,content,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`, ['published']),
-      tursoQuery(`SELECT favicon_key,updated_at FROM site_branding LIMIT 1`),
+      tursoQuery(`SELECT * FROM site_branding LIMIT 1`),
     ]);
     const settings = settingsRows?.[0] || {};
     const branding = brandingRows?.[0] || {};
@@ -28,6 +29,7 @@ export default async function (req, res) {
         about_image_url: settings.about_image_url || '',
         favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
         favicon_updated_at: branding.updated_at || '',
+        resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',
       },
       projects: (projectRows || []).map(p => ({
         ...p,
