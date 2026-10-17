@@ -100,8 +100,8 @@ export default async function (req, res) {
         if (file.buffer.length > 15 * 1024 * 1024) return res.status(413).json({ error: 'PDF is too large. Maximum size is 15 MB.' });
         const current = await getSettings();
         const oldKey = String(current.branding?.resume_key || '');
-        const key = `site/resume/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'resume.pdf')}`;
-        const displayName = String(req.body?.display_name || '').trim().slice(0,100) || 'My Resume';
+        const displayName = String(req.body?.display_name || '').trim().slice(0,100) || String(file.filename || 'My Resume').replace(/\.pdf$/i,'').trim() || 'My Resume';
+        const key = `site/resume/${safeName(displayName.replace(/\.pdf$/i,''))}-${Date.now()}-${crypto.randomUUID().slice(0,8)}.pdf`;
         await uploadR2Object(key, file.buffer, 'application/pdf');
         const row = current.branding; const rowId = row?.id || '1';
         if (row) await tursoQuery('UPDATE site_branding SET resume_key=$1, resume_display_name=$2, updated_at=NOW() WHERE id=$3', [key,displayName,rowId]);
