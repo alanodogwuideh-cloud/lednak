@@ -10,7 +10,7 @@ export const methods = ['GET', 'PUT', 'POST', 'DELETE'];
 const SETTING_KEYS = ['site_name', 'headline', 'location', 'email', 'linkedin_url', 'profile_image_url', 'bio', 'availability'];
 const safeName = n => String(n || 'file').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
 let brandingSchemaReady;
-async function ensureResumeColumn(){if(!brandingSchemaReady)brandingSchemaReady=(async()=>{try{await tursoQuery('ALTER TABLE site_branding ADD COLUMN resume_key TEXT')}catch(e){if(!/duplicate column|already exists/i.test(e.message||''))throw e}})();return brandingSchemaReady;}
+async function ensureResumeColumn(){if(!brandingSchemaReady)brandingSchemaReady=(async()=>{for(const sql of ['ALTER TABLE site_branding ADD COLUMN resume_key TEXT','ALTER TABLE site_branding ADD COLUMN resume_display_name TEXT']){try{await tursoQuery(sql)}catch(e){if(!/duplicate column|already exists/i.test(e.message||''))throw e}}})();return brandingSchemaReady;}
 
 async function getSettings() {
   const { rows } = await tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`);
@@ -23,6 +23,7 @@ function settingsObject(data) {
   const branding = data?.branding || {};
   const faviconKey = String(branding.favicon_key || '');
   const resumeKey = String(branding.resume_key || '');
+  const resumeDisplayName = String(branding.resume_display_name || '');
   return {
     site_name: row.site_name || '',
     headline: row.intro || '',
@@ -37,6 +38,7 @@ function settingsObject(data) {
     favicon_updated_at: branding.updated_at || '',
     resume_url: resumeKey ? (resumeKey.startsWith('http') ? resumeKey : r2PublicUrl(resumeKey)) : '',
     resume_key: resumeKey,
+    resume_display_name: resumeDisplayName,
   };
 }
 
@@ -99,10 +101,11 @@ export default async function (req, res) {
         const current = await getSettings();
         const oldKey = String(current.branding?.resume_key || '');
         const key = `site/resume/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'resume.pdf')}`;
+        const displayName = String(req.body?.display_name || '').trim().slice(0,100) || 'My Resume';
         await uploadR2Object(key, file.buffer, 'application/pdf');
         const row = current.branding; const rowId = row?.id || '1';
-        if (row) await tursoQuery('UPDATE site_branding SET resume_key=$1, updated_at=NOW() WHERE id=$2', [key,rowId]);
-        else await tursoQuery('INSERT INTO site_branding (id,favicon_key,resume_key) VALUES ($1,$2,$3)', [rowId,'',key]);
+        if (row) await tursoQuery('UPDATE site_branding SET resume_key=$1, resume_display_name=$2, updated_at=NOW() WHERE id=$3', [key,displayName,rowId]);
+        else await tursoQuery('INSERT INTO site_branding (id,favicon_key,resume_key,resume_display_name) VALUES ($1,$2,$3,$4)', [rowId,'',key,displayName]);
         if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(()=>{});
         return res.json({ url:r2PublicUrl(key), key, saved:true });
       }
@@ -136,7 +139,7 @@ export default async function (req, res) {
         await ensureResumeColumn();
         const current = await getSettings();
         const oldKey = String(current.branding?.resume_key || '');
-        if (current.branding) await tursoQuery('UPDATE site_branding SET resume_key=NULL, updated_at=NOW() WHERE id=$1', [current.branding.id || '1']);
+        if (current.branding) await tursoQuery('UPDATE site_branding SET resume_key=NULL, resume_display_name=NULL, updated_at=NOW() WHERE id=$1', [current.branding.id || '1']);
         if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(oldKey).catch(()=>{});
         return res.json({ ok:true });
       }

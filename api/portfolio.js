@@ -30,6 +30,7 @@ export default async function (req, res) {
         favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
         favicon_updated_at: branding.updated_at || '',
         resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',
+        resume_display_name: branding.resume_display_name || 'My Resume',
       },
       projects: (projectRows || []).map(p => ({
         ...p,
