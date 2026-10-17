@@ -789,7 +789,8 @@ async function resumePdf(request, env) {
   const asciiName = displayName.replace(/[^a-zA-Z0-9 _.-]/g, '').replace(/\\s+/g, '-').replace(/-+/g, '-').replace(/^[-.]+|[-.]+$/g, '').slice(0, 100) || 'Alan-Odogwuideh-Resume';
   const headers = new Headers(source.headers);
   headers.set('content-type', 'application/pdf');
-  headers.set('content-disposition', 'inline; filename="' + asciiName + '.pdf"; filename*=UTF-8\'\'' + encodeURIComponent(displayName + '.pdf'));
+  const disposition = new URL(request.url).searchParams.get('download') === '1' ? 'attachment' : 'inline';
+  headers.set('content-disposition', disposition + '; filename="' + asciiName + '.pdf"; filename*=UTF-8\'\'' + encodeURIComponent(displayName + '.pdf'));
   headers.set('cache-control', 'no-store');
   headers.set('x-content-type-options', 'nosniff');
   return new Response(source.body, { status: 200, headers });
