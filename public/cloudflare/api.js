@@ -777,6 +777,24 @@ async function adminUpload(request, env) {
   return json({ url, key, filename: file.name || safeName }, 201);
 }
 
+async function resumePdf(request, env) {
+  const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
+  const branding = rows[0] || {};
+  const key = String(branding.resume_key || '');
+  if (!key) return json({ error: 'No resume is currently published.' }, 404);
+  const target = key.startsWith('http') ? key : r2PublicUrl(key);
+  const source = await fetch(target);
+  if (!source.ok) return json({ error: 'The resume PDF could not be retrieved.' }, 502);
+  const displayName = String(branding.resume_display_name || 'Alan Odogwuideh Resume').trim() || 'Alan Odogwuideh Resume';
+  const asciiName = displayName.replace(/[^a-zA-Z0-9 _.-]/g, '').replace(/\\s+/g, '-').replace(/-+/g, '-').replace(/^[-.]+|[-.]+$/g, '').slice(0, 100) || 'Alan-Odogwuideh-Resume';
+  const headers = new Headers(source.headers);
+  headers.set('content-type', 'application/pdf');
+  headers.set('content-disposition', 'inline; filename="' + asciiName + '.pdf"; filename*=UTF-8\'\'' + encodeURIComponent(displayName + '.pdf'));
+  headers.set('cache-control', 'no-store');
+  headers.set('x-content-type-options', 'nosniff');
+  return new Response(source.body, { status: 200, headers });
+}
+
 async function favicon(request, env) {
   const { rows } = await tursoQuery(env, 'SELECT favicon_key FROM site_branding LIMIT 1');
   const key = String(rows[0]?.favicon_key || '');
@@ -794,6 +812,7 @@ export async function handleCloudflareApi(request, env) {
     if (route === 'portfolio' && method === 'GET') return await portfolio(request, env);
     if (route === 'case-study' && method === 'GET') return await caseStudy(request, env);
     if (route === 'favicon' && method === 'GET') return await favicon(request, env);
+    if (route === 'resume-pdf' && method === 'GET') return await resumePdf(request, env);
     if (route === 'about-image' && method === 'GET') {
       const { rows } = await tursoQuery(env, 'SELECT about_image_url FROM portfolio_settings LIMIT 1');
       const savedUrl = String(rows[0]?.about_image_url || '');
