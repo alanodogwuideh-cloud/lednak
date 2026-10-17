@@ -130,7 +130,8 @@ export default async function (req, res) {
       const key = `site/profile/${Date.now()}-${crypto.randomUUID()}-${safeName(file.filename || 'profile.jpg')}`;
       const url = await uploadR2Object(key, file.buffer, file.contentType || 'image/jpeg');
       await setSettings({ profile_image_url: url });
-      await deleteR2Asset(oldUrl);
+      // Never delete a resume or unrelated R2 object if legacy data accidentally points the profile field at it.
+      if (oldUrl && !/\.pdf(?:$|[?#])/i.test(oldUrl)) await deleteR2Asset(oldUrl);
       return res.json({ url, key, saved: true });
     }
 

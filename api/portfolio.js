@@ -26,7 +26,7 @@ export default async function (req, res) {
         location: settings.location || 'Abuja, Nigeria',
         linkedin_url: settings.linkedin_url || '',
         email: settings.email || '',
-        about_image_url: settings.about_image_url || '',
+        about_image_url: (() => { const imageUrl = String(settings.about_image_url || ''); return /\.pdf(?:$|[?#])/i.test(imageUrl) ? '' : imageUrl; })(),
         favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
         favicon_updated_at: branding.updated_at || '',
         resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',
