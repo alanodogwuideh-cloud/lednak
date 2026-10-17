@@ -117,12 +117,21 @@ function normalizeSections(content) {
     };
   });
 }
+async function ensureResumeSchema(env) {
+  for (const [name, type] of [['resume_key','TEXT'],['resume_display_name','TEXT']]) {
+    await tursoQuery(env, 'ALTER TABLE site_branding ADD COLUMN ' + name + ' ' + type).catch(error => {
+      if (!/duplicate column|already exists/i.test(error.message || '')) throw error;
+    });
+  }
+}
+
 async function portfolio(request, env) {
   await ensureTrashSchema(env);
+  await ensureResumeSchema(env);
   const [settingsResult, projectsResult, brandingResult] = await Promise.all([
     tursoQuery(env, 'SELECT * FROM portfolio_settings LIMIT 1'),
     tursoQuery(env, "SELECT id,title,slug,subtitle,description,role,year,duration,category,content,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND (deleted_at IS NULL OR deleted_at = '') ORDER BY sort_order ASC, created_at ASC", ['published']),
-    tursoQuery(env, 'SELECT favicon_key,updated_at FROM site_branding LIMIT 1')
+    tursoQuery(env, 'SELECT favicon_key,updated_at,resume_key,resume_display_name FROM site_branding LIMIT 1')
   ]);
   const settings = settingsResult.rows[0] || {};
   const branding = brandingResult.rows[0] || {};
@@ -136,7 +145,9 @@ async function portfolio(request, env) {
       location: settings.location || 'Abuja, Nigeria',
       linkedin_url: settings.linkedin_url || '',
       email: settings.email || '',
-      about_image_url: settings.about_image_url || '',
+      about_image_url: (() => { const imageUrl = String(settings.about_image_url || ''); const fallback = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png'; return !imageUrl || imageUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf') ? fallback : imageUrl; })(),
+      resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',
+      resume_display_name: branding.resume_display_name || 'My Resume',
       favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
       favicon_updated_at: branding.updated_at || ''
     },
@@ -323,14 +334,30 @@ async function adminCaseStudy(request, env, auth) {
 }
 
 async function adminSettings(request, env) {
+  await ensureResumeSchema(env);
   if (request.method === 'POST') {
     const form = await request.formData().catch(() => null);
     const file = form?.get('file');
     if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'No file uploaded.' }, 400);
-    if (file.size > 20 * 1024 * 1024) return json({ error: 'File is too large.' }, 413);
-    const kind = String(form.get('kind') || '');
+    const kind = String(form.get('kind') || 'about');
+    if (kind === 'resume') {
+      if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) return json({ error: 'Please choose a PDF resume.' }, 415);
+      if (file.size > 15 * 1024 * 1024) return json({ error: 'PDF is too large. Maximum size is 15 MB.' }, 413);
+      const displayName = String(form.get('display_name') || '').trim().slice(0, 100) || (String(file.name || 'My Resume').toLowerCase().endsWith('.pdf') ? String(file.name || 'My Resume').slice(0, -4) : String(file.name || 'My Resume')).trim() || 'My Resume';
+      const safeDisplayName = displayName.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 100);
+      const key = 'site/resume/' + safeDisplayName + '-' + Date.now() + '-' + crypto.randomUUID().slice(0, 8) + '.pdf';
+      const mediaUrl = await uploadR2Object(env, key, await file.arrayBuffer(), 'application/pdf');
+      const { rows } = await tursoQuery(env, 'SELECT id,resume_key FROM site_branding LIMIT 1');
+      const oldKey = String(rows[0]?.resume_key || '');
+      if (rows[0]) await tursoQuery(env, 'UPDATE site_branding SET resume_key=$1,resume_display_name=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$3', [key, displayName, rows[0].id]);
+      else await tursoQuery(env, 'INSERT INTO site_branding (id,favicon_key,resume_key,resume_display_name,updated_at) VALUES ($1,$2,$3,$4,CURRENT_TIMESTAMP)', ['1','',key,displayName]);
+      if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(env, oldKey).catch(() => {});
+      return json({ url: mediaUrl, key, saved: true });
+    }
+    if (!String(file.type || '').startsWith('image/')) return json({ error: 'Please choose an image file.' }, 415);
+    if (file.size > 5 * 1024 * 1024) return json({ error: 'Image is too large. Maximum size is 5 MB.' }, 413);
     const safeName = String(file.name || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 160);
-    const key = 'portfolio/site/' + Date.now() + '-' + crypto.randomUUID() + '-' + safeName;
+    const key = (kind === 'favicon' ? 'site/favicon/' : 'site/profile/') + Date.now() + '-' + crypto.randomUUID() + '-' + safeName;
     const mediaUrl = await uploadR2Object(env, key, await file.arrayBuffer(), file.type || 'application/octet-stream');
     if (kind === 'favicon') {
       const { rows } = await tursoQuery(env, 'SELECT id FROM site_branding LIMIT 1');
@@ -345,6 +372,13 @@ async function adminSettings(request, env) {
   }
   if (request.method === 'DELETE') {
     const body = await request.json().catch(() => ({}));
+    if (body.kind === 'resume') {
+      const { rows } = await tursoQuery(env, 'SELECT id,resume_key FROM site_branding LIMIT 1');
+      const oldKey = String(rows[0]?.resume_key || '');
+      if (rows[0]) await tursoQuery(env, 'UPDATE site_branding SET resume_key=NULL,resume_display_name=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=$1', [rows[0].id]);
+      if (oldKey && !oldKey.startsWith('http')) await deleteR2Object(env, oldKey).catch(() => {});
+      return json({ ok: true });
+    }
     if (body.kind !== 'favicon') return json({ error: 'Unsupported settings delete operation.' }, 400);
     const { rows } = await tursoQuery(env, 'SELECT id FROM site_branding LIMIT 1');
     if (rows[0]) await tursoQuery(env, "UPDATE site_branding SET favicon_key='',updated_at=CURRENT_TIMESTAMP WHERE id=$1", [rows[0].id]);
@@ -365,7 +399,10 @@ async function adminSettings(request, env) {
       location: row.location || '',
       email: row.email || '',
       linkedin_url: row.linkedin_url || '',
-      profile_image_url: row.about_image_url || '',
+      profile_image_url: (() => { const imageUrl = String(row.about_image_url || ''); const fallback = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png'; return !imageUrl || imageUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf') ? fallback : imageUrl; })(),
+      resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',
+      resume_key: String(branding.resume_key || ''),
+      resume_display_name: branding.resume_display_name || 'My Resume',
       bio: row.about_text || '',
       availability: '',
       favicon_url: key.startsWith('http') ? key : (key.startsWith('site/') ? r2PublicUrl(key) : ''),
@@ -759,8 +796,9 @@ export async function handleCloudflareApi(request, env) {
     if (route === 'favicon' && method === 'GET') return await favicon(request, env);
     if (route === 'about-image' && method === 'GET') {
       const { rows } = await tursoQuery(env, 'SELECT about_image_url FROM portfolio_settings LIMIT 1');
-      const target = String(rows[0]?.about_image_url || '');
-      return target ? Response.redirect(target, 302) : new Response('', { status: 404 });
+      const savedUrl = String(rows[0]?.about_image_url || '');
+      const target = !savedUrl || savedUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf') ? 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png' : savedUrl;
+      return Response.redirect(target, 302);
     }
     if (route === 'admin-config' && method === 'GET') {
       return json({ url: env.SUPABASE_URL || '', publishableKey: env.SUPABASE_PUBLISHABLE_KEY || '' });

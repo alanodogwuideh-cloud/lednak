@@ -26,7 +26,7 @@ export default async function (req, res) {
         location: settings.location || 'Abuja, Nigeria',
         linkedin_url: settings.linkedin_url || '',
         email: settings.email || '',
-        about_image_url: (() => { const imageUrl = String(settings.about_image_url || 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png'); return /\.pdf(?:$|[?#])/i.test(imageUrl) ? '' : imageUrl; })(),
+        about_image_url: (() => { const imageUrl = String(settings.about_image_url || 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png'); return imageUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf') ? '' : imageUrl; })(),
         favicon_url: faviconKey ? (faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : '')) : '',
         favicon_updated_at: branding.updated_at || '',
         resume_url: branding.resume_key ? (String(branding.resume_key).startsWith('http') ? branding.resume_key : r2PublicUrl(branding.resume_key)) : '',

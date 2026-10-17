@@ -31,7 +31,7 @@ function settingsObject(data) {
     location: row.location || '',
     email: row.email || '',
     linkedin_url: row.linkedin_url || '',
-    profile_image_url: (() => { const imageUrl = String(row.about_image_url || ''); return !imageUrl || /\.pdf(?:$|[?#])/i.test(imageUrl) ? 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png' : imageUrl; })(),
+    profile_image_url: (() => { const imageUrl = String(row.about_image_url || ''); return !imageUrl || imageUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf') ? 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev/site/profile/1789656022670-0fbb5a1e-5d51-4d39-a286-0e226949f2ee-Alan.png' : imageUrl; })(),
     bio: row.about_text || '',
     availability: '',
     favicon_url: faviconKey.startsWith('http') ? faviconKey : (faviconKey.startsWith('site/') ? r2PublicUrl(faviconKey) : ''),
@@ -131,7 +131,7 @@ export default async function (req, res) {
       const url = await uploadR2Object(key, file.buffer, file.contentType || 'image/jpeg');
       await setSettings({ profile_image_url: url });
       // Never delete a resume or unrelated R2 object if legacy data accidentally points the profile field at it.
-      if (oldUrl && !/\.pdf(?:$|[?#])/i.test(oldUrl)) await deleteR2Asset(oldUrl);
+      if (oldUrl && !oldUrl.toLowerCase().split(/[?#]/)[0].endsWith('.pdf')) await deleteR2Asset(oldUrl);
       return res.json({ url, key, saved: true });
     }
 
