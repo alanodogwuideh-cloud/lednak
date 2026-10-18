@@ -24,11 +24,9 @@ Configure these as Cloudflare Pages environment variables/secrets. Never commit 
 
 The Supabase publishable key is browser-visible by design; the service-role key must remain server-side. Configure the same Turso database and R2 bucket used by the portfolio only after verifying the credentials and access policies.
 
-## Resume Studio AI binding
+## Resume publishing
 
-The Resume Studio endpoint uses Cloudflare Workers AI through the `AI` binding. In the Cloudflare Pages project, open Settings → Functions → Workers AI and add a binding named exactly `AI`. The checked-in Worker expects `env.AI.run()` and uses `@cf/meta/llama-3.1-8b-instruct`; do not add provider API keys to the repository. The endpoint is admin-authenticated and stores only the master resume text/source key plus a daily application-request counter in the shared `site_branding` row. Job-specific generated resume and cover-letter text is returned to the browser and is not persisted.
-
-The in-app counter is a 40-request/day safety cap for this feature, **not** a live Neurons meter. Check Cloudflare AI analytics for actual Neurons consumed; request count and Neurons are not interchangeable.
+The public portfolio's Resume/CV upload is managed separately in the About & site settings. It uses the existing `resume-pdf` route and is not part of the removed Resume Studio.
 
 ## Endpoint migration status
 

@@ -1069,7 +1069,7 @@ export async function handleCloudflareApi(request, env) {
     const protectedRoutes = new Set([
       'admin-login','admin-case-study','admin-config','admin-duplicate-case-study',
       'admin-media-preview','admin-media','admin-preview','admin-projects',
-      'admin-session','admin-settings','admin-trash','admin-upload','admin-resume-studio'
+      'admin-session','admin-settings','admin-trash','admin-upload'
     ]);
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
@@ -1078,7 +1078,7 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
-        if (route === 'admin-resume-studio') return await adminResumeStudio(request, env);
+        // Resume Studio route removed.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);
         if (route === 'admin-duplicate-case-study' && method === 'POST') return await adminDuplicateCaseStudy(request, env);
@@ -1092,11 +1092,7 @@ export async function handleCloudflareApi(request, env) {
   } catch (error) {
     const message = String(error?.message || 'Unknown error');
     console.error('Cloudflare route error:', route, message, error?.stack || '');
-    // Resume Studio needs actionable runtime errors while we verify its AI binding
-    // and generation pipeline. Do not expose secrets or environment values.
-    if (route === 'admin-resume-studio') {
-      return json({ error: 'Resume Studio backend failed before completing the request.', diagnostic: message.slice(0, 300) }, 502);
-    }
+    // Resume Studio-specific error handling removed.
     return json({ error: 'Portfolio data is temporarily unavailable.' }, 502);
   }
 }
