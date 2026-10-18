@@ -790,6 +790,70 @@ async function ensureResumeStudioSchema(env) {
     });
   }
 }
+async function ensureSavedDocumentsSchema(env) {
+  await tursoQuery(env, `CREATE TABLE IF NOT EXISTS resume_studio_documents (
+    id TEXT PRIMARY KEY,
+    document_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    job_title TEXT NOT NULL DEFAULT '',
+    company_name TEXT NOT NULL DEFAULT '',
+    object_key TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+}
+async function listSavedDocuments(env) {
+  await ensureSavedDocumentsSchema(env);
+  const { rows } = await tursoQuery(env, 'SELECT id,document_type,title,job_title,company_name,created_at,updated_at FROM resume_studio_documents ORDER BY created_at DESC');
+  return rows;
+}
+async function readSavedDocument(env, id) {
+  await ensureSavedDocumentsSchema(env);
+  const { rows } = await tursoQuery(env, 'SELECT * FROM resume_studio_documents WHERE id=$1 LIMIT 1', [id]);
+  const row = rows[0];
+  if (!row) return null;
+  const response = await fetch(r2PublicUrl(row.object_key));
+  if (!response.ok) throw new Error('Saved document content could not be retrieved from R2.');
+  const payload = await response.json();
+  return { ...row, content: String(payload.content || ''), template: String(payload.template || 'new-york'), analysis: object(payload.analysis) };
+}
+async function saveDocument(env, input) {
+  await ensureSavedDocumentsSchema(env);
+  const type = input.document_type === 'cover' ? 'cover' : 'resume';
+  const content = String(input.content || '');
+  if (!content.trim() || content.length > 50000) throw new Error('Document content is empty or exceeds 50,000 characters.');
+  const id = String(input.id || crypto.randomUUID()).slice(0,80);
+  const title = String(input.title || (type === 'cover' ? 'Cover letter' : 'Tailored resume')).slice(0,240);
+  const jobTitle = String(input.job_title || '').slice(0,160);
+  const company = String(input.company_name || '').slice(0,160);
+  const { rows } = await tursoQuery(env, 'SELECT id,object_key FROM resume_studio_documents WHERE id=$1 LIMIT 1', [id]);
+  const old = rows[0];
+  const key = old?.object_key || ('site/resume-studio/' + id + '.json');
+  const payload = JSON.stringify({ content, template: String(input.template || 'new-york'), analysis: object(input.analysis) });
+  await uploadR2Object(env, key, new TextEncoder().encode(payload), 'application/json; charset=utf-8');
+  if (old) {
+    await tursoQuery(env, 'UPDATE resume_studio_documents SET document_type=$1,title=$2,job_title=$3,company_name=$4,object_key=$5,updated_at=CURRENT_TIMESTAMP WHERE id=$6', [type,title,jobTitle,company,key,id]);
+  } else {
+    await tursoQuery(env, 'INSERT INTO resume_studio_documents (id,document_type,title,job_title,company_name,object_key) VALUES ($1,$2,$3,$4,$5,$6)', [id,type,title,jobTitle,company,key]);
+  }
+  return { id, document_type:type, title, job_title:jobTitle, company_name:company, object_key:key };
+}
+async function deleteSavedDocuments(env, ids) {
+  await ensureSavedDocumentsSchema(env);
+  const clean = [...new Set((Array.isArray(ids) ? ids : [ids]).map(v => String(v || '').trim()).filter(v => /^[a-zA-Z0-9-]{8,80}$/.test(v)))].slice(0,200);
+  if (!clean.length) throw new Error('Select at least one saved document.');
+  let deleted = 0;
+  for (const id of clean) {
+    const { rows } = await tursoQuery(env, 'SELECT object_key FROM resume_studio_documents WHERE id=$1 LIMIT 1', [id]);
+    const row = rows[0];
+    if (!row) continue;
+    await deleteR2Object(env, row.object_key);
+    await tursoQuery(env, 'DELETE FROM resume_studio_documents WHERE id=$1', [id]);
+    deleted++;
+  }
+  return deleted;
+}
+
 async function getResumeStudioRecord(env) {
   await ensureResumeStudioSchema(env);
   const { rows } = await tursoQuery(env, 'SELECT id,master_resume_text,master_resume_source_key,resume_studio_usage_date,resume_studio_requests,resume_key,resume_display_name FROM site_branding LIMIT 1');
@@ -833,6 +897,13 @@ async function adminResumeStudio(request, env) {
     }
     const usage = await resumeStudioUsage(env, record);
     if (url.searchParams.get('view') === 'usage') return json(usage);
+    if (url.searchParams.get('view') === 'documents') return json({ documents: await listSavedDocuments(env) });
+    if (url.searchParams.get('view') === 'document') {
+      const id = String(url.searchParams.get('id') || '').slice(0,80);
+      if (!id) return json({ error: 'A saved document ID is required.' }, 400);
+      const document = await readSavedDocument(env, id);
+      return document ? json({ document }) : json({ error: 'Saved document not found.' }, 404);
+    }
     return json({
       master_resume_text: String(record.master_resume_text || ''),
       master_resume_source_key: String(record.master_resume_source_key || ''),
@@ -878,6 +949,14 @@ async function adminResumeStudio(request, env) {
     }
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || 'generate');
+    if (action === 'save-documents') {
+      if (!Array.isArray(body.documents) || !body.documents.length || body.documents.length > 2) return json({ error: 'Provide a tailored resume and/or cover letter to save.' }, 400);
+      try {
+        const saved = [];
+        for (const document of body.documents) saved.push(await saveDocument(env, { ...object(document), job_title: body.job_title, company_name: body.company_name, analysis: body.analysis }));
+        return json({ ok: true, saved, documents: await listSavedDocuments(env) });
+      } catch (error) { return json({ error: String(error?.message || 'Could not save your documents.').slice(0,300) }, 500); }
+    }
     const usage = await resumeStudioUsage(env, record);
     if (usage.requests >= usage.request_limit) return json({ error: 'You have reached the Resume Studio daily request safety limit. It resets at midnight UTC. Check Cloudflare AI analytics for your actual Neurons usage.' }, 429);
     if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'Cloudflare Workers AI is not bound to this Pages project yet. Add the AI binding named AI in Cloudflare Pages Settings → Functions → Workers AI.' }, 503);
@@ -919,6 +998,13 @@ async function adminResumeStudio(request, env) {
       cover_letter: String(parsed.cover_letter || ''),
       usage: nextUsage
     });
+  }
+  if (method === 'DELETE') {
+    const body = await request.json().catch(() => ({}));
+    try {
+      const deleted = await deleteSavedDocuments(env, body.ids || body.id);
+      return json({ ok: true, deleted, documents: await listSavedDocuments(env) });
+    } catch (error) { return json({ error: String(error?.message || 'Could not delete saved documents.').slice(0,300) }, 400); }
   }
   return json({ error: 'Method not allowed.' }, 405);
 }

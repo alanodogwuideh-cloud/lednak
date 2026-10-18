@@ -1,7 +1,7 @@
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 export const access = 'public';
-export const methods = ['GET', 'POST', 'PUT'];
+export const methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
 const UPSTREAM = 'https://alanodogwuideh.com/api/admin-resume-studio';
 
