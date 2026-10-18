@@ -4,9 +4,10 @@
 .rs-primary{background:#F8831D!important;border-color:#F8831D!important;color:#1A1A18!important}
 .rs-primary:hover{background:#E87312!important;border-color:#E87312!important;color:#1A1A18!important}
 .rs-back:hover,.rs-inline-link,.rs-doc-tab.active{color:#9B4A06}
-.rs-dropzone{border-color:#D96808;background:linear-gradient(135deg,#FFFAF5,#fff)}
-.rs-dropzone:hover,.rs-dropzone.is-dragging{border-color:#9B4A06;background:#FFF1E4}
-.rs-dropzone .rs-drop-icon{background:#FFF1E4;color:#9B4A06}
+.rs-dropzone{border-color:#D5D7DF;background:#FFFFFF}
+.rs-dropzone:hover,.rs-dropzone:focus-visible{border-color:#F8831D;background:#FFFAF5}
+.rs-dropzone.is-dragging{border-color:#F8831D;background:#FFF5E9}
+.rs-dropzone .rs-drop-icon{background:#FFF0E2;color:#F8831D}
 .rs-file-name{background:#FFF1E4;color:#7A3900!important}
 .rs-analysis{background:#FFFAF5}
 .rs-paper.template-modern{border-top-color:#F8831D}
