@@ -47,7 +47,10 @@ export default async function(req, res) {
     if (!upstream.ok) {
       console.error('Resume Studio upstream error', upstream.status, payload?.error || 'Unknown upstream error');
       return res.status(upstream.status).json({
-        error: payload?.error || `Resume Studio API request failed (HTTP ${upstream.status}).`
+        error: payload?.error || payload?.message || `Resume Studio API request failed (HTTP ${upstream.status}).`,
+        ...(payload?.diagnostic ? { diagnostic: payload.diagnostic } : {}),
+        ...(payload?.stage ? { stage: payload.stage } : {}),
+        ...(payload?.ok === false ? { ok: false } : {})
       });
     }
     return res.status(upstream.status).json(payload);

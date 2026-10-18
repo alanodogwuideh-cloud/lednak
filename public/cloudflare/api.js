@@ -819,6 +819,18 @@ async function adminResumeStudio(request, env) {
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
   if (method === 'GET') {
+    if (url.searchParams.get('view') === 'ai-check') {
+      if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
+      try {
+        const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
+        const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || '');
+        if (!output.trim()) return json({ ok: false, stage: 'model-response', error: 'The AI binding ran but returned an empty response.' }, 502);
+        return json({ ok: true, model: '@cf/meta/llama-3.1-8b-instruct', message: output.trim().slice(0, 160) });
+      } catch (error) {
+        console.error('Resume Studio AI connection check failed:', error?.message || 'unknown', error?.stack || '');
+        return json({ ok: false, stage: 'model-invocation', error: String(error?.message || 'Workers AI invocation failed.').slice(0, 300) }, 502);
+      }
+    }
     const usage = await resumeStudioUsage(env, record);
     if (url.searchParams.get('view') === 'usage') return json(usage);
     return json({
@@ -990,7 +1002,13 @@ export async function handleCloudflareApi(request, env) {
     }
     return json({ error: 'API route not found.' }, 404);
   } catch (error) {
-    console.error('Cloudflare route error:', route, error?.message || 'Unknown error');
+    const message = String(error?.message || 'Unknown error');
+    console.error('Cloudflare route error:', route, message, error?.stack || '');
+    // Resume Studio needs actionable runtime errors while we verify its AI binding
+    // and generation pipeline. Do not expose secrets or environment values.
+    if (route === 'admin-resume-studio') {
+      return json({ error: 'Resume Studio backend failed before completing the request.', diagnostic: message.slice(0, 300) }, 502);
+    }
     return json({ error: 'Portfolio data is temporarily unavailable.' }, 502);
   }
 }
