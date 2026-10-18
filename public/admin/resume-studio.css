@@ -56,3 +56,43 @@
 .rs-field input:focus,.rs-field textarea:focus,.rs-field select:focus,.rs-doc-editor textarea:focus,.rs-section-body input:focus,.rs-section-body textarea:focus,.rs-preview-label select:focus,.rs-advanced textarea:focus,.rs-cover-page textarea:focus{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
 .rs-field input:focus-visible,.rs-field textarea:focus-visible,.rs-field select:focus-visible,.rs-doc-editor textarea:focus-visible,.rs-section-body input:focus-visible,.rs-section-body textarea:focus-visible,.rs-preview-label select:focus-visible,.rs-advanced textarea:focus-visible,.rs-cover-page textarea:focus-visible{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
 .rs-field input,.rs-field textarea,.rs-field select,.rs-doc-editor textarea,.rs-section-body input,.rs-section-body textarea,.rs-preview-label select,.rs-advanced textarea{transition:border-color .15s ease,background-color .15s ease}
+
+/* Document-first resume and cover-letter preview/export styling. */
+.rs-preview-pane{background:#f2f3f5;border-radius:12px}
+.rs-paper{width:100%;max-width:680px;min-height:880px;padding:48px 50px;background:#fff;color:#202938;font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.48;box-shadow:0 10px 32px rgba(16,24,40,.12);border:1px solid #e7e9ed}
+.rs-paper h1{font-family:Arial,Helvetica,sans-serif;font-size:25pt;line-height:1.12;letter-spacing:-.6px;font-weight:700;color:#111827;margin:0 0 7px;overflow-wrap:anywhere}
+.rs-paper .rs-paper-contact{font-size:9pt;line-height:1.45;color:#4b5563;margin:0 0 20px;padding-bottom:13px;border-bottom:1px solid #d8dde5}
+.rs-paper h2{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.3;letter-spacing:.8px;text-transform:uppercase;color:#18202b;border:0;border-bottom:1px solid #cbd2dc;padding:0 0 5px;margin:17px 0 8px;break-after:avoid-page}
+.rs-paper p{font-size:9.5pt;line-height:1.45;margin:0 0 6px;white-space:pre-line;overflow-wrap:anywhere}
+.rs-paper ul{padding-left:17px;margin:4px 0 9px}
+.rs-paper li{font-size:9.5pt;line-height:1.42;margin:0 0 4px;padding-left:2px;break-inside:avoid}
+.rs-paper.template-modern{border-top:5px solid #F8831D;padding-top:43px}
+.rs-paper.template-modern h1{color:#172033}
+.rs-paper.template-modern h2{color:#7a3900;border-bottom-color:#f1c79f}
+.rs-paper.template-minimal{border:0;box-shadow:none;padding:48px 50px}
+.rs-paper.template-minimal h1{font-weight:600;letter-spacing:-.2px}
+.rs-paper.template-minimal .rs-paper-contact{border-bottom:0;padding-bottom:0}
+.rs-paper.template-minimal h2{border-bottom:0;padding-bottom:0;letter-spacing:1px;margin-top:20px}
+.rs-cover-page{max-width:760px;min-height:880px;padding:60px 66px;background:#fff;border:1px solid #e7e9ed;box-shadow:0 10px 32px rgba(16,24,40,.12)}
+.rs-cover-page textarea{min-height:740px;font:11pt/1.85 Georgia,'Times New Roman',serif;color:#202938;letter-spacing:.05px;resize:vertical;white-space:pre-wrap}
+#rsPrintDocument{display:none}
+@media print{
+ @page{size:A4;margin:18mm 17mm}
+ html,body{width:auto!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;background:#fff!important;color:#111827!important;overflow:visible!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ body>*:not(#rsPrintDocument){display:none!important}
+ #rsPrintDocument{display:block!important;position:static!important;width:100%!important;margin:0!important;padding:0!important;background:#fff!important;color:#111827!important}
+ #rsPrintDocument .rs-paper,#rsPrintDocument .rs-print-paper{display:block!important;width:100%!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;color:#111827!important;font-size:10pt!important;line-height:1.42!important;overflow:visible!important}
+ #rsPrintDocument .rs-paper h1{font-size:22pt!important;line-height:1.1!important;margin-bottom:5pt!important;break-after:avoid}
+ #rsPrintDocument .rs-paper .rs-paper-contact{font-size:8.5pt!important;margin-bottom:12pt!important;padding-bottom:8pt!important}
+ #rsPrintDocument .rs-paper h2{font-size:9.5pt!important;margin:12pt 0 5pt!important;padding-bottom:3pt!important;break-after:avoid-page}
+ #rsPrintDocument .rs-paper p,#rsPrintDocument .rs-paper li{font-size:9pt!important;line-height:1.35!important}
+ #rsPrintDocument .rs-paper p{margin:0 0 4pt!important}
+ #rsPrintDocument .rs-paper ul{margin:3pt 0 7pt!important;padding-left:15pt!important}
+ #rsPrintDocument .rs-paper li{margin-bottom:3pt!important;break-inside:avoid}
+ #rsPrintDocument .rs-paper.template-modern{border:0!important;padding-top:0!important}
+ #rsPrintDocument .rs-paper.template-modern h2{color:#7a3900!important}
+ #rsPrintDocument .rs-cover-page,#rsPrintDocument .rs-print-cover-page{display:block!important;width:100%!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:#fff!important;color:#111827!important;font:11pt/1.75 Georgia,'Times New Roman',serif!important}
+ #rsPrintDocument .rs-print-cover-page p{margin:0 0 12pt!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;orphans:3;widows:3}
+}
+@media(max-width:900px){.rs-preview-pane{background:#f2f3f5}.rs-paper{min-height:740px;padding:34px 30px}}
+@media(max-width:560px){.rs-paper{min-height:650px;padding:26px 22px;font-size:10pt}.rs-paper h1{font-size:21pt}.rs-cover-page{padding:24px 18px}}
