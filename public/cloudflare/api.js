@@ -777,6 +777,139 @@ async function adminUpload(request, env) {
   return json({ url, key, filename: file.name || safeName }, 201);
 }
 
+async function ensureResumeStudioSchema(env) {
+  const columns = [
+    ['master_resume_text','TEXT'],
+    ['master_resume_source_key','TEXT'],
+    ['resume_studio_usage_date','TEXT'],
+    ['resume_studio_requests','INTEGER DEFAULT 0']
+  ];
+  for (const [name, type] of columns) {
+    await tursoQuery(env, 'ALTER TABLE site_branding ADD COLUMN ' + name + ' ' + type).catch(error => {
+      if (!/duplicate column|already exists/i.test(error.message || '')) throw error;
+    });
+  }
+}
+async function getResumeStudioRecord(env) {
+  await ensureResumeStudioSchema(env);
+  const { rows } = await tursoQuery(env, 'SELECT id,master_resume_text,master_resume_source_key,resume_studio_usage_date,resume_studio_requests,resume_key,resume_display_name FROM site_branding LIMIT 1');
+  if (rows[0]) return rows[0];
+  await tursoQuery(env, "INSERT INTO site_branding (id,favicon_key,updated_at) VALUES ($1,$2,CURRENT_TIMESTAMP)", ['1','']);
+  const created = await tursoQuery(env, 'SELECT id,master_resume_text,master_resume_source_key,resume_studio_usage_date,resume_studio_requests,resume_key,resume_display_name FROM site_branding LIMIT 1');
+  return created.rows[0] || {};
+}
+async function resumeStudioUsage(env, record) {
+  const today = new Date().toISOString().slice(0, 10);
+  const requests = String(record.resume_studio_usage_date || '') === today ? Number(record.resume_studio_requests || 0) : 0;
+  return { date: today, requests, request_limit: 40, remaining_requests: Math.max(0, 40 - requests), reset_at: today + 'T00:00:00Z' };
+}
+async function recordResumeStudioRequest(env, record, usage) {
+  const next = Number(usage.requests || 0) + 1;
+  await tursoQuery(env, 'UPDATE site_branding SET resume_studio_usage_date=$1,resume_studio_requests=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$3', [usage.date,next,record.id]);
+  return { ...usage, requests: next, remaining_requests: Math.max(0, usage.request_limit - next) };
+}
+function resumeStudioJson(text) {
+  const clean = String(text || '').trim().replace(/^\u0060\u0060\u0060(?:json)?\s*/i, '').replace(/\s*\u0060\u0060\u0060$/,'');
+  const start = clean.indexOf('{'), end = clean.lastIndexOf('}');
+  if (start < 0 || end <= start) throw new Error('The AI returned an incomplete response. Please try again.');
+  return JSON.parse(clean.slice(start, end + 1));
+}
+async function adminResumeStudio(request, env) {
+  const record = await getResumeStudioRecord(env);
+  const method = request.method.toUpperCase();
+  const url = new URL(request.url);
+  if (method === 'GET') {
+    const usage = await resumeStudioUsage(env, record);
+    if (url.searchParams.get('view') === 'usage') return json(usage);
+    return json({
+      master_resume_text: String(record.master_resume_text || ''),
+      master_resume_source_key: String(record.master_resume_source_key || ''),
+      resume_key: String(record.resume_key || ''),
+      resume_display_name: String(record.resume_display_name || ''),
+      usage
+    });
+  }
+  if (method === 'PUT') {
+    const body = await request.json().catch(() => ({}));
+    if (body.action === 'publish-master') {
+      const key = String(record.master_resume_source_key || '');
+      if (!key) return json({ error: 'Upload the master resume PDF first.' }, 400);
+      const source = await fetch(r2PublicUrl(key));
+      if (!source.ok) return json({ error: 'The master resume PDF could not be retrieved from R2.' }, 502);
+      const publishedKey = 'site/resume/Alan-Odogwuideh-Master-' + Date.now() + '-' + crypto.randomUUID().slice(0,8) + '.pdf';
+      await uploadR2Object(env, publishedKey, await source.arrayBuffer(), 'application/pdf');
+      const displayName = 'Alan Odogwuideh — Master Resume';
+      const oldPublicKey = String(record.resume_key || '');
+      await tursoQuery(env, 'UPDATE site_branding SET resume_key=$1,resume_display_name=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$3', [publishedKey,displayName,record.id]);
+      if (oldPublicKey && !oldPublicKey.startsWith('http') && oldPublicKey !== key) await deleteR2Object(env, oldPublicKey).catch(() => {});
+      return json({ ok: true, message: 'A separate copy of the master PDF is now the resume shown on your public portfolio.' });
+    }
+    const text = String(body.master_resume_text || '').trim();
+    if (!text || text.length > 40000) return json({ error: 'Master resume text is required (maximum 40,000 characters).' }, 400);
+    await tursoQuery(env, 'UPDATE site_branding SET master_resume_text=$1,updated_at=CURRENT_TIMESTAMP WHERE id=$2', [text,record.id]);
+    return json({ ok: true, saved: true });
+  }
+  if (method === 'POST') {
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'Choose a PDF file.' }, 400);
+      if (file.size > 15 * 1024 * 1024 || !(String(file.name || '').toLowerCase().endsWith('.pdf') || file.type === 'application/pdf')) return json({ error: 'Upload a PDF under 15 MB.' }, 400);
+      const safeName = String(file.name || 'master-resume.pdf').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0,100);
+      const key = 'site/resume-master/' + Date.now() + '-' + crypto.randomUUID().slice(0,8) + '-' + safeName;
+      await uploadR2Object(env, key, await file.arrayBuffer(), 'application/pdf');
+      const oldSourceKey = String(record.master_resume_source_key || '');
+      await tursoQuery(env, 'UPDATE site_branding SET master_resume_source_key=$1,updated_at=CURRENT_TIMESTAMP WHERE id=$2', [key,record.id]);
+      if (oldSourceKey && !oldSourceKey.startsWith('http') && oldSourceKey !== key) await deleteR2Object(env, oldSourceKey).catch(() => {});
+      return json({ ok: true, master_resume_source_key: key, resume_key: String(record.resume_key || '') }, 201);
+    }
+    const body = await request.json().catch(() => ({}));
+    const action = String(body.action || 'generate');
+    const usage = await resumeStudioUsage(env, record);
+    if (usage.requests >= usage.request_limit) return json({ error: 'You have reached the Resume Studio daily request safety limit. It resets at midnight UTC. Check Cloudflare AI analytics for your actual Neurons usage.' }, 429);
+    if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'Cloudflare Workers AI is not bound to this Pages project yet. Add the AI binding named AI in Cloudflare Pages Settings → Functions → Workers AI.' }, 503);
+    const master = String(body.master_resume_text || record.master_resume_text || '').trim();
+    const job = String(body.job_description || '').trim();
+    if (!master) return json({ error: 'Save or paste your master resume first.' }, 400);
+    if (master.length > 40000) return json({ error: 'Master resume is too long (maximum 40,000 characters).' }, 400);
+    if (!job || job.length > 20000) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    const jobTitle = String(body.job_title || '').slice(0,160);
+    const company = String(body.company_name || '').slice(0,160);
+    const companyDetails = String(body.company_details || '').slice(0,5000);
+    const tone = ['professional','enthusiastic','confident'].includes(body.cover_tone) ? body.cover_tone : 'professional';
+    const length = ['concise','standard','detailed'].includes(body.cover_length) ? body.cover_length : 'standard';
+    const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
+    let prompt;
+    if (action === 'cover-only') {
+      const tailored = String(body.tailored_resume || '').trim();
+      if (!tailored || tailored.length > 40000) return json({ error: 'A tailored resume is required to regenerate the cover letter.' }, 400);
+      prompt = 'Return JSON with one string field "cover_letter". Write a ' + length + ' cover letter in a ' + tone + ' tone for ' + (jobTitle || 'the advertised role') + ' at ' + (company || 'the company') + '. Use only the candidate evidence in the supplied resume. Do not fabricate details. Company context: ' + companyDetails + '\nJOB DESCRIPTION:\n' + job + '\nTAILORED RESUME:\n' + tailored;
+    } else {
+      prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
+    }
+    let modelResult;
+    try {
+      modelResult = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: action === 'cover-only' ? 2200 : 6500 });
+    } catch (error) {
+      console.error('Resume Studio Workers AI error:', error?.message || 'unknown');
+      return json({ error: 'Cloudflare AI could not complete this request. Check the AI binding and your Cloudflare usage allowance, then retry.' }, 502);
+    }
+    const output = typeof modelResult === 'string' ? modelResult : String(modelResult?.response || modelResult?.output_text || '');
+    let parsed;
+    try { parsed = resumeStudioJson(output); } catch (error) { return json({ error: error.message || 'The AI response was not valid JSON. Please retry.' }, 502); }
+    const nextUsage = await recordResumeStudioRequest(env, record, usage);
+    if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
+    return json({
+      analysis: object(parsed.analysis),
+      tailored_resume: String(parsed.tailored_resume || ''),
+      cover_letter: String(parsed.cover_letter || ''),
+      usage: nextUsage
+    });
+  }
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
 async function resumePdf(request, env) {
   const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
   const branding = rows[0] || {};
@@ -836,7 +969,7 @@ export async function handleCloudflareApi(request, env) {
     const protectedRoutes = new Set([
       'admin-login','admin-case-study','admin-config','admin-duplicate-case-study',
       'admin-media-preview','admin-media','admin-preview','admin-projects',
-      'admin-session','admin-settings','admin-trash','admin-upload'
+      'admin-session','admin-settings','admin-trash','admin-upload','admin-resume-studio'
     ]);
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
@@ -845,6 +978,7 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
+        if (route === 'admin-resume-studio') return await adminResumeStudio(request, env);
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);
         if (route === 'admin-duplicate-case-study' && method === 'POST') return await adminDuplicateCaseStudy(request, env);
