@@ -45,12 +45,16 @@ export default async function(req, res) {
       return res.status(502).json({ error: 'Resume Studio API returned an unexpected response. Check that the Cloudflare Worker deployment includes the admin-resume-studio route.' });
     }
     if (!upstream.ok) {
-      console.error('Resume Studio upstream error', upstream.status, payload?.error || 'Unknown upstream error');
+      const upstreamMessage = payload?.error || payload?.message || payload?.detail || payload?.title;
+      const safeShape = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 12) : [];
+      console.error('Resume Studio upstream error', upstream.status, upstreamMessage || 'No error field in upstream JSON', 'keys:', safeShape.join(','));
       return res.status(upstream.status).json({
-        error: payload?.error || payload?.message || `Resume Studio API request failed (HTTP ${upstream.status}).`,
-        ...(payload?.diagnostic ? { diagnostic: payload.diagnostic } : {}),
-        ...(payload?.stage ? { stage: payload.stage } : {}),
-        ...(payload?.ok === false ? { ok: false } : {})
+        error: upstreamMessage || `The production Cloudflare API returned HTTP ${upstream.status} without an error message. Its deployed response needs inspection.`,
+        ...(payload?.diagnostic ? { diagnostic: String(payload.diagnostic).slice(0, 300) } : {}),
+        ...(payload?.stage ? { stage: String(payload.stage).slice(0, 80) } : {}),
+        ...(payload?.ok === false ? { ok: false } : {}),
+        upstream_status: upstream.status,
+        upstream_fields: safeShape
       });
     }
     return res.status(upstream.status).json(payload);
