@@ -5,7 +5,7 @@
 <title>Resume Studio — Alan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-<script>if(new URLSearchParams(location.search).get('embedded')==='1')document.documentElement.classList.add('rs-embedded')</script><link rel="stylesheet" href="/admin/resume-studio.css?v=2">
+<script>if(new URLSearchParams(location.search).get('embedded')==='1')document.documentElement.classList.add('rs-embedded')</script><link rel="stylesheet" href="/admin/resume-studio.css?v=3">
 </head>
 <body>
 <div class="rs-shell">
@@ -17,8 +17,8 @@
 <section class="rs-grid">
 <div class="rs-panel rs-master">
 <div class="rs-panel-head"><div><p class="rs-eyebrow">01 / SOURCE OF TRUTH</p><h2>Master resume</h2><p class="rs-muted">Only this source is saved permanently. Tailored versions stay in this browser session.</p></div><span class="rs-tag">Saved source</span></div>
-<label class="rs-field">Master resume content<textarea id="masterResume" rows="15" placeholder="Paste your full resume here: summary, experience, achievements, education, skills, certifications, and dates. Keep all facts accurate."></textarea></label>
-<div class="rs-actions"><button id="saveMaster" class="rs-btn rs-primary">Save master resume</button><label class="rs-file-btn">Upload source PDF<input id="masterPdf" type="file" accept="application/pdf,.pdf"></label><span id="masterStatus" class="rs-inline-status"></span></div>
+<div class="rs-source-intake"><label class="rs-field">Master resume content <span class="rs-muted">Paste text or import a PDF below</span><textarea id="masterResume" rows="15" placeholder="Paste your full resume here: summary, experience, achievements, education, skills, certifications, and dates. Keep all facts accurate."></textarea></label><div id="resumeDropZone" class="rs-dropzone" role="button" tabindex="0" aria-label="Upload or drop your resume PDF"><input id="masterPdf" type="file" accept="application/pdf,.pdf" hidden><span class="rs-drop-icon">↑</span><strong>Drop your resume PDF here</strong><span>or <button id="chooseResumePdf" type="button" class="rs-inline-link">browse files</button></span><small>PDF only · up to 15 MB · text is extracted into the field above</small><span id="resumeFileName" class="rs-file-name" hidden></span></div></div>
+<div class="rs-actions"><button id="saveMaster" class="rs-btn rs-primary">Save master resume</button><span id="masterStatus" class="rs-inline-status" role="status" aria-live="polite"></span></div>
 <p class="rs-help">You can paste text or upload a PDF. PDF text extraction runs in your browser. The original PDF is stored in the portfolio R2 bucket; the extracted master text is saved in Turso.</p>
 <div class="rs-actions rs-actions-secondary"><button id="useMasterPublic" class="rs-btn rs-secondary">Use master PDF as portfolio resume</button><span id="publicResumeStatus" class="rs-inline-status"></span></div>
 </div>
@@ -42,5 +42,5 @@
 <footer class="rs-footer">Private admin tool · Your master resume is saved; generated application documents are not saved to the database.</footer>
 </main></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/admin/resume-studio.js?v=2"></script>
+<script src="/admin/resume-studio.js?v=3"></script>
 </body></html>
