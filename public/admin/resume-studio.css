@@ -19,7 +19,7 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 @media(forced-colors:active){.rs-primary,.rs-doc-tab.active,.rs-dropzone{forced-color-adjust:auto;border:1px solid ButtonText}.rs-btn:focus-visible,.rs-file-btn:focus-visible,.rs-field input:focus-visible,.rs-field textarea:focus-visible,.rs-field select:focus-visible{outline:2px solid Highlight}}
 /* Accessible button contrast: portfolio orange uses dark text; pale orange is reserved for secondary actions. */
-.rs-primary,.rs-primary:hover,.rs-primary:focus-visible{background:#F8831D!important;border-color:#F8831D!important;color:#1A1A18!important}
+.rs-primary,.rs-primary:hover,.rs-primary:focus-visible{background:#B84A00!important;border-color:#B84A00!important;color:#FFFFFF!important}
 .rs-secondary,.rs-file-btn{background:#FFF1E4;border-color:#E7A15D;color:#7A3900}
 .rs-secondary:hover,.rs-file-btn:hover{background:#FFE3CA;border-color:#9B4A06;color:#592900}
 .rs-secondary:focus-visible,.rs-file-btn:focus-visible{outline:3px solid #7A3900;outline-offset:3px;box-shadow:none}
