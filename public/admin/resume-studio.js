@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const API='https://alanodogwuideh.com/api';const $=id=>document.getElementById(id);let authToken='';let usage={limit:40,request_limit:40,used:0,requests:0};let activeDoc='resume';let pdfjs=window.pdfjsLib;if(pdfjs)pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const API='/api';const $=id=>document.getElementById(id);let authToken='';let usage={limit:40,request_limit:40,used:0,requests:0};let activeDoc='resume';let pdfjs=window.pdfjsLib;if(pdfjs)pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 function notice(text,error=false){const el=$('rsNotice');el.hidden=!text;el.textContent=text;el.classList.toggle('error',!!error)}
 function status(id,text,error=false){const el=$(id);if(el){el.textContent=text;el.style.color=error?'#b42318':''}}
 async function request(path,opts={}){const headers={...(opts.body instanceof FormData?{}:{'content-type':'application/json'}),...(authToken?{authorization:'Bearer '+authToken}:{})};const r=await fetch(API+path,{...opts,headers,credentials:'include'});let data={};try{data=await r.json()}catch{}if(r.status===401){location.href='/admin/login/';throw Error(data.error||'Please sign in again.')}if(!r.ok)throw Error(data.error||'Request failed.');return data}
