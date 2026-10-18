@@ -31,3 +31,7 @@
 .rs-doc-tab.active{color:#7A3900;border-bottom-color:#F8831D}
 .rs-btn:disabled{color:#454545;background:#E5E7EB;border-color:#C4C8CF;opacity:1}
 @media(forced-colors:active){.rs-secondary,.rs-file-btn{border:1px solid ButtonText}}
+/* Match the portfolio's refined single-stroke input focus treatment across Resume Studio. */
+.rs-field input:focus,.rs-field textarea:focus,.rs-field select:focus,.rs-doc-editor textarea:focus,.rs-section-body input:focus,.rs-section-body textarea:focus,.rs-preview-label select:focus,.rs-advanced textarea:focus,.rs-cover-page textarea:focus{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
+.rs-field input:focus-visible,.rs-field textarea:focus-visible,.rs-field select:focus-visible,.rs-doc-editor textarea:focus-visible,.rs-section-body input:focus-visible,.rs-section-body textarea:focus-visible,.rs-preview-label select:focus-visible,.rs-advanced textarea:focus-visible,.rs-cover-page textarea:focus-visible{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
+.rs-field input,.rs-field textarea,.rs-field select,.rs-doc-editor textarea,.rs-section-body input,.rs-section-body textarea,.rs-preview-label select,.rs-advanced textarea{transition:border-color .15s ease,background-color .15s ease}
