@@ -31,6 +31,27 @@
 .rs-doc-tab.active{color:#7A3900;border-bottom-color:#F8831D}
 .rs-btn:disabled{color:#454545;background:#E5E7EB;border-color:#C4C8CF;opacity:1}
 @media(forced-colors:active){.rs-secondary,.rs-file-btn{border:1px solid ButtonText}}
+/* Resume Studio AI generation progress: clear live status, restrained motion, and responsive steps. */
+.rs-generation-progress{margin:14px 0 4px;padding:18px;border:1px solid #E4E7EC;border-radius:14px;background:linear-gradient(145deg,#FFFFFF,#F8FAFC);box-shadow:0 8px 22px rgba(16,24,40,.06)}
+.rs-generation-progress[hidden]{display:none!important}
+.rs-generation-heading{display:flex;align-items:center;gap:12px}
+.rs-generation-orb{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#FFF1E4;color:#9B4A06;font-size:20px;animation:rs-orb-pulse 1.8s ease-in-out infinite}
+.rs-generation-heading strong{display:block;color:#18202B;font-size:13px;font-weight:700}
+.rs-generation-heading p{margin:4px 0 0;color:#595F6B;font-size:12px;line-height:1.5}
+.rs-generation-track{height:5px;margin:17px 0 14px;overflow:hidden;border-radius:99px;background:#EAECF0}
+.rs-generation-track span{display:block;width:38%;height:100%;border-radius:99px;background:linear-gradient(90deg,#F8831D,#FDBA74,#F8831D);animation:rs-progress-sweep 1.45s ease-in-out infinite}
+.rs-generation-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}
+.rs-generation-steps li{position:relative;padding-top:17px;color:#8A9099;font-size:10px;line-height:1.35}
+.rs-generation-steps li:before{content:"";position:absolute;left:0;top:0;width:9px;height:9px;border-radius:50%;background:#D0D5DD;box-shadow:0 0 0 3px #F2F4F7}
+.rs-generation-steps li.is-current{color:#7A3900;font-weight:700}
+.rs-generation-steps li.is-current:before{background:#F8831D;box-shadow:0 0 0 3px #FFF1E4}
+.rs-generation-steps li.is-complete{color:#344054}
+.rs-generation-steps li.is-complete:before{background:#344054;box-shadow:0 0 0 3px #EAECF0}
+.rs-generation-footnote{margin:13px 0 0;color:#667085;font-size:11px}
+@keyframes rs-progress-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(285%)}}
+@keyframes rs-orb-pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(248,131,29,0)}50%{transform:scale(1.04);box-shadow:0 0 0 5px rgba(248,131,29,.08)}}
+@media(max-width:560px){.rs-generation-progress{padding:14px}.rs-generation-steps{grid-template-columns:1fr;gap:8px}.rs-generation-steps li{padding:0 0 0 20px;font-size:11px}.rs-generation-steps li:before{top:2px}.rs-generation-steps li.is-current{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.rs-generation-track span,.rs-generation-orb{animation:none}.rs-generation-track span{width:100%;opacity:.7}}
 /* Match the portfolio's refined single-stroke input focus treatment across Resume Studio. */
 .rs-field input:focus,.rs-field textarea:focus,.rs-field select:focus,.rs-doc-editor textarea:focus,.rs-section-body input:focus,.rs-section-body textarea:focus,.rs-preview-label select:focus,.rs-advanced textarea:focus,.rs-cover-page textarea:focus{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
 .rs-field input:focus-visible,.rs-field textarea:focus-visible,.rs-field select:focus-visible,.rs-doc-editor textarea:focus-visible,.rs-section-body input:focus-visible,.rs-section-body textarea:focus-visible,.rs-preview-label select:focus-visible,.rs-advanced textarea:focus-visible,.rs-cover-page textarea:focus-visible{outline:none!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}

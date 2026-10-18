@@ -5,7 +5,7 @@
 <title>Resume Studio — Alan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-<script>if(new URLSearchParams(location.search).get('embedded')==='1')document.documentElement.classList.add('rs-embedded')</script><link rel="stylesheet" href="/admin/resume-studio.css?v=4">
+<script>if(new URLSearchParams(location.search).get('embedded')==='1')document.documentElement.classList.add('rs-embedded')</script><link rel="stylesheet" href="/admin/resume-studio.css?v=5">
 </head>
 <body>
 <div class="rs-shell">
@@ -28,7 +28,8 @@
 <label class="rs-field">Company name<input id="companyName" maxlength="160" placeholder="e.g. Coalition"></label>
 <label class="rs-field">Company details / context<textarea id="companyDetails" rows="3" maxlength="5000" placeholder="Company mission, product, industry, or any details you want reflected."></textarea></label>
 <label class="rs-field">Job description<textarea id="jobDescription" rows="10" maxlength="20000" placeholder="Paste the complete job description and requirements." required></textarea><span class="rs-help">Maximum 20,000 characters.</span></label>
-<button id="generateDocs" class="rs-btn rs-primary rs-full">✦ Analyze job & generate documents</button>
+<button id="generateDocs" type="button" class="rs-btn rs-primary rs-full">✦ Analyze job &amp; generate documents</button>
+<div id="rsGenerationProgress" class="rs-generation-progress" role="status" aria-live="polite" aria-atomic="true" hidden><div class="rs-generation-heading"><span class="rs-generation-orb" aria-hidden="true"><span>✦</span></span><div><strong>Building your application documents</strong><p id="rsProgressLabel">Validating your resume and job details</p></div></div><div class="rs-generation-track" aria-hidden="true"><span></span></div><ol id="rsProgressSteps" class="rs-generation-steps"><li data-stage="0" class="is-current">Validate inputs</li><li data-stage="1">Analyze role</li><li data-stage="2">Tailor resume</li><li data-stage="3">Draft cover letter</li><li data-stage="4">Prepare documents</li></ol><p class="rs-generation-footnote">This can take a little while. Keep this tab open while the AI works.</p></div>
 <p class="rs-help">The AI can reframe proven experience, but must not invent employers, dates, qualifications, tools, or metrics.</p>
 </div>
 </section>
@@ -42,5 +43,5 @@
 <footer class="rs-footer">Private admin tool · Your master resume is saved; generated application documents are not saved to the database.</footer>
 </main></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/admin/resume-studio.js?v=4"></script>
+<script src="/admin/resume-studio.js?v=5"></script>
 </body></html>
