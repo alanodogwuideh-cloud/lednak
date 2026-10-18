@@ -48,10 +48,16 @@ export default async function(req, res) {
       const upstreamMessage = payload?.error || payload?.message || payload?.detail || payload?.title;
       const safeShape = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 12) : [];
       console.error('Resume Studio upstream error', upstream.status, upstreamMessage || 'No error field in upstream JSON', 'keys:', safeShape.join(','));
+      const cloudflareDetail = [payload?.detail, payload?.title, payload?.cloudflare_error].filter(Boolean).map(value => typeof value === 'string' ? value : JSON.stringify(value)).join(' | ').slice(0, 600);
+      const diagnostic = payload?.diagnostic || cloudflareDetail || payload?.error_name || payload?.error_category || '';
       return res.status(upstream.status).json({
         error: upstreamMessage || `The production Cloudflare API returned HTTP ${upstream.status} without an error message. Its deployed response needs inspection.`,
-        ...(payload?.diagnostic ? { diagnostic: String(payload.diagnostic).slice(0, 300) } : {}),
+        ...(diagnostic ? { diagnostic: String(diagnostic).slice(0, 600) } : {}),
         ...(payload?.stage ? { stage: String(payload.stage).slice(0, 80) } : {}),
+        ...(payload?.error_code ? { error_code: String(payload.error_code).slice(0, 80) } : {}),
+        ...(payload?.error_name ? { error_name: String(payload.error_name).slice(0, 120) } : {}),
+        ...(payload?.error_category ? { error_category: String(payload.error_category).slice(0, 120) } : {}),
+        ...(payload?.ray_id ? { ray_id: String(payload.ray_id).slice(0, 100) } : {}),
         ...(payload?.ok === false ? { ok: false } : {}),
         upstream_status: upstream.status,
         upstream_fields: safeShape

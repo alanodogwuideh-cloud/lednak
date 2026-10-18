@@ -902,10 +902,11 @@ async function adminResumeStudio(request, env) {
     }
     let modelResult;
     try {
-      modelResult = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: action === 'cover-only' ? 2200 : 6500 });
+      modelResult = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: action === 'cover-only' ? 2200 : 6500 });
     } catch (error) {
-      console.error('Resume Studio Workers AI error:', error?.message || 'unknown');
-      return json({ error: 'Cloudflare AI could not complete this request. Check the AI binding and your Cloudflare usage allowance, then retry.' }, 502);
+      const detail = String(error?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+      console.error('Resume Studio Workers AI invocation failed:', detail, error?.name || 'Error');
+      return json({ error: 'Cloudflare Workers AI failed during model invocation.', diagnostic: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
     }
     const output = typeof modelResult === 'string' ? modelResult : String(modelResult?.response || modelResult?.output_text || '');
     let parsed;
