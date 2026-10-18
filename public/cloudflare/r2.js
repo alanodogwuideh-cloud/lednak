@@ -61,6 +61,10 @@ async function signQuery(env, method, key, expires = 3600, contentType = '') {
   const signature = hex(await hmac(signingKey, stringToSign));
   return { url: 'https://' + host + path + '?' + canonicalQuery + '&X-Amz-Signature=' + signature, contentType };
 }
+export async function signR2Get(env, key, expires = 60) {
+  const signed = await signQuery(env, 'GET', key, Math.max(1, Math.min(300, Number(expires) || 60)), '');
+  return signed.url;
+}
 export async function signR2Put(env, key, contentType) {
   const type = String(contentType || 'application/octet-stream').trim().toLowerCase();
   // Do not include Content-Type in the signature. Browsers and proxies can normalize

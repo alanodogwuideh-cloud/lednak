@@ -4,7 +4,7 @@
  * Keep this file independent from Hatchable's api/ and lib/ runtime. All
  * credentials are supplied through Cloudflare Pages environment variables.
  */
-import { signR2Put, verifyR2Object, uploadR2Object, deleteR2Object, r2KeyFromPublicUrl } from './r2.js';
+import { signR2Put, signR2Get, verifyR2Object, uploadR2Object, deleteR2Object, r2KeyFromPublicUrl } from './r2.js';
 
 const PUBLIC_R2_BASE = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev';
 
@@ -812,8 +812,9 @@ async function readSavedDocument(env, id) {
   const { rows } = await tursoQuery(env, 'SELECT * FROM resume_studio_documents WHERE id=$1 LIMIT 1', [id]);
   const row = rows[0];
   if (!row) return null;
-  const response = await fetch(r2PublicUrl(row.object_key));
-  if (!response.ok) throw new Error('Saved document content could not be retrieved from R2.');
+  const privateUrl = await signR2Get(env, row.object_key, 60);
+  const response = await fetch(privateUrl);
+  if (!response.ok) throw new Error('Saved document content could not be retrieved from private R2 storage.');
   const payload = await response.json();
   return { ...row, content: String(payload.content || ''), template: String(payload.template || 'new-york'), analysis: object(payload.analysis) };
 }
