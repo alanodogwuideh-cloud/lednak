@@ -1209,7 +1209,7 @@ export async function handleCloudflareApi(request, env) {
     const protectedRoutes = new Set([
       'admin-login','admin-case-study','admin-config','admin-duplicate-case-study',
       'admin-media-preview','admin-media','admin-preview','admin-projects',
-      'admin-session','admin-settings','admin-resume-profile','admin-resumes','admin-trash','admin-upload'
+      'admin-session','admin-settings','admin-resume-profile','admin-resumes','admin-resume-studio','admin-trash','admin-upload'
     ]);
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
@@ -1220,6 +1220,7 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-settings') return await adminSettings(request, env);
         if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
         if (route === 'admin-resumes') return await adminResumes(request, env);
+        if (route === 'admin-resume-studio') return await adminResumeStudio(request, env);
         // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);
