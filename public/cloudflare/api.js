@@ -1038,15 +1038,16 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
+    const model = isProfileImport ? '@cf/meta/llama-3.1-8b-instruct' : '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const requestedTokens = isProfileImport ? 4500 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
+    const modelOptions = { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens, ...(isProfileImport ? { temperature: 0, response_format: { type: 'json_object' } } : {}) };
     try {
-      // Let the model complete naturally; a client-facing timeout must not truncate
-      // valid extraction. A transient invocation failure gets one same-model retry.
-      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      // Resume import uses the faster 8B model with constrained JSON output; other
+      // career-document tasks retain Scout. Retry only a transient invocation error.
+      modelResult = await env.AI.run(model, modelOptions);
     } catch (firstError) {
       try {
-        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+        modelResult = await env.AI.run(model, modelOptions);
       } catch (retryError) {
         const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
         console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
@@ -1079,7 +1080,33 @@ async function adminResumeStudio(request, env) {
     }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
     if (isProfileImport) {
-      const imported = object(parsed.profile);
+      // Fast-model responses can place section arrays beside profile instead of inside it.
+      // Normalize both shapes to the stable editor contract without dropping extracted entries.
+      const imported = { ...object(parsed.profile) };
+      for (const key of ['experience', 'projects', 'education', 'certifications']) {
+        if (!Array.isArray(imported[key]) && Array.isArray(parsed[key])) imported[key] = parsed[key];
+      }
+      if (!Array.isArray(imported.summaries) && Array.isArray(parsed.summaries)) imported.summaries = parsed.summaries;
+      if (!Array.isArray(imported.skills) && parsed.skills != null) {
+        const sourceSkills = parsed.skills;
+        imported.skills = Array.isArray(sourceSkills)
+          ? sourceSkills
+          : (typeof sourceSkills === 'string'
+            ? [{ category: 'Skills', items: skillItems(sourceSkills) }]
+            : (Array.isArray(sourceSkills.items)
+              ? [{ category: String(sourceSkills.category || 'Skills'), items: skillItems(sourceSkills.items) }]
+              : []));
+      }
+      imported.contact = object(imported.contact);
+      imported.summaries = Array.isArray(imported.summaries) ? imported.summaries : [];
+      imported.experience = Array.isArray(imported.experience) ? imported.experience : [];
+      imported.projects = Array.isArray(imported.projects) ? imported.projects : [];
+      imported.skills = (Array.isArray(imported.skills) ? imported.skills : []).map(item => {
+        const skill = object(item);
+        return { ...skill, category: String(skill.category || 'Skills'), items: skillItems(skill.items) };
+      });
+      imported.education = Array.isArray(imported.education) ? imported.education : [];
+      imported.certifications = Array.isArray(imported.certifications) ? imported.certifications : [];
       if (!imported.contact || !Array.isArray(imported.experience) || !Array.isArray(imported.skills) || !Array.isArray(imported.education)) return json({ error: 'The extracted profile did not match the expected structure. Please try again with a clearer PDF or DOCX.' }, 502);
       return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
     }
