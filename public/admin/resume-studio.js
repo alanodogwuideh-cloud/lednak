@@ -15,6 +15,7 @@
   let lastSavedAt = null;
   let saveError = '';
   let openAfterRender = '';
+  let activeView = 'profile';
   const draftKey = 'resume-studio-master-profile-draft-v1';
   function persistLocalDraft() {
     try {
@@ -64,7 +65,118 @@
   function currentOpenSections() {
     return new Set([...root.querySelectorAll('details.rs-section[open]')].map(node => node.dataset.section));
   }
+  let resumeRows = [];
+  let currentResume = null;
+  let resumeSavedJson = '';
+  let resumeLoading = false;
+  let resumeSaving = false;
+  let resumeMessage = '';
+  let resumeSavedTitle = '';
+  const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
+  const resumeSections = ['summary','experience','projects','skills','education','certifications'];
+  const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
+  const rtext = (value, max=500) => String(value ?? '').slice(0,max);
+  const rpathGet = (obj,path) => path.split('.').reduce((v,k)=>v==null?undefined:v[k],obj);
+  function rpathSet(obj,path,value) { const keys=path.split('.'); let target=obj; for(const key of keys.slice(0,-1)) target=target[key]; target[keys[keys.length-1]]=value; }
+  const rfield = (path,label,value,kind='text') => '<label class="rs-field"><span>'+escHtml(label)+'</span>'+(kind==='textarea'?'<textarea data-resume-path="'+escHtml(path)+'" rows="3">'+escHtml(value)+'</textarea>':'<input data-resume-path="'+escHtml(path)+'" value="'+escHtml(value)+'">')+'</label>';
+  const rcheck = (path,label,checked) => '<label class="rs-check"><input type="checkbox" data-resume-path="'+escHtml(path)+'"'+(checked?' checked':'')+'><span>'+escHtml(label)+'</span></label>';
+  function renderResumeView() {
+    const dirty = resumeIsDirty();
+    const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
+      '<div class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" disabled>Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
+    if (resumeLoading && !currentResume) { root.innerHTML=head+'<div class="panel rs-loading"><span class="rs-spinner"></span><p>Loading resumes…</p></div>'; return; }
+    if (currentResume) {
+      const c=currentResume.content||{};
+      const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
+      '<div class="rs-resume-editor-heading"><div><div class="eyebrow">US RESUME · US LETTER</div><h2>'+escHtml(currentResume.title||'Untitled Resume')+'</h2><p class="muted">Edit on the left; the resume preview updates as you type.</p></div><div class="rs-resume-heading-actions"><button type="button" class="secondary" data-resume-action="duplicate">Duplicate</button><button type="button" class="danger" data-resume-action="delete">Delete</button></div></div>';
+      let fields='<div class="rs-editor-fields">'+rfield('title','Resume title',currentResume.title||'Untitled Resume');
+      fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><h3>Contact</h3></div><div class="rs-form-grid">'+rfield('content.contact.fullName','Full name',c.contact?.fullName||'')+rfield('content.contact.email','Email',c.contact?.email||'')+rfield('content.contact.phone','Phone',c.contact?.phone||'')+rfield('content.contact.location','Location',c.contact?.location||'')+rfield('content.contact.links.0.url','Portfolio or professional link',c.contact?.links?.[0]?.url||'')+'</div></section>';
+      fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><h3>Professional Summary</h3>'+rcheck('content.hiddenSections.summary','Hide section',(c.hiddenSections||[]).includes('summary'))+'</div>'+rfield('content.summary','Summary',c.summary||'','textarea')+'</section>';
+      for (const section of (c.sectionOrder||resumeSections)) {
+        if (section==='summary') continue;
+        const items=Array.isArray(c[section])?c[section]:[];
+        fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><div>'+rfield('content.sectionTitles.'+section,'Section heading',c.sectionTitles?.[section]||resumeSectionNames[section])+'</div>'+rcheck('content.hiddenSections.'+section,'Hide section',(c.hiddenSections||[]).includes(section))+'<div class="rs-order-actions"><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="up" aria-label="Move section up">↑</button><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="down" aria-label="Move section down">↓</button></div></div>';
+        if(section==='experience') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Role '+(i+1)+'</strong>'+rcheck('content.experience.'+i+'.hidden','Hide role',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="experience" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.experience.'+i+'.title','Job title',x.title||'')+rfield('content.experience.'+i+'.company','Company',x.company||'')+rfield('content.experience.'+i+'.location','Location',x.location||'')+rfield('content.experience.'+i+'.startDate','Start date',x.startDate||'')+rfield('content.experience.'+i+'.endDate','End date',x.endDate||'')+'</div>'+(x.bullets||[]).map((b,j)=>'<div class="rs-resume-bullet-edit">'+rfield('content.experience.'+i+'.bullets.'+j+'.text','Achievement '+(j+1),b.text||'','textarea')+rcheck('content.experience.'+i+'.bullets.'+j+'.hidden','Hide bullet',!!b.hidden)+'<button type="button" class="rs-remove" data-resume-action="remove-bullet" data-section="experience" data-index="'+i+'" data-bullet="'+j+'">Remove bullet</button></div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-bullet" data-section="experience" data-index="'+i+'">+ Add bullet</button></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="experience">+ Add role</button>';
+        if(section==='projects') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Project '+(i+1)+'</strong>'+rcheck('content.projects.'+i+'.hidden','Hide project',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="projects" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.projects.'+i+'.name','Project name',x.name||'')+rfield('content.projects.'+i+'.url','Project URL',x.url||'')+rfield('content.projects.'+i+'.description','Description',x.description||'','textarea')+'</div>'+(x.bullets||[]).map((b,j)=>'<div class="rs-resume-bullet-edit">'+rfield('content.projects.'+i+'.bullets.'+j+'.text','Achievement '+(j+1),b.text||'','textarea')+rcheck('content.projects.'+i+'.bullets.'+j+'.hidden','Hide bullet',!!b.hidden)+'<button type="button" class="rs-remove" data-resume-action="remove-bullet" data-section="projects" data-index="'+i+'" data-bullet="'+j+'">Remove bullet</button></div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-bullet" data-section="projects" data-index="'+i+'">+ Add bullet</button></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="projects">+ Add project</button>';
+        if(section==='skills') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Skill group '+(i+1)+'</strong>'+rcheck('content.skills.'+i+'.hidden','Hide group',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="skills" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.skills.'+i+'.category','Category',x.category||'')+rfield('content.skills.'+i+'.items','Skills (comma-separated)',(x.items||[]).join(', '))+'</div></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="skills">+ Add skill group</button>';
+        if(section==='education') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Education '+(i+1)+'</strong>'+rcheck('content.education.'+i+'.hidden','Hide entry',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="education" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.education.'+i+'.institution','Institution',x.institution||'')+rfield('content.education.'+i+'.degree','Degree',x.degree||'')+rfield('content.education.'+i+'.field','Field of study',x.field||'')+rfield('content.education.'+i+'.startDate','Start date',x.startDate||'')+rfield('content.education.'+i+'.endDate','End date',x.endDate||'')+rfield('content.education.'+i+'.notes','Notes',x.notes||'','textarea')+'</div></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="education">+ Add education</button>';
+        if(section==='certifications') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Certification '+(i+1)+'</strong>'+rcheck('content.certifications.'+i+'.hidden','Hide entry',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="certifications" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.certifications.'+i+'.name','Certification',x.name||'')+rfield('content.certifications.'+i+'.issuer','Issuer',x.issuer||'')+rfield('content.certifications.'+i+'.date','Date',x.date||'')+'</div></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="certifications">+ Add certification</button>';
+        fields+='</section>';
+      }
+      fields+='</div>';
+      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>';
+      return;
+    }
+    root.innerHTML=head+'<div class="rs-list-head"><div><h3>Your resumes</h3><p>Saved documents are independent copies of your Master Profile.</p></div><span class="rs-profile-count">'+resumeRows.length+' resume'+(resumeRows.length===1?'':'s')+'</span></div>'+
+      (resumeMessage?'<div class="rs-notice"><p>'+escHtml(resumeMessage)+'</p></div>':'')+
+      (resumeRows.length?'<div class="rs-resume-list">'+resumeRows.map(row=>'<article class="rs-resume-card"><div class="rs-resume-card-icon" aria-hidden="true">CV</div><div class="rs-resume-card-main"><h3>'+escHtml(row.title||'Untitled Resume')+'</h3><p>US Resume · Updated '+escHtml(row.updated_at?new Date(row.updated_at).toLocaleString():'just now')+'</p></div><div class="rs-resume-card-actions"><button class="secondary" type="button" data-resume-action="open" data-id="'+escHtml(row.id)+'">Open editor</button><button class="secondary" type="button" data-resume-action="duplicate" data-id="'+escHtml(row.id)+'">Duplicate</button><button class="danger" type="button" data-resume-action="delete" data-id="'+escHtml(row.id)+'">Delete</button></div></article>').join('')+'</div>':'<div class="rs-empty-resumes"><div class="rs-empty-icon">CV</div><h3>No resumes yet</h3><p>Create your first resume using the information in your Master Profile. You can edit the copy without changing the source profile.</p><button type="button" class="primary" data-resume-action="new">Create your first resume</button></div>');
+  }
+  function resumePreviewHtml(c) {
+    const hidden=new Set(c.hiddenSections||[]);
+    const esc=escHtml;
+    const contact=c.contact||{};
+    const links=(contact.links||[]).filter(x=>!x.hidden&&x.url).map(x=>x.url);
+    const contactLine=[contact.email,contact.phone,contact.location,...links].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
+    let html='<header class="rs-paper-header"><h1>'+esc(contact.fullName||'Your Name')+'</h1><div class="rs-paper-contact">'+contactLine+'</div></header>';
+    for(const section of c.sectionOrder||resumeSections) {
+      if(hidden.has(section)) continue;
+      const title=esc(c.sectionTitles?.[section]||resumeSectionNames[section]);
+      let body='';
+      if(section==='summary'&&String(c.summary||'').trim()) body='<p class="rs-paper-summary">'+esc(c.summary).replace(/\n/g,'<br>')+'</p>';
+      if(section==='experience') body=(c.experience||[]).filter(x=>!x.hidden).map(x=>'<div class="rs-paper-entry"><div class="rs-paper-entry-head"><strong>'+esc(x.title||'')+'</strong><span>'+esc([x.startDate,x.endDate|| (x.current?'Present':'')].filter(Boolean).join(' – '))+'</span></div><div class="rs-paper-subhead"><strong>'+esc(x.company||'')+'</strong><span>'+esc(x.location||'')+'</span></div><ul>'+((x.bullets||[]).filter(b=>!b.hidden&&String(b.text||'').trim()).map(b=>'<li>'+esc(b.text)+'</li>').join(''))+'</ul></div>').join('');
+      if(section==='projects') body=(c.projects||[]).filter(x=>!x.hidden).map(x=>'<div class="rs-paper-entry"><div class="rs-paper-entry-head"><strong>'+esc(x.name||'')+'</strong><span>'+esc(x.url||'')+'</span></div>'+(x.description?'<p>'+esc(x.description)+'</p>':'')+'<ul>'+((x.bullets||[]).filter(b=>!b.hidden&&String(b.text||'').trim()).map(b=>'<li>'+esc(b.text)+'</li>').join(''))+'</ul></div>').join('');
+      if(section==='skills') body=(c.skills||[]).filter(x=>!x.hidden&&((x.items||[]).length||x.category)).map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.category||'Skills')+':</strong> '+esc((x.items||[]).join(', '))+'</p>').join('');
+      if(section==='education') body=(c.education||[]).filter(x=>!x.hidden).map(x=>'<div class="rs-paper-entry"><div class="rs-paper-entry-head"><strong>'+esc([x.degree,x.field].filter(Boolean).join(' in '))+'</strong><span>'+esc([x.startDate,x.endDate].filter(Boolean).join(' – '))+'</span></div><div class="rs-paper-subhead"><strong>'+esc(x.institution||'')+'</strong><span>'+esc(x.notes||'')+'</span></div></div>').join('');
+      if(section==='certifications') body=(c.certifications||[]).filter(x=>!x.hidden).map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.name||'')+'</strong>'+((x.issuer||x.date)?' — '+esc([x.issuer,x.date].filter(Boolean).join(', ')):'')+'</p>').join('');
+      if(body.trim()) html+='<section class="rs-paper-section"><h2>'+title+'</h2>'+body+'</section>';
+    }
+    return html;
+  }
+  async function loadResumeList() {
+    resumeLoading=true; renderResumeView();
+    try { resumeRows=await api('/admin-resumes'); resumeMessage=''; }
+    catch(error) { resumeMessage=error.message||'Could not load resumes.'; resumeRows=[]; }
+    finally { resumeLoading=false; renderResumeView(); }
+  }
+  async function openResume(id) {
+    resumeLoading=true; renderResumeView();
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
+    catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
+    finally { resumeLoading=false; }
+  }
+  async function createResume() {
+    const title=prompt('Name this resume','Product Designer Resume');
+    if(title===null) return;
+    resumeLoading=true; renderResumeView();
+    try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({title:title.trim()||'Untitled Resume'})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
+    catch(error) { resumeMessage=error.message||'Could not create resume.'; await loadResumeList(); }
+    finally { resumeLoading=false; }
+  }
+  async function saveResume() {
+    if(!currentResume||resumeSaving||!resumeIsDirty()) return;
+    resumeSaving=true; resumeMessage='Saving…'; renderResumeView();
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(currentResume.id),{method:'PUT',body:JSON.stringify({id:currentResume.id,title:currentResume.title,content:currentResume.content})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage='Saved successfully'; }
+    catch(error) { resumeMessage='Save failed: '+(error.message||'Please retry.'); }
+    finally { resumeSaving=false; renderResumeView(); }
+  }
+  async function resumeAction(button) {
+    const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
+    if(action==='new') return createResume();
+    if(action==='back') { if(currentResume&&resumeIsDirty()&&!confirm('Discard unsaved changes to this resume?')) return; currentResume=null; return loadResumeList(); }
+    if(action==='open') return openResume(id);
+    if(action==='save') return saveResume();
+    if(action==='print') { const paper=document.getElementById('rsResumePreview'); if(!paper)return; const w=window.open('','_blank','width=1000,height=800'); if(!w){alert('Allow pop-ups to print or save the resume as PDF.');return;} w.document.write('<!doctype html><html><head><title>'+escHtml(currentResume.title||'Resume')+'</title><style>@page{size:letter;margin:0}body{margin:0;font-family:Arial,sans-serif;color:#111}.paper{box-sizing:border-box;width:8.5in;min-height:11in;padding:.6in}.paper h1{text-align:center;font-size:22pt;margin:0 0 5pt}.paper-contact{text-align:center;font-size:9pt;margin-bottom:14pt}.paper-section{margin-top:12pt}.paper-section h2{font-size:10.5pt;text-transform:uppercase;border-bottom:1px solid #333;padding-bottom:3pt;margin:0 0 6pt}.paper-entry{margin-bottom:7pt}.paper-entry-head,.paper-subhead{display:flex;justify-content:space-between;gap:8pt;font-size:9.5pt}.paper ul{margin:4pt 0 0;padding-left:16pt;font-size:9.5pt;line-height:1.25}.paper li{margin-bottom:2pt}.paper p{font-size:9.5pt;line-height:1.3;margin:3pt 0}</style></head><body><div class="paper">'+paper.innerHTML.replaceAll('rs-paper-','paper-').replaceAll('rs-preview-sep','paper-sep')+'</div><script>window.onload=()=>{window.print()}</script></body></html>'); w.document.close(); return; }
+    if(action==='duplicate') { if(!confirm('Create a separate copy of this resume?')) return; resumeLoading=true; renderResumeView(); try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({action:'duplicate',id,title:'Copy of '+(resumeRows.find(x=>String(x.id)===String(id))?.title||currentResume?.title||'Resume')})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); } catch(error) { resumeMessage=error.message||'Could not duplicate resume.'; currentResume=null; await loadResumeList(); } finally {resumeLoading=false;} return; }
+    if(action==='delete') { if(!confirm('Delete this resume and its saved versions? This cannot be undone.')) return; try { await api('/admin-resumes?id='+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({id})}); currentResume=null; resumeMessage='Resume deleted.'; await loadResumeList(); } catch(error) { resumeMessage=error.message||'Could not delete resume.'; renderResumeView(); } return; }
+    if(action==='add-entry') { const sec=button.dataset.section; const defaults={experience:{id:uid(),company:'',title:'',location:'',startDate:'',endDate:'',current:false,hidden:false,bullets:[]},projects:{id:uid(),name:'',url:'',description:'',hidden:false,bullets:[]},skills:{id:uid(),category:'',items:[],hidden:false},education:{id:uid(),institution:'',degree:'',field:'',startDate:'',endDate:'',notes:'',hidden:false},certifications:{id:uid(),name:'',issuer:'',date:'',hidden:false}}; currentResume.content[sec].push(defaults[sec]); renderResumeView(); return; }
+    if(action==='remove-entry') { const sec=button.dataset.section, index=Number(button.dataset.index); if(!confirm('Remove this entry from the resume?'))return; currentResume.content[sec].splice(index,1); renderResumeView(); return; }
+    if(action==='add-bullet') { const sec=button.dataset.section,index=Number(button.dataset.index); currentResume.content[sec][index].bullets.push({id:uid(),text:'',hidden:false}); renderResumeView(); return; }
+    if(action==='remove-bullet') { const sec=button.dataset.section,index=Number(button.dataset.index),bi=Number(button.dataset.bullet); currentResume.content[sec][index].bullets.splice(bi,1); renderResumeView(); return; }
+    if(action==='move-section') { const sec=button.dataset.section,order=currentResume.content.sectionOrder,idx=order.indexOf(sec),to=idx+(button.dataset.dir==='up'?-1:1); if(to>=0&&to<order.length){[order[idx],order[to]]=[order[to],order[idx]];renderResumeView()} return; }
+  }
+
   function render() {
+    if (activeView === 'resumes') { renderResumeView(); return; }
     const wasOpen = currentOpenSections();
     if (openAfterRender) wasOpen.add(openAfterRender);
     const dirty = JSON.stringify(profile) !== savedJson;
@@ -80,6 +192,7 @@
       section('education','Education','Institutions, qualifications and dates', '<div class="rs-list-head"><div><strong>Education</strong><p>Use the exact qualification and institution details.</p></div><button type="button" class="rs-small-button" data-action="add-education">+ Add education</button></div>' + (profile.education.length ? profile.education.map((item,i) => '<article class="rs-item-card"><div class="rs-item-head"><span class="rs-item-index">' + (i+1) + '</span><div class="rs-item-title"><strong>' + escHtml(item.institution || 'Institution not entered') + '</strong><small>' + escHtml([item.degree,item.field].filter(Boolean).join(' · ') || 'Qualification not entered') + '</small></div>' + actions('education',i,profile.education.length) + '</div><div class="rs-form-grid">' + field('education.'+i+'.institution','Institution',item.institution,{max:180}) + field('education.'+i+'.degree','Degree / qualification',item.degree,{max:180}) + field('education.'+i+'.field','Field of study',item.field,{max:180}) + field('education.'+i+'.startDate','Start date',item.startDate,{max:40}) + field('education.'+i+'.endDate','End date',item.endDate,{max:40}) + field('education.'+i+'.notes','Notes',item.notes,{max:1200}) + '</div></article>').join('') : emptyState('Add education or formal training when ready.')) ,wasOpen.has('education')) +
       section('certifications','Certifications','Professional certificates and credentials', '<div class="rs-list-head"><div><strong>Credentials</strong><p>Include the issuer and completion date where known.</p></div><button type="button" class="rs-small-button" data-action="add-certification">+ Add certification</button></div>' + (profile.certifications.length ? profile.certifications.map((item,i) => '<article class="rs-item-card"><div class="rs-item-head"><span class="rs-item-index">' + (i+1) + '</span><div class="rs-item-title"><strong>' + escHtml(item.name || 'Untitled certification') + '</strong><small>' + escHtml(item.issuer || 'Issuer not entered') + '</small></div>' + actions('certification',i,profile.certifications.length) + '</div><div class="rs-form-grid">' + field('certifications.'+i+'.name','Certification name',item.name,{max:180}) + field('certifications.'+i+'.issuer','Issuing organization',item.issuer,{max:180}) + field('certifications.'+i+'.date','Date earned',item.date,{max:80,placeholder:'2025'}) + '</div></article>').join('') : emptyState('Add certificates that are relevant to your applications.')) ,wasOpen.has('certifications')) +
       '<div class="rs-save-bar"><div><strong id="rsStickyState">' + (dirty ? 'Unsaved changes' : formatSaved(lastSavedAt)) + '</strong><small>Master Profile is private to your admin account.</small></div><button type="button" id="rsSaveButton" class="primary" ' + (saving || !dirty ? 'disabled' : '') + '>' + (saving ? 'Saving…' : 'Save Master Profile') + '</button></div>';
+    root.querySelectorAll('.rs-tab').forEach(tab => { if (tab.textContent.trim().startsWith('Resumes')) { tab.removeAttribute('disabled'); tab.innerHTML='Resumes'; tab.dataset.view = 'resumes'; tab.setAttribute('role','tab'); tab.setAttribute('aria-selected','false'); } else if (tab.textContent.trim().startsWith('Master Profile')) { tab.dataset.view = 'profile'; tab.setAttribute('role','tab'); tab.setAttribute('aria-selected','true'); } });
     openAfterRender = '';
     updateSaveState();
   }
@@ -174,6 +287,15 @@
   }
   root.addEventListener('input', event => {
     const target = event.target;
+    if (target.matches('[data-resume-path]') && target.type !== 'checkbox' && currentResume) {
+      const path = target.dataset.resumePath;
+      const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
+      if (path === 'title') currentResume.title = value; else { if (path.startsWith('content.contact.links.0.') && !currentResume.content.contact.links.length) currentResume.content.contact.links.push({label:'Portfolio',url:'',hidden:false}); rpathSet(currentResume, path, value); }
+      const preview = root.querySelector('#rsResumePreview'); if (preview) preview.innerHTML = resumePreviewHtml(currentResume.content);
+      const status = root.querySelector('.rs-resume-save-status'); if (status) status.textContent = resumeIsDirty() ? 'Unsaved changes' : 'Saved';
+      const save = root.querySelector('[data-resume-action=\"save\"]'); if (save) save.disabled = !resumeIsDirty() || resumeSaving;
+      return;
+    }
     if (!target.matches('[data-path]') || target.type === 'checkbox') return;
     const path = target.dataset.path;
     setPath(path, target.dataset.kind === 'csv' ? splitTags(target.value) : target.value);
@@ -187,12 +309,26 @@
   });
   root.addEventListener('change', event => {
     const target = event.target;
+    if (target.matches('[data-resume-path]') && target.type === 'checkbox' && currentResume) {
+      const path=target.dataset.resumePath;
+      if (path.startsWith('content.hiddenSections.')) { const section=path.split('.').pop(); const list=currentResume.content.hiddenSections||[]; currentResume.content.hiddenSections=target.checked?[...new Set([...list,section])]:list.filter(x=>x!==section); }
+      else rpathSet(currentResume,path,target.checked);
+      renderResumeView(); return;
+    }
     if (!target.matches('[data-path]') || target.type !== 'checkbox') return;
     setPath(target.dataset.path, target.checked);
     persistLocalDraft();
     markDirty();
   });
   root.addEventListener('click', async event => {
+    const viewTab=event.target.closest('[data-view], [data-resume-view]');
+    if (viewTab) {
+      const view=viewTab.dataset.view||viewTab.dataset.resumeView;
+      if (view==='resumes') { if (JSON.stringify(profile)!==savedJson && !confirm('Your Master Profile has unsaved changes. Discard them and open Resumes?')) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
+      if (view==='profile') { if (currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to Master Profile?')) return; activeView='profile'; currentResume=null; render(); return; }
+    }
+    const resumeButton=event.target.closest('[data-resume-action]');
+    if (resumeButton) { await resumeAction(resumeButton); return; }
     const save = event.target.closest('#rsSaveButton');
     if (save) { await saveProfile(); return; }
     const button = event.target.closest('[data-action]');
@@ -246,18 +382,20 @@
   document.addEventListener('resume-studio-open', () => { void loadProfile(); });
   document.addEventListener('click', event => {
     const tab = event.target.closest('.tab[data-tab]');
-    if (!tab || !JSON.stringify(profile) || JSON.stringify(profile) === savedJson) return;
-    if (!confirm('You have unsaved Master Profile changes. Leave this section and discard them?')) {
+    const profileDirty = JSON.stringify(profile) !== savedJson;
+    const resumeDirty = activeView === 'resumes' && resumeIsDirty();
+    if (!tab || (!profileDirty && !resumeDirty)) return;
+    if (!confirm(profileDirty ? 'You have unsaved Master Profile changes. Leave this section and discard them?' : 'You have unsaved resume changes. Leave this section and discard them?')) {
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
-    profile = JSON.parse(savedJson);
-    saveError = '';
+    if (profileDirty) { profile = JSON.parse(savedJson); saveError = ''; }
+    if (resumeDirty && currentResume) { currentResume.content = JSON.parse(resumeSavedJson); currentResume.title = resumeSavedTitle; }
     render();
   }, true);
   window.addEventListener('beforeunload', event => {
-    if (loaded && JSON.stringify(profile) !== savedJson) { event.preventDefault(); event.returnValue = ''; }
+    if ((loaded && JSON.stringify(profile) !== savedJson) || (activeView === 'resumes' && resumeIsDirty())) { event.preventDefault(); event.returnValue = ''; }
   });
   root.innerHTML = '<div class="panel rs-loading"><span class="rs-spinner" aria-hidden="true"></span><p>Resume Studio is ready. Open this tab to load your profile.</p></div>';
   if (!document.querySelector('#resumeTab')?.hidden) void loadProfile();

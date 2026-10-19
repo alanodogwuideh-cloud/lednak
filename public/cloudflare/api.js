@@ -1086,6 +1086,67 @@ async function adminResumeProfile(request, env) {
   return json({ error: 'Method not allowed.' }, 405);
 }
 
+function resumeSnapshotFromMaster(profile) {
+  const contact=object(profile.contact), sections=['summary','experience','projects','skills','education','certifications'];
+  const summary=(Array.isArray(profile.summaries)?profile.summaries:[]).find(x=>String(x?.text||'').trim());
+  const links=(Array.isArray(contact.links)?contact.links:[]).map(x=>({label:String(x?.label||''),url:String(x?.url||''),hidden:false}));
+  if(!links.length) links.push({label:'Portfolio',url:'',hidden:false});
+  return {
+    contact:{fullName:String(contact.fullName||''),email:String(contact.email||''),phone:String(contact.phone||''),location:String(contact.location||''),links},
+    summary:String(summary?.text||''),summaryLabel:String(summary?.label||''),sectionOrder:sections,
+    sectionTitles:{summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'},hiddenSections:[],
+    experience:(Array.isArray(profile.experience)?profile.experience:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false,endDate:x.current?'Present':String(x.endDate||''),bullets:(Array.isArray(x.bullets)?x.bullets:[]).map(b=>({id:b.id||crypto.randomUUID(),text:String(b.text||''),hidden:false}))})),
+    projects:(Array.isArray(profile.projects)?profile.projects:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false,bullets:(Array.isArray(x.bullets)?x.bullets:[]).map(b=>({id:b.id||crypto.randomUUID(),text:String(b.text||''),hidden:false}))})),
+    skills:(Array.isArray(profile.skills)?profile.skills:[]).map(x=>({...object(x),id:crypto.randomUUID(),hidden:false,items:Array.isArray(x.items)?x.items:[]})),
+    education:(Array.isArray(profile.education)?profile.education:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false})),
+    certifications:(Array.isArray(profile.certifications)?profile.certifications:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false}))
+  };
+}
+function normalizeResumeContent(value) {
+  const c=object(value), sections=['summary','experience','projects','skills','education','certifications'];
+  const titles=object(c.sectionTitles);
+  const out={...c,contact:object(c.contact),summary:String(c.summary||'').slice(0,2500),
+    sectionOrder:(Array.isArray(c.sectionOrder)?c.sectionOrder:sections).filter(x=>sections.includes(x)),
+    sectionTitles:Object.fromEntries(sections.map(k=>[k,String(titles[k]||({summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'}[k])).slice(0,100)])),
+    hiddenSections:(Array.isArray(c.hiddenSections)?c.hiddenSections:[]).filter(x=>sections.includes(x)),
+    experience:(Array.isArray(c.experience)?c.experience:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,bullets:(Array.isArray(x.bullets)?x.bullets:[]).slice(0,40).map(b=>({...object(b),id:String(b.id||crypto.randomUUID()),text:String(b.text||'').slice(0,2000),hidden:b.hidden===true}))})),
+    projects:(Array.isArray(c.projects)?c.projects:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,bullets:(Array.isArray(x.bullets)?x.bullets:[]).slice(0,40).map(b=>({...object(b),id:String(b.id||crypto.randomUUID()),text:String(b.text||'').slice(0,2000),hidden:b.hidden===true}))})),
+    skills:(Array.isArray(c.skills)?c.skills:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,category:String(x.category||'').slice(0,100),items:(Array.isArray(x.items)?x.items:[]).slice(0,100).map(s=>String(s).slice(0,100))})),
+    education:(Array.isArray(c.education)?c.education:[]).slice(0,30).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true})),
+    certifications:(Array.isArray(c.certifications)?c.certifications:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true}))};
+  for(const s of sections) if(!out.sectionOrder.includes(s)) out.sectionOrder.push(s);
+  out.contact={fullName:String(out.contact.fullName||'').slice(0,160),email:String(out.contact.email||'').slice(0,254),phone:String(out.contact.phone||'').slice(0,80),location:String(out.contact.location||'').slice(0,160),links:(Array.isArray(out.contact.links)?out.contact.links:[]).slice(0,20).map(x=>({label:String(x.label||'').slice(0,80),url:String(x.url||'').slice(0,500),hidden:x.hidden===true}))};
+  if(JSON.stringify(out).length>250000) throw Object.assign(new Error('This resume is too large to save.'),{status:413});
+  return out;
+}
+async function adminResumes(request,env) {
+  const method=request.method.toUpperCase(), url=new URL(request.url), id=String(url.searchParams.get('id')||'').trim();
+  let body={}; if(['POST','PUT','DELETE'].includes(method)){try{body=await request.json()}catch{return json({error:'Please send valid JSON.'},400)}}
+  const resumeId=id||String(body.id||'').trim();
+  if(method==='GET'){
+    if(resumeId){const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!rows[0])return json({error:'Resume not found.'},404);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))});}
+    const {rows}=await tursoQuery(env,'SELECT id,title,template,created_at,updated_at,job_id FROM resumes ORDER BY updated_at DESC,id DESC');return json(rows);
+  }
+  if(method==='POST'){
+    let title=String(body.title||'Untitled Resume').trim().slice(0,160)||'Untitled Resume',template='us',content;
+    if(body.action==='duplicate'){const {rows}=await tursoQuery(env,'SELECT title,template,content FROM resumes WHERE id=$1 LIMIT 1',[String(body.id||'')]);if(!rows[0])return json({error:'Resume not found.'},404);title=String(body.title||('Copy of '+rows[0].title)).slice(0,160);template=rows[0].template||'us';content=normalizeResumeContent(JSON.parse(rows[0].content||'{}'));}
+    else {const {rows}=await tursoQuery(env,'SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');let profile={};try{profile=JSON.parse(rows[0]?.profile_json||'{}')}catch{}content=normalizeResumeContent(resumeSnapshotFromMaster(profile));}
+    const created=await tursoQuery(env,'INSERT INTO resumes (title,template,content,created_at,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[title,template,JSON.stringify(content)]);const newId=created.rows[0]?.id;if(!newId)throw new Error('The resume could not be created.');
+    await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) VALUES ($1,$2,CURRENT_TIMESTAMP)',[newId,JSON.stringify(content)]);
+    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))},201);
+  }
+  if(method==='PUT'){
+    if(!resumeId)return json({error:'Resume ID is required.'},400);const {rows:existing}=await tursoQuery(env,'SELECT id FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!existing[0])return json({error:'Resume not found.'},404);
+    const content=normalizeResumeContent(body.content);const title=String(body.title||'Untitled Resume').trim().slice(0,160)||'Untitled Resume';
+    await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) SELECT id,content,CURRENT_TIMESTAMP FROM resumes WHERE id=$1',[resumeId]);
+    await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[resumeId]);
+    await tursoQuery(env,'UPDATE resumes SET title=$1,template=$2,content=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$4',[title,'us',JSON.stringify(content),resumeId]);
+    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))});
+  }
+  if(method==='DELETE'){if(!resumeId)return json({error:'Resume ID is required.'},400);await tursoQuery(env,'DELETE FROM cover_letters WHERE resume_id=$1',[resumeId]);await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1',[resumeId]);const {rows}=await tursoQuery(env,'DELETE FROM resumes WHERE id=$1 RETURNING id',[resumeId]);if(!rows.length)return json({error:'Resume not found.'},404);return json({ok:true,id:resumeId});}
+  return json({error:'Method not allowed.'},405);
+}
+
 async function resumePdf(request, env) {
   const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
   const branding = rows[0] || {};
@@ -1145,7 +1206,7 @@ export async function handleCloudflareApi(request, env) {
     const protectedRoutes = new Set([
       'admin-login','admin-case-study','admin-config','admin-duplicate-case-study',
       'admin-media-preview','admin-media','admin-preview','admin-projects',
-      'admin-session','admin-settings','admin-resume-profile','admin-trash','admin-upload'
+      'admin-session','admin-settings','admin-resume-profile','admin-resumes','admin-trash','admin-upload'
     ]);
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
@@ -1155,6 +1216,7 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
         if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
+        if (route === 'admin-resumes') return await adminResumes(request, env);
         // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);
