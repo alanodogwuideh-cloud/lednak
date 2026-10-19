@@ -881,6 +881,55 @@ function resumeStudioJson(text) {
   if (start < 0 || end <= start) throw new Error('The AI returned an incomplete response. Please try again.');
   return JSON.parse(clean.slice(start, end + 1));
 }
+function resumeStudioFastProfile(text) {
+  const source = String(text || '').replace(/\r/g, '');
+  const lines = source.split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const joined = lines.join('\n');
+  const email = (joined.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [''])[0];
+  const phone = (joined.match(/(?:\+?\d[\d\s().-]{7,}\d)/) || [''])[0].trim();
+  const urls = [...new Set(joined.match(/https?:\/\/[^\s)>,]+/gi) || [])].slice(0, 12);
+  const name = lines.find(line => line.length < 70 && !/@|https?:\/\/|\d{3,}/.test(line) && !/resume|curriculum vitae|professional profile/i.test(line)) || '';
+  const headings = {
+    summary: /^(professional summary|summary|profile|career objective|objective|about me)$/i,
+    experience: /^(work experience|professional experience|employment history|experience|career history)$/i,
+    projects: /^(projects|selected projects|key projects|portfolio projects)$/i,
+    skills: /^(skills|core skills|technical skills|competencies|areas of expertise|tools)$/i,
+    education: /^(education|academic background|qualifications|education and training)$/i,
+    certifications: /^(certifications|certificates|licenses|professional certifications)$/i
+  };
+  const sections = { summary: [], experience: [], projects: [], skills: [], education: [], certifications: [] };
+  let current = '';
+  for (const line of lines) {
+    let found = '';
+    for (const [key, regex] of Object.entries(headings)) if (regex.test(line.replace(/:$/, ''))) { found = key; break; }
+    if (found) { current = found; continue; }
+    if (current && !/^(page\s+\d+|references available on request)$/i.test(line)) sections[current].push(line);
+  }
+  const bullets = arr => arr.filter(line => line.length > 2).map(line => ({ text: line.replace(/^[-•*▪◦]\s*/, '').trim() })).filter(x => x.text);
+  const dateLine = /(?:19|20)\d{2}|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}/i;
+  const expLines = sections.experience;
+  const experience = [];
+  for (const line of expLines) {
+    if (dateLine.test(line) && (experience.length === 0 || line.length < 180)) {
+      experience.push({ company: '', title: line, location: '', startDate: '', endDate: '', current: /present|current/i.test(line), bullets: [] });
+    } else if (!experience.length) {
+      experience.push({ company: '', title: '', location: '', startDate: '', endDate: '', current: false, bullets: [] });
+      experience[0].bullets.push({ text: line.replace(/^[-•*▪◦]\s*/, '') });
+    } else experience[experience.length - 1].bullets.push({ text: line.replace(/^[-•*▪◦]\s*/, '') });
+  }
+  const skills = sections.skills.length ? [{ category: 'Skills', items: sections.skills.join(', ').split(/[,;|•]/).map(x => x.trim()).filter(Boolean).slice(0, 100) }] : [];
+  const education = sections.education.length ? [{ institution: '', degree: sections.education[0] || '', field: '', startDate: '', endDate: '', notes: sections.education.slice(1).join('\n') }] : [];
+  const certifications = sections.certifications.map(line => ({ name: line, issuer: '', date: '' }));
+  const projects = sections.projects.map(line => ({ name: line.replace(/^[-•*▪◦]\s*/, ''), url: urls.find(url => line.includes(url)) || '', description: '', bullets: [] }));
+  return {
+    profile: {
+      contact: { fullName: name, email, phone, location: '', links: urls.map(url => ({ label: /linkedin/i.test(url) ? 'LinkedIn' : /github/i.test(url) ? 'GitHub' : 'Portfolio', url })) },
+      summaries: sections.summary.length ? [{ label: 'Professional summary', text: sections.summary.join(' ') }] : [],
+      experience, projects, skills, education, certifications
+    },
+    warnings: ['Fast text extraction was used because AI did not finish within 7 seconds. Review all fields carefully; complex role and date formatting may need manual correction.']
+  };
+}
 async function adminResumeStudio(request, env) {
   const record = await getResumeStudioRecord(env);
   const method = request.method.toUpperCase();
@@ -978,7 +1027,7 @@ async function adminResumeStudio(request, env) {
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
     if (isProfileImport) {
-      prompt = 'Extract the supplied resume into a structured career profile. Return valid JSON only with this exact shape: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"id":"","label":"Professional summary","text":""}],"experience":[{"id":"","company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"id":"","text":"","tags":[]}]}],"projects":[{"id":"","name":"","url":"","description":"","bullets":[{"id":"","text":"","tags":[]}]}],"skills":[{"id":"","category":"","items":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}]},"warnings":["..."]}. Use empty arrays when a section has no evidence and empty strings for unknown values. Extract only information explicitly present; do not infer dates, metrics, qualifications, skills, employers, or URLs. Preserve achievement wording and numbers. Split distinct roles and achievements into separate structured entries. Do not treat headings or contact details as achievements. Keep the profile object complete even when sections are absent. Add a warning for any ambiguous or unreadable information. RESUME TEXT:\\n' + master;
+      prompt = 'Extract the supplied resume into a structured career profile. Return valid JSON only with this exact shape: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"id":"","label":"Professional summary","text":""}],"experience":[{"id":"","company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"id":"","text":"","tags":[]}]}],"projects":[{"id":"","name":"","url":"","description":"","bullets":[{"id":"","text":"","tags":[]}]}],"skills":[{"id":"","category":"","items":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}]},"warnings":["..."]}. Use empty arrays when a section has no evidence and empty strings for unknown values. Extract only information explicitly present; do not infer dates, metrics, qualifications, skills, employers, or URLs. Preserve achievement wording and numbers. Split distinct roles and achievements into separate structured entries. Do not treat headings or contact details as achievements. Keep the profile object complete even when sections are absent. Add a warning for any ambiguous or unreadable information. For speed, do not generate IDs or tags even if those keys appear in the schema; the application creates IDs itself. Keep each bullet to one concise sentence, avoid repeated wording, and preserve every distinct role, project, qualification, skill group, date, and achievement. Return only the required data with no explanations. Never output explanations outside the JSON. RESUME TEXT:\\n' + master;
     } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
     } else if (action === 'cover-only') {
@@ -992,21 +1041,59 @@ async function adminResumeStudio(request, env) {
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
     const requestedTokens = isProfileImport ? 4000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      if (isProfileImport) {
+        let timeoutHandle;
+        try {
+          modelResult = await Promise.race([
+            env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens }),
+            new Promise((_, reject) => { timeoutHandle = setTimeout(() => { const error = new Error('Resume import AI time budget exceeded'); error.name = 'ResumeImportTimeout'; reject(error); }, 7000); })
+          ]);
+        } finally { clearTimeout(timeoutHandle); }
+      } else {
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      }
     } catch (firstError) {
-      // Retry once with the same model and a smaller output budget. This handles transient
-      // Workers AI capacity/timeout failures without silently switching models.
-      try {
-        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: Math.min(requestedTokens, 1800) });
-      } catch (retryError) {
-        const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-        return json({ error: 'Llama 4 Scout failed during model invocation after one retry.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model }, 502);
+      if (isProfileImport && firstError?.name === 'ResumeImportTimeout') {
+        // Return a structured fallback rather than a script-like model response or a long spinner.
+        modelResult = { response: JSON.stringify(resumeStudioFastProfile(master)) };
+      } else {
+        // Keep the same model and original output budget on transient invocation errors.
+        await new Promise(resolve => setTimeout(resolve, 350));
+        try {
+          modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+        } catch (retryError) {
+          if (isProfileImport) {
+            modelResult = { response: JSON.stringify(resumeStudioFastProfile(master)) };
+          } else {
+            const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+            console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+            return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
+          }
+        }
       }
     }
-    const output = typeof modelResult === 'string' ? modelResult : String(modelResult?.response || modelResult?.output_text || modelResult?.result?.response || '');
+    const extractModelOutput = result => typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');
+    let output = extractModelOutput(modelResult);
     let parsed;
-    try { parsed = resumeStudioJson(output); } catch (error) { return json({ error: error.message || 'The AI response was not valid JSON. Please retry.' }, 502); }
+    try {
+      parsed = resumeStudioJson(output);
+    } catch (firstParseError) {
+      if (isProfileImport) {
+        parsed = resumeStudioFastProfile(master);
+      } else {
+        // Other Resume Studio tasks retain the full-budget JSON repair retry.
+        try {
+          const repairPrompt = prompt + '\\n\\nIMPORTANT: Your previous response was not parseable JSON. Return the complete requested JSON object only. Do not use markdown fences, commentary, or omit any requested fields.';
+          const repairResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: repairPrompt }], max_tokens: requestedTokens });
+          output = extractModelOutput(repairResult);
+          parsed = resumeStudioJson(output);
+        } catch (repairError) {
+          const detail = String(repairError?.message || firstParseError?.message || 'The model returned invalid JSON.').slice(0, 300);
+          console.error('Resume Studio Llama 4 Scout JSON response failed validation:', detail);
+          return json({ error: 'Llama 4 Scout returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+        }
+      }
+    }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
     if (isProfileImport) {
       const imported = object(parsed.profile);

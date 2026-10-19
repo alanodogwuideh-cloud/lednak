@@ -201,3 +201,11 @@
 @media(max-width:900px){#resumeTab .rs-save-bar{left:14px!important;right:14px!important;bottom:10px!important;padding:12px!important;gap:10px!important}}
 @media(max-width:460px){#resumeTab .rs-save-bar{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important;gap:8px!important;padding:11px!important}#resumeTab .rs-save-bar>div{width:100%!important}#resumeTab #rsSaveButton{width:100%!important;min-width:0!important;min-height:40px!important;padding:10px 12px!important}}
 @media(max-width:760px){#resumeTab{padding-bottom:24px}#resumeTab .rs-resume-paper{width:100%;max-width:100%;font-size:clamp(10px,2.8vw,12px)}#resumeTab .rs-save-bar{position:sticky;bottom:8px}}
+/* Human-readable resume import review */
+#resumeTab .rs-import-section{display:grid;gap:12px;padding:16px 0;border-top:1px solid #e8e9e4}
+#resumeTab .rs-import-section h4{margin:0;color:#242520;font:700 14px Manrope,sans-serif}
+#resumeTab .rs-import-card{display:grid;gap:12px;padding:14px;border:1px solid #e2e4dc;border-radius:11px;background:#fcfcfa}
+#resumeTab .rs-import-card>strong{font-size:12px;color:#292a25}
+#resumeTab .rs-import-empty{margin:0;color:#777a73;font-size:12px}
+#resumeTab .rs-import-modal-body{scrollbar-gutter:stable}
+@media(max-width:600px){#resumeTab .rs-import-card{padding:11px}#resumeTab .rs-import-section{padding:12px 0}#resumeTab .rs-import-section .rs-form-grid{grid-template-columns:minmax(0,1fr)}}

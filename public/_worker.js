@@ -19,6 +19,12 @@ export default {
       const allowedOrigin = configuredOrigin.endsWith('/') ? configuredOrigin.slice(0, -1) : configuredOrigin;
       const isAllowedPreview = origin === allowedOrigin;
       if (request.method === 'OPTIONS') {
+        // Resume Studio has its own explicit multi-origin CORS policy in the API
+        // handler. Let it answer preflight instead of rejecting valid production
+        // origins here at the generic preview-only gate.
+        if (url.pathname.replace(/\/$/, '') === '/api/admin-resume-studio') {
+          return await handleCloudflareApi(request, env, ctx);
+        }
         if (!isAllowedPreview) return new Response(null, { status: 403 });
         return new Response(null, { status: 204, headers: {
           'Access-Control-Allow-Origin': allowedOrigin,

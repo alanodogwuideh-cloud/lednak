@@ -281,7 +281,16 @@
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
       const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
-      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+      let result;
+      try {
+        result = await api(endpoint, { method: 'POST', signal: controller.signal, body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
+      } catch (requestError) {
+        if (requestError?.name === 'AbortError') throw new Error('Resume import exceeded the 10-second limit. Please retry with a text-based PDF or DOCX; your existing Master Profile has not been changed.');
+        throw requestError;
+      } finally { window.clearTimeout(timeoutId); }
+      if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
       importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name };
       importError = '';
     } catch (error) {
@@ -311,7 +320,17 @@
       ['Skill groups', p.skills?.length || 0], ['Education', p.education?.length || 0],
       ['Certifications', p.certifications?.length || 0]
     ];
-    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Check the extracted fields before they are applied. Unknown details should remain blank.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">No extraction warnings were returned. Still verify the details below.</p>') + '<label class="rs-field rs-wide"><span>Editable structured profile data (JSON)</span><textarea id="rsImportJson" rows="18" spellcheck="false">' + escHtml(JSON.stringify(p, null, 2)) + '</textarea><small>Review names, employers, dates, achievements, links and credentials. Edit the JSON if anything is misplaced. Nothing is saved until you confirm.</small></label><p class="rs-import-note">For safety, importing replaces the current Master Profile after confirmation. Your existing saved profile remains unchanged if you cancel.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
+    const input = (label,path,value,wide=false) => '<label class="rs-field'+(wide?' rs-wide':'')+'"><span>'+label+'</span><input data-import-path="'+path+'" value="'+escHtml(value||'')+'" /></label>';
+    const area = (label,path,value) => '<label class="rs-field rs-wide"><span>'+label+'</span><textarea data-import-path="'+path+'" rows="3">'+escHtml(value||'')+'</textarea></label>';
+    const contact = p.contact || {};
+    const contactHtml = '<section class="rs-import-section"><h4>Contact details</h4><div class="rs-form-grid">'+input('Full name','contact.fullName',contact.fullName)+input('Email','contact.email',contact.email)+input('Phone','contact.phone',contact.phone)+input('Location','contact.location',contact.location)+(contact.links||[]).map((x,i)=>input('Link '+(i+1)+' label','contact.links.'+i+'.label',x.label)+input('Link '+(i+1)+' URL','contact.links.'+i+'.url',x.url)).join('')+'</div></section>';
+    const summariesHtml = (p.summaries||[]).length ? '<section class="rs-import-section"><h4>Professional summary</h4>'+(p.summaries||[]).map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Summary label','summaries.'+i+'.label',x.label)+area('Summary text','summaries.'+i+'.text',x.text)+'</div></div>').join('')+'</section>' : '';
+    const experienceHtml = '<section class="rs-import-section"><h4>Work experience</h4>'+((p.experience||[]).length ? p.experience.map((x,i)=>'<article class="rs-import-card"><strong>'+(escHtml(x.title||'Role '+(i+1)))+'</strong><div class="rs-form-grid">'+input('Job title','experience.'+i+'.title',x.title)+input('Company','experience.'+i+'.company',x.company)+input('Location','experience.'+i+'.location',x.location)+input('Start date','experience.'+i+'.startDate',x.startDate)+input('End date','experience.'+i+'.endDate',x.endDate)+area('Achievements / responsibilities (one per line)','experience.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No work experience was detected.</p>')+'</section>';
+    const projectsHtml = '<section class="rs-import-section"><h4>Projects</h4>'+((p.projects||[]).length ? p.projects.map((x,i)=>'<article class="rs-import-card"><div class="rs-form-grid">'+input('Project name','projects.'+i+'.name',x.name)+input('Project URL','projects.'+i+'.url',x.url)+area('Description','projects.'+i+'.description',x.description)+area('Project achievements (one per line)','projects.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No projects were detected.</p>')+'</section>';
+    const skillsHtml = '<section class="rs-import-section"><h4>Skills</h4>'+((p.skills||[]).length ? p.skills.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Skill group','skills.'+i+'.category',x.category)+area('Skills (comma-separated)','skills.'+i+'._items',Array.isArray(x.items)?x.items.join(', '):x.items)+'</div></div>').join('') : '<p class="rs-import-empty">No skill groups were detected.</p>')+'</section>';
+    const educationHtml = '<section class="rs-import-section"><h4>Education</h4>'+((p.education||[]).length ? p.education.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Institution','education.'+i+'.institution',x.institution)+input('Qualification','education.'+i+'.degree',x.degree)+input('Field of study','education.'+i+'.field',x.field)+input('Start date','education.'+i+'.startDate',x.startDate)+input('End date','education.'+i+'.endDate',x.endDate)+area('Notes','education.'+i+'.notes',x.notes)+'</div></div>').join('') : '<p class="rs-import-empty">No education details were detected.</p>')+'</section>';
+    const certHtml = '<section class="rs-import-section"><h4>Certifications</h4>'+((p.certifications||[]).length ? p.certifications.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Certification','certifications.'+i+'.name',x.name)+input('Issuer','certifications.'+i+'.issuer',x.issuer)+input('Date','certifications.'+i+'.date',x.date)+'</div></div>').join('') : '<p class="rs-import-empty">No certifications were detected.</p>')+'</section>';
+    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
   }
   function render() {
     if (activeView === 'resumes') { renderResumeView(); return; }
@@ -465,10 +484,28 @@
     if (importControl) {
       if (importControl.dataset.importAction === 'dismiss') { importReview = null; render(); return; }
       if (importControl.dataset.importAction === 'apply') {
-        let imported;
-        try { imported = JSON.parse(root.querySelector('#rsImportJson')?.value || '{}'); }
-        catch (_) { alert('The profile JSON has a syntax error. Correct it before importing.'); return; }
-        if (!imported || typeof imported !== 'object' || Array.isArray(imported) || !imported.contact) { alert('The profile data is incomplete. Keep the contact object and profile sections in the expected structure.'); return; }
+        const imported = JSON.parse(JSON.stringify(importReview?.profile || {}));
+        if (!imported.contact) { alert('The extracted profile is incomplete. Please import the resume again.'); return; }
+        const assign = (path,value) => {
+          const parts = path.split('.');
+          let target = imported;
+          for (const part of parts.slice(0,-1)) {
+            if (target[part] == null) target[part] = /^\d+$/.test(parts[parts.indexOf(part)+1] || '') ? [] : {};
+            target = target[part];
+          }
+          target[parts[parts.length-1]] = value;
+        };
+        root.querySelectorAll('[data-import-path]').forEach(field => {
+          const path = field.dataset.importPath;
+          if (path.endsWith('._bullets')) {
+            const key = path.split('.').slice(0,-1).join('.');
+            const existing = key.split('.').reduce((obj,part)=>obj?.[part], imported) || [];
+            const texts = field.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+            assign(key, texts.map((text,i)=>({id:existing[i]?.id||uid(),text,tags:Array.isArray(existing[i]?.tags)?existing[i].tags:[]})));
+          } else if (path.endsWith('._items')) {
+            assign(path.slice(0,-7)+'.items', splitTags(field.value));
+          } else assign(path, field.value.trim());
+        });
         const hasExisting = profile.contact.fullName || profile.contact.email || profile.experience.length || profile.projects.length || profile.skills.length || profile.education.length || profile.certifications.length || profile.summaries.length;
         if (hasExisting && !confirm('This will replace the current Master Profile fields with the imported information. Your saved server profile will not change until you click Save Master Profile. Continue?')) return;
         profile = normalizeImportedProfile(imported);
