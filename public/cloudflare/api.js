@@ -780,6 +780,14 @@ async function adminUpload(request, env) {
 }
 
 async function ensureResumeStudioSchema(env) {
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS master_profile (id INTEGER PRIMARY KEY CHECK (id = 1), profile_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, company TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'saved', analysis_json TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS resumes (id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL, title TEXT NOT NULL, template TEXT NOT NULL DEFAULT 'us', content TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS resume_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, resume_id INTEGER NOT NULL REFERENCES resumes(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS cover_letters (id INTEGER PRIMARY KEY AUTOINCREMENT, resume_id INTEGER NOT NULL UNIQUE REFERENCES resumes(id) ON DELETE CASCADE, content TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`
+  ];
+  for (const sql of tables) await tursoQuery(env, sql);
   const columns = [
     ['master_resume_text','TEXT'],
     ['master_resume_source_key','TEXT'],
@@ -1296,6 +1304,7 @@ async function favicon(request, env) {
 
 const RESUME_STUDIO_ALLOWED_ORIGINS = new Set([
   'https://alan-odogwuideh-ux-5at3.hatchable.site',
+  'https://alan-odogwuideh-ux-5at3.hatchable.site',
   'https://alanodogwuideh.com',
   'https://www.alanodogwuideh.com',
   'https://0e09631b.alanodogwuideh.pages.dev'
@@ -1366,8 +1375,8 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
-        if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
-        if (route === 'admin-resumes') return await adminResumes(request, env);
+        if (route === 'admin-resume-profile') { await ensureResumeStudioSchema(env); return await adminResumeProfile(request, env); }
+        if (route === 'admin-resumes') { await ensureResumeStudioSchema(env); return await adminResumes(request, env); }
         if (route === 'admin-resume-studio') return resumeStudioCors(await adminResumeStudio(request, env), request);
         // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);

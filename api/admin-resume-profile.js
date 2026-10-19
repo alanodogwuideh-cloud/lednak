@@ -1,4 +1,4 @@
-import { tursoQuery } from 'lib/turso';
+import { tursoQuery, ensureResumeStudioSchema } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 export const access = 'public';
@@ -95,6 +95,7 @@ export default async function (req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
   try {
+    await ensureResumeStudioSchema();
     if (req.method === 'GET') {
       const { rows } = await tursoQuery('SELECT profile_json, updated_at FROM master_profile WHERE id=1 LIMIT 1');
       let profile = emptyProfile();
