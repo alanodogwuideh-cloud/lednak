@@ -76,3 +76,81 @@
 #resumeTab .rs-analysis-modal-footer button{flex:0 0 auto}
 #resumeTab .rs-analysis-note{font-size:11px}
 @media(max-width:600px){#resumeTab .rs-analysis-backdrop{align-items:flex-end;padding:0}#resumeTab .rs-analysis-modal{width:100%;max-height:90dvh;border-radius:20px 20px 0 0;border-bottom:0}#resumeTab .rs-analysis-modal-header{padding:22px 20px 16px}#resumeTab .rs-analysis-modal-body{padding:18px 20px}#resumeTab .rs-analysis-modal-footer{padding:14px 20px;align-items:flex-start;flex-direction:column}#resumeTab .rs-analysis-modal-footer button{width:100%}}
+
+/* Resume Studio responsive quality pass: reflow components instead of shrinking them */
+#resumeTab,#resumeTab *{min-width:0}
+#resumeTab .rs-resume-workspace{grid-template-columns:minmax(0,1fr) minmax(320px, .92fr);gap:clamp(18px,2.2vw,30px);align-items:start}
+#resumeTab .rs-resume-form-pane,#resumeTab .rs-resume-preview-pane{min-width:0;width:100%}
+#resumeTab .rs-resume-paper{max-width:100%;margin-inline:auto}
+#resumeTab .rs-editor-toolbar-actions>button,#resumeTab .rs-resume-heading-actions>button{min-height:44px;max-width:100%;white-space:normal;line-height:1.3}
+#resumeTab button,#resumeTab input,#resumeTab select,#resumeTab textarea{max-width:100%}
+#resumeTab .rs-resume-card-main h3,#resumeTab .rs-resume-card-main p,#resumeTab .rs-item-title strong,#resumeTab .rs-item-title small{overflow-wrap:anywhere;word-break:normal}
+#resumeTab .rs-save-bar{gap:14px}
+@media (min-width:1101px) and (max-width:1350px){
+ #resumeTab .rs-resume-workspace{grid-template-columns:minmax(0,1fr) minmax(300px,.82fr);gap:20px}
+ #resumeTab .rs-save-bar{width:min(calc(100vw - 250px - 64px),1200px);max-width:calc(100vw - 250px - 64px)}
+}
+@media (min-width:761px) and (max-width:1100px){
+ #resumeTab .rs-resume-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+ #resumeTab .rs-resume-form-pane{width:100%;max-width:none}
+ #resumeTab .rs-resume-preview-pane{width:min(100%,760px);max-width:760px;margin:0 auto}
+ #resumeTab .rs-resume-paper{width:100%;font-size:12px}
+ #resumeTab .rs-editor-toolbar{display:grid;grid-template-columns:minmax(145px,auto) minmax(0,1fr);align-items:start;gap:12px;padding:14px}
+ #resumeTab .rs-editor-toolbar>button[data-resume-action="back"]{grid-column:1;grid-row:1;align-self:start;white-space:normal;min-height:44px;padding:11px 14px}
+ #resumeTab .rs-editor-toolbar-actions{grid-column:2;grid-row:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;width:100%;min-width:0}
+ #resumeTab .rs-resume-save-status{grid-column:1/-1;display:block;margin:0 0 2px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+ #resumeTab .rs-editor-toolbar-actions>button{width:100%;min-height:46px;padding:10px 12px;white-space:normal;line-height:1.3}
+ #resumeTab .rs-save-bar{left:18px;right:18px;width:auto;max-width:none;transform:none;gap:14px;padding:14px 16px}
+ #resumeTab .rs-save-bar small{line-height:1.45}
+}
+@media (max-width:760px){
+ #resumeTab{padding-bottom:180px}
+ #resumeTab .rs-header{gap:12px}
+ #resumeTab .rs-header h2{font-size:clamp(22px,5vw,26px);line-height:1.2}
+ #resumeTab .rs-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:6px;margin-bottom:20px}
+ #resumeTab .rs-tab{justify-content:flex-start;min-height:44px;padding:11px 12px;font-size:12px;white-space:normal;line-height:1.3}
+ #resumeTab .rs-tab span{display:inline;font-size:9px}
+ #resumeTab .rs-intro-row,#resumeTab .rs-list-head{align-items:flex-start;gap:12px}
+ #resumeTab .rs-resume-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+ #resumeTab .rs-resume-preview-pane{width:100%;max-width:100%;margin:0}
+ #resumeTab .rs-resume-paper{width:100%;max-width:100%;font-size:clamp(10px,2.8vw,12px)}
+ #resumeTab .rs-editor-toolbar{position:relative;top:auto;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:12px;margin-bottom:16px}
+ #resumeTab .rs-editor-toolbar>button[data-resume-action="back"]{width:100%;min-height:44px;justify-content:center}
+ #resumeTab .rs-editor-toolbar-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+ #resumeTab .rs-editor-toolbar-actions>button{width:100%;min-height:46px;padding:10px 11px;white-space:normal;line-height:1.3}
+ #resumeTab .rs-resume-save-status{grid-column:1/-1;grid-row:1;margin:0 0 2px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+ #resumeTab .rs-save-bar{left:10px;right:10px;bottom:10px;width:auto;max-width:none;transform:none;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:13px 14px;border-radius:14px}
+ #resumeTab .rs-save-bar>div{gap:3px}
+ #resumeTab .rs-save-bar strong{font-size:12px}
+ #resumeTab .rs-save-bar small{font-size:11px;line-height:1.45}
+ #resumeTab #rsSaveButton{width:100%;min-height:46px}
+ #resumeTab .rs-section>summary{gap:10px;padding:15px}
+ #resumeTab .rs-section-summary strong{font-size:13px;line-height:1.4}
+ #resumeTab .rs-section-summary small{font-size:11px}
+ #resumeTab .rs-section-body{padding:14px;gap:16px}
+ #resumeTab .rs-item-card{padding:13px;gap:14px}
+ #resumeTab .rs-link-row{padding:10px}
+ #resumeTab .rs-bullet-row{gap:8px;padding:10px}
+ #resumeTab .rs-analysis-backdrop{padding:0;align-items:flex-end}
+ #resumeTab .rs-analysis-modal{width:100%;max-width:none;max-height:90dvh;border-radius:20px 20px 0 0}
+}
+@media (max-width:460px){
+ #resumeTab .rs-tabs{grid-template-columns:minmax(0,1fr)}
+ #resumeTab .rs-tab{justify-content:space-between}
+ #resumeTab .rs-intro-row,#resumeTab .rs-list-head{flex-direction:column}
+ #resumeTab .rs-profile-count{white-space:normal}
+ #resumeTab .rs-resume-card{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;gap:12px;padding:13px}
+ #resumeTab .rs-resume-card-main{min-width:0;width:100%}
+ #resumeTab .rs-resume-card-actions{grid-column:1/-1;justify-content:flex-start;width:100%}
+ #resumeTab .rs-card-actions{margin-left:0;width:100%;justify-content:flex-start}
+ #resumeTab .rs-item-head{align-items:flex-start}
+ #resumeTab .rs-subhead{align-items:flex-start;flex-direction:column}
+ #resumeTab .rs-subhead .rs-small-button{align-self:flex-start}
+ #resumeTab .rs-editor-toolbar-actions{grid-template-columns:minmax(0,1fr)}
+ #resumeTab .rs-editor-toolbar-actions>button{min-height:44px}
+ #resumeTab .rs-save-bar{left:8px;right:8px;bottom:8px;padding:11px 12px}
+ #resumeTab .rs-analysis-modal-header{padding:20px 18px 15px}
+ #resumeTab .rs-analysis-modal-body{padding:16px 18px}
+ #resumeTab .rs-analysis-modal-footer{padding:13px 18px}
+}
+@media (prefers-reduced-motion:reduce){#resumeTab *,#resumeTab *::before,#resumeTab *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
