@@ -13,6 +13,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers }
 });
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const skillItems = value => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(item => String(item ?? '').trim().slice(0,100)).filter(Boolean).slice(0,100);
 const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 const normalizeR2Url = value => {
   const raw = String(value || '');
@@ -1098,7 +1099,7 @@ function resumeSnapshotFromMaster(profile) {
     sectionTitles:{summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'},hiddenSections:[],
     experience:(Array.isArray(profile.experience)?profile.experience:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false,endDate:x.current?'Present':String(x.endDate||''),bullets:(Array.isArray(x.bullets)?x.bullets:[]).map(b=>({id:b.id||crypto.randomUUID(),text:String(b.text||''),hidden:false}))})),
     projects:(Array.isArray(profile.projects)?profile.projects:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false,bullets:(Array.isArray(x.bullets)?x.bullets:[]).map(b=>({id:b.id||crypto.randomUUID(),text:String(b.text||''),hidden:false}))})),
-    skills:(Array.isArray(profile.skills)?profile.skills:[]).map(x=>({...object(x),id:crypto.randomUUID(),hidden:false,items:Array.isArray(x.items)?x.items:[]})),
+    skills:(Array.isArray(profile.skills)?profile.skills:[]).map(x=>({...object(x),id:crypto.randomUUID(),hidden:false,items:skillItems(x.items)})),
     education:(Array.isArray(profile.education)?profile.education:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false})),
     certifications:(Array.isArray(profile.certifications)?profile.certifications:[]).map(x=>({...object(x),id:x.id||crypto.randomUUID(),hidden:false}))
   };
@@ -1112,7 +1113,7 @@ function normalizeResumeContent(value) {
     hiddenSections:(Array.isArray(c.hiddenSections)?c.hiddenSections:[]).filter(x=>sections.includes(x)),
     experience:(Array.isArray(c.experience)?c.experience:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,bullets:(Array.isArray(x.bullets)?x.bullets:[]).slice(0,40).map(b=>({...object(b),id:String(b.id||crypto.randomUUID()),text:String(b.text||'').slice(0,2000),hidden:b.hidden===true}))})),
     projects:(Array.isArray(c.projects)?c.projects:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,bullets:(Array.isArray(x.bullets)?x.bullets:[]).slice(0,40).map(b=>({...object(b),id:String(b.id||crypto.randomUUID()),text:String(b.text||'').slice(0,2000),hidden:b.hidden===true}))})),
-    skills:(Array.isArray(c.skills)?c.skills:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,category:String(x.category||'').slice(0,100),items:(Array.isArray(x.items)?x.items:[]).slice(0,100).map(s=>String(s).slice(0,100))})),
+    skills:(Array.isArray(c.skills)?c.skills:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true,category:String(x.category||'').slice(0,100),items:skillItems(x.items)})),
     education:(Array.isArray(c.education)?c.education:[]).slice(0,30).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true})),
     certifications:(Array.isArray(c.certifications)?c.certifications:[]).slice(0,50).map(x=>({...object(x),id:String(x.id||crypto.randomUUID()),hidden:x.hidden===true}))};
   for(const s of sections) if(!out.sectionOrder.includes(s)) out.sectionOrder.push(s);

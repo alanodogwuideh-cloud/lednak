@@ -7,6 +7,7 @@ export const methods = ['GET','POST','PUT','DELETE'];
 const text = (value, max = 500) => String(value ?? '').trim().slice(0, max);
 const obj = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 const arr = value => Array.isArray(value) ? value : [];
+const skillItems = value => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(item => text(item,100)).filter(Boolean).slice(0,100);
 const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 
 function snapshotFromProfile(profile) {
@@ -34,7 +35,7 @@ function snapshotFromProfile(profile) {
       description:text(x?.description,2000), hidden:false,
       bullets:arr(x?.bullets).map(b=>({id:text(b?.id,80)||crypto.randomUUID(),text:text(b?.text,2000),hidden:false}))
     })),
-    skills: arr(profile.skills).map(x=>({id:crypto.randomUUID(),category:text(x?.category,100),items:arr(x?.items).map(s=>text(s,100)).filter(Boolean),hidden:false})),
+    skills: arr(profile.skills).map(x=>({id:crypto.randomUUID(),category:text(x?.category,100),items:skillItems(x?.items),hidden:false})),
     education: arr(profile.education).map(x=>({
       id:text(x?.id,80)||crypto.randomUUID(), institution:text(x?.institution,180), degree:text(x?.degree,180),
       field:text(x?.field,180), startDate:text(x?.startDate,40), endDate:text(x?.endDate,40), notes:text(x?.notes,1200), hidden:false
@@ -54,7 +55,7 @@ function normalizeContent(value) {
     hiddenSections: arr(content.hiddenSections).filter(x=>sections.includes(x)),
     experience: arr(content.experience).slice(0,50).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),company:text(x?.company,180),title:text(x?.title,180),location:text(x?.location,160),startDate:text(x?.startDate,40),endDate:text(x?.endDate,40),current:x?.current===true,hidden:x?.hidden===true,bullets:arr(x?.bullets).slice(0,40).map(b=>({...obj(b),id:text(b?.id,80)||crypto.randomUUID(),text:text(b?.text,2000),hidden:b?.hidden===true}))})),
     projects: arr(content.projects).slice(0,50).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),name:text(x?.name,180),url:text(x?.url,500),description:text(x?.description,2000),hidden:x?.hidden===true,bullets:arr(x?.bullets).slice(0,40).map(b=>({...obj(b),id:text(b?.id,80)||crypto.randomUUID(),text:text(b?.text,2000),hidden:b?.hidden===true}))})),
-    skills: arr(content.skills).slice(0,50).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),category:text(x?.category,100),items:arr(x?.items).slice(0,100).map(s=>text(s,100)).filter(Boolean),hidden:x?.hidden===true})),
+    skills: arr(content.skills).slice(0,50).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),category:text(x?.category,100),items:skillItems(x?.items),hidden:x?.hidden===true})),
     education: arr(content.education).slice(0,30).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),institution:text(x?.institution,180),degree:text(x?.degree,180),field:text(x?.field,180),startDate:text(x?.startDate,40),endDate:text(x?.endDate,40),notes:text(x?.notes,1200),hidden:x?.hidden===true})),
     certifications: arr(content.certifications).slice(0,50).map(x=>({...obj(x),id:text(x?.id,80)||crypto.randomUUID(),name:text(x?.name,180),issuer:text(x?.issuer,180),date:text(x?.date,80),hidden:x?.hidden===true}))
   };
