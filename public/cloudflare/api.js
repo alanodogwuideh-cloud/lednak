@@ -1181,10 +1181,41 @@ async function favicon(request, env) {
   return new Response(null, { status: 302, headers: { location: target, 'cache-control': 'public, max-age=86400, stale-while-revalidate=604800' } });
 }
 
+const RESUME_STUDIO_ALLOWED_ORIGINS = new Set([
+  'https://alan-odogwuideh-ux-5at3.hatchable.site',
+  'https://alanodogwuideh.com',
+  'https://www.alanodogwuideh.com',
+  'https://0e09631b.alanodogwuideh.pages.dev'
+]);
+function resumeStudioCors(response, request) {
+  const origin = request.headers.get('Origin') || '';
+  if (!RESUME_STUDIO_ALLOWED_ORIGINS.has(origin)) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', origin);
+  headers.set('Access-Control-Allow-Credentials', 'true');
+  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  headers.append('Vary', 'Origin');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export async function handleCloudflareApi(request, env) {
   const url = new URL(request.url);
   const route = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
   const method = request.method.toUpperCase();
+
+  if (route === 'admin-resume-studio' && method === 'OPTIONS') {
+    const origin = request.headers.get('Origin') || '';
+    if (!RESUME_STUDIO_ALLOWED_ORIGINS.has(origin)) return json({ error: 'Origin is not allowed.' }, 403);
+    return new Response(null, { status: 204, headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+      'Access-Control-Max-Age': '600',
+      'Vary': 'Origin'
+    }});
+  }
 
   try {
     if (route === 'portfolio' && method === 'GET') return await portfolio(request, env);
@@ -1218,13 +1249,13 @@ export async function handleCloudflareApi(request, env) {
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
         const auth = await requireSupabaseAdmin(request, env);
-        if (!auth.ok) return json({ error: auth.error }, auth.status);
+        if (!auth.ok) return route === 'admin-resume-studio' ? resumeStudioCors(json({ error: auth.error }, auth.status), request) : json({ error: auth.error }, auth.status);
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
         if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
         if (route === 'admin-resumes') return await adminResumes(request, env);
-        if (route === 'admin-resume-studio') return await adminResumeStudio(request, env);
+        if (route === 'admin-resume-studio') return resumeStudioCors(await adminResumeStudio(request, env), request);
         // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);

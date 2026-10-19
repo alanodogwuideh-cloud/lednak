@@ -207,7 +207,8 @@
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
       resumeAnalyzing=true; resumeMessage=''; renderResumeView();
       try {
-        const result=await api('/admin-resume-studio',{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
+        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
+        const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
         resumeAnalysis=result.analysis||null;
         resumeMessage=resumeAnalysis?'Analysis complete. No resume content was changed.':'The analysis returned no results.';
       } catch(error) { resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
