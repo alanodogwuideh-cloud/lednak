@@ -326,7 +326,7 @@
     const viewTab=event.target.closest('[data-view], [data-resume-view]');
     if (viewTab) {
       const view=viewTab.dataset.view||viewTab.dataset.resumeView;
-      if (view==='resumes') { if (JSON.stringify(profile)!==savedJson && !confirm('Your Master Profile has unsaved changes. Discard them and open Resumes?')) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
+      if (view==='resumes') { if (activeView==='resumes' && currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to the resume list?')) return; if (JSON.stringify(profile)!==savedJson && !confirm('Your Master Profile has unsaved changes. Discard them and open Resumes?')) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
       if (view==='profile') { if (currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to Master Profile?')) return; activeView='profile'; currentResume=null; render(); return; }
     }
     const resumeButton=event.target.closest('[data-resume-action]');
