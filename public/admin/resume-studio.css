@@ -156,3 +156,22 @@
  #resumeTab .rs-analysis-modal-footer{padding:13px 18px}
 }
 @media (prefers-reduced-motion:reduce){#resumeTab *,#resumeTab *::before,#resumeTab *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Compact Resume Studio section menu on tablet and mobile */
+#resumeTab .rs-mobile-nav-toggle{display:none}
+@media(max-width:760px){
+ #resumeTab .rs-mobile-nav-toggle{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:46px;margin:0 0 12px;padding:12px 14px;border:1px solid #dedfd9;border-radius:11px;background:#fff;color:#272923;font:700 13px 'DM Sans',sans-serif;text-align:left}
+ #resumeTab .rs-mobile-nav-toggle span:first-child{display:grid;place-items:center;width:22px;height:22px;font-size:18px}
+ #resumeTab .rs-tabs{display:none;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:18px}
+ #resumeTab .rs-tabs.is-open{display:grid}
+}
+@media(max-width:460px){#resumeTab .rs-tabs{grid-template-columns:minmax(0,1fr)}}
+
+/* Resume preview scrolling: let the document grow and use the main page scroller */
+#resumeTab .rs-resume-preview-pane{position:relative;top:auto;align-self:start;min-height:0}
+#resumeTab .rs-resume-paper{height:auto;min-height:0;aspect-ratio:auto;overflow:visible;overscroll-behavior:auto;touch-action:auto;contain:none}
+#resumeTab .rs-resume-workspace{align-items:start}
+@media(min-width:1101px){#resumeTab .rs-resume-preview-pane{position:sticky;top:12px;max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}}
+@media(max-width:1100px){#resumeTab .rs-resume-preview-pane{position:relative;top:auto;max-height:none;overflow:visible;width:min(100%,760px);margin-inline:auto}#resumeTab .rs-resume-paper{font-size:12px}}
+@media(max-width:900px){#resumeTab .rs-editor-toolbar{position:relative;top:auto}#resumeTab .rs-save-bar{position:sticky;left:auto;right:auto;bottom:auto;transform:none;width:100%;max-width:100%;margin:22px 0 8px;z-index:20}#resumeTab .rs-save-bar::after{display:none}}
+@media(max-width:760px){#resumeTab{padding-bottom:24px}#resumeTab .rs-resume-paper{width:100%;max-width:100%;font-size:clamp(10px,2.8vw,12px)}#resumeTab .rs-save-bar{position:sticky;bottom:8px}}

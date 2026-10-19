@@ -578,4 +578,16 @@ initAuth().catch(()=>location.replace('/admin/login/'));/* Context-aware dropdow
  }
  document.addEventListener('click',e=>{if(opened&&!opened.menu.contains(e.target)&&!opened.trigger.contains(e.target))close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});window.addEventListener('resize',()=>opened&&position(opened));window.addEventListener('scroll',()=>opened&&position(opened),true);document.addEventListener('close',e=>{if(opened&&e.target===opened.menu.parentElement)close()},true);function scan(root){if(root.matches?.(selector))enhance(root);root.querySelectorAll?.(selector).forEach(enhance)}scan(document);new MutationObserver(records=>records.forEach(r=>r.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)}))).observe(document.body,{childList:true,subtree:true});
 })();
+/* Responsive admin navigation drawer */
+(function(){
+ const shell=document.getElementById('adminApp'),toggle=document.getElementById('mobileAdminMenuToggle'),backdrop=document.getElementById('mobileAdminMenuBackdrop'),sidebar=document.getElementById('adminSidebar');
+ if(!shell||!toggle||!backdrop||!sidebar)return;
+ function setOpen(open){shell.classList.toggle('admin-menu-open',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Close navigation menu':'Open navigation menu');backdrop.hidden=!open;document.body.classList.toggle('admin-menu-lock',open&&innerWidth<=900);if(open)sidebar.querySelector('.tab.active')?.focus({preventScroll:true});else toggle.focus({preventScroll:true});}
+ toggle.addEventListener('click',()=>setOpen(!shell.classList.contains('admin-menu-open')));
+ backdrop.addEventListener('click',()=>setOpen(false));
+ sidebar.addEventListener('click',event=>{if(event.target.closest('.tab[data-tab]')&&innerWidth<=900)setOpen(false)});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&shell.classList.contains('admin-menu-open'))setOpen(false)});
+ window.addEventListener('resize',()=>{if(innerWidth>900&&shell.classList.contains('admin-menu-open'))setOpen(false)});
+})();
+
 /* Global dropdown enhancer reverted: keep native selects until each context is redesigned safely. */
