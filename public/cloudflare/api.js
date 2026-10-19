@@ -1079,7 +1079,7 @@ async function adminResumeProfile(request, env) {
     let profile;
     try { profile = normalizeMasterProfile(body?.profile); }
     catch (error) { return json({ error: error.message || 'The profile is invalid.' }, Number(error.status) || 400); }
-    await tursoQuery(env, 'INSERT INTO master_profile (id, profile_json, created_at, updated_at) VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET profile_json=$1, updated_at=CURRENT_TIMESTAMP', [JSON.stringify(profile)]);
+    await tursoQuery(env, 'INSERT INTO master_profile (id, profile_json, created_at, updated_at) VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET profile_json=excluded.profile_json, updated_at=CURRENT_TIMESTAMP', [JSON.stringify(profile)]);
     const { rows } = await tursoQuery(env, 'SELECT updated_at FROM master_profile WHERE id=1 LIMIT 1');
     return json({ ok: true, profile, updatedAt: rows[0]?.updated_at || null });
   }
