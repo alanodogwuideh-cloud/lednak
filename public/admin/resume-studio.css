@@ -57,3 +57,22 @@
 #resumeTab .rs-analysis-note{margin:0;padding-top:12px;border-top:1px solid #ecece7;color:#777a73;font-size:11px;line-height:1.6}
 #resumeTab .rs-analysis-loading{display:flex;align-items:center;gap:12px;margin-top:20px;padding:18px;border:1px solid #dedfd9;border-radius:12px;background:#fff;color:#686c64;font-size:12px}
 @media(max-width:600px){#resumeTab .rs-analysis-panel{padding:15px}#resumeTab .rs-analysis-heading{align-items:flex-start;flex-direction:column}}
+
+/* Resume analysis overlay */
+#resumeTab .rs-analysis-backdrop{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(22,24,21,.48);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+#resumeTab .rs-analysis-modal{display:flex;flex-direction:column;width:min(760px,100%);max-height:min(82vh,900px);overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.7);border-radius:20px;box-shadow:0 24px 80px rgba(20,22,18,.24);outline:none}
+#resumeTab .rs-analysis-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 28px 20px;border-bottom:1px solid #ecece7}
+#resumeTab .rs-analysis-modal-header h3{margin:5px 0 6px;font-size:23px;letter-spacing:-.035em;color:#252720}
+#resumeTab .rs-analysis-modal-header p{margin:0;color:#777a73;font-size:12px;line-height:1.6}
+#resumeTab .rs-analysis-close{flex:0 0 38px;width:38px;height:38px;display:grid;place-items:center;border:1px solid #e4e5df;border-radius:50%;background:#fff;color:#35372f;font-size:25px;line-height:1;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+#resumeTab .rs-analysis-close:hover{background:#f6f6f2;border-color:#cfd0c8;transform:rotate(4deg)}
+#resumeTab .rs-analysis-modal-body{padding:22px 28px;overflow:auto;overscroll-behavior:contain;display:grid;gap:16px}
+#resumeTab .rs-analysis-modal .rs-analysis-assessment{padding:16px 18px;border:1px solid #f3d7bd;background:#fff8f1;border-radius:12px}
+#resumeTab .rs-analysis-modal .rs-analysis-group{padding-top:15px;border-top:1px solid #efefe9}
+#resumeTab .rs-analysis-modal .rs-analysis-group h4{font-size:12px;font-weight:700;letter-spacing:.01em}
+#resumeTab .rs-analysis-modal .rs-analysis-group li{font-size:13px;line-height:1.7}
+#resumeTab .rs-analysis-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;border-top:1px solid #ecece7;background:#fcfcfa}
+#resumeTab .rs-analysis-modal-footer span{font-size:11px;line-height:1.5;color:#777a73}
+#resumeTab .rs-analysis-modal-footer button{flex:0 0 auto}
+#resumeTab .rs-analysis-note{font-size:11px}
+@media(max-width:600px){#resumeTab .rs-analysis-backdrop{align-items:flex-end;padding:0}#resumeTab .rs-analysis-modal{width:100%;max-height:90dvh;border-radius:20px 20px 0 0;border-bottom:0}#resumeTab .rs-analysis-modal-header{padding:22px 20px 16px}#resumeTab .rs-analysis-modal-body{padding:18px 20px}#resumeTab .rs-analysis-modal-footer{padding:14px 20px;align-items:flex-start;flex-direction:column}#resumeTab .rs-analysis-modal-footer button{width:100%}}

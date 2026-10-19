@@ -73,6 +73,7 @@
   let resumeMessage = '';
   let resumeSavedTitle = '';
   let resumeAnalysis = null;
+  let resumeAnalysisOpen = false;
   let resumeAnalyzing = false;
   const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
   function resumeAnalysisText(resume) {
@@ -103,7 +104,7 @@
     if (!resumeAnalysis) return '';
     const a = resumeAnalysis;
     const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
-    return '<section class="rs-analysis-panel" aria-live="polite"><div class="rs-analysis-heading"><div><span class="eyebrow">RESUME REVIEW</span><h3>Analysis results</h3></div><button type="button" class="secondary" data-resume-action="clear-analysis">Dismiss</button></div>'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></section>';
+    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
   }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
@@ -124,7 +125,7 @@
     if (resumeLoading && !currentResume) { root.innerHTML=head+'<div class="panel rs-loading"><span class="rs-spinner"></span><p>Loading resumes…</p></div>'; return; }
     if (currentResume) {
       const c=currentResume.content||{};
-      const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><button class="secondary" type="button" data-resume-action="analyze" '+(resumeAnalyzing?'disabled':'')+'>'+(resumeAnalyzing?'Analyzing…':'Analyze resume')+'</button><button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
+      const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><button class="secondary" type="button" data-resume-action="analyze" '+(resumeAnalyzing?'disabled':'')+'>'+(resumeAnalyzing?'Analyzing…':'Analyze resume')+'</button>'+(resumeAnalysis?'<button class="secondary" type="button" data-resume-action="view-analysis">Preview review</button>':'')+'<button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
       '<div class="rs-resume-editor-heading"><div><div class="eyebrow">US RESUME · US LETTER</div><h2>'+escHtml(currentResume.title||'Untitled Resume')+'</h2><p class="muted">Edit on the left; the resume preview updates as you type.</p></div><div class="rs-resume-heading-actions"><button type="button" class="secondary" data-resume-action="duplicate">Duplicate</button><button type="button" class="danger" data-resume-action="delete">Delete</button></div></div>';
       let fields='<div class="rs-editor-fields">'+rfield('title','Resume title',currentResume.title||'Untitled Resume');
       const contactLinks=Array.isArray(c.contact?.links)?c.contact.links:[];
@@ -142,7 +143,7 @@
         fields+='</section>';
       }
       fields+='</div>';
-      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':resumeAnalysisHtml());
+      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':'')+(resumeAnalysis&&resumeAnalysisOpen?resumeAnalysisHtml():'');
       updateEditorToolbarStickiness();
       return;
     }
@@ -199,7 +200,7 @@
     catch(error) { resumeMessage='Save failed: '+(error.message||'Please retry.'); }
     finally { resumeSaving=false; renderResumeView(); }
   }
-  async function resumeAction(button) {
+  async function resumeAction(button, event) {
     const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
     if(action==='analyze') {
       if(!currentResume || resumeAnalyzing) return;
@@ -210,12 +211,15 @@
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
         resumeAnalysis=result.analysis||null;
+        resumeAnalysisOpen=!!resumeAnalysis;
         resumeMessage=resumeAnalysis?'Analysis complete. No resume content was changed.':'The analysis returned no results.';
       } catch(error) { resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
       finally { resumeAnalyzing=false; renderResumeView(); }
       return;
     }
-    if(action==='clear-analysis') { resumeAnalysis=null; renderResumeView(); return; }
+    if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
+    if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; renderResumeView(); return; }
+    if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; renderResumeView(); return; }
     if(action==='new') return createResume();
     if(action==='back') { if(currentResume&&resumeIsDirty()&&!confirm('Discard unsaved changes to this resume?')) return; currentResume=null; return loadResumeList(); }
     if(action==='open') return openResume(id);
@@ -386,7 +390,7 @@
       if (view==='profile') { if (currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to Master Profile?')) return; activeView='profile'; currentResume=null; render(); return; }
     }
     const resumeButton=event.target.closest('[data-resume-action]');
-    if (resumeButton) { await resumeAction(resumeButton); return; }
+    if (resumeButton) { await resumeAction(resumeButton, event); return; }
     const save = event.target.closest('#rsSaveButton');
     if (save) { await saveProfile(); return; }
     const button = event.target.closest('[data-action]');
@@ -437,6 +441,7 @@
     } else return;
     markDirty(); render();
   });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && resumeAnalysisOpen) { resumeAnalysisOpen=false; renderResumeView(); } });
   document.addEventListener('scroll', updateEditorToolbarStickiness, {capture:true,passive:true});
   window.addEventListener('resize', updateEditorToolbarStickiness, {passive:true});
   document.addEventListener('resume-studio-open', () => { void loadProfile(); });
