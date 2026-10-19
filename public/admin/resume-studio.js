@@ -300,7 +300,7 @@
     }
     if (!target.matches('[data-path]') || target.type === 'checkbox') return;
     const path = target.dataset.path;
-    setPath(path, target.dataset.kind === 'csv' ? splitTags(target.value) : target.value);
+    setPath(path, (target.dataset.kind === 'csv' || (path.startsWith('skills.') && path.endsWith('.items'))) ? splitTags(target.value) : target.value);
     persistLocalDraft();
     if (path.startsWith('skills.') && path.endsWith('.items')) {
       const chips = target.closest('.rs-item-card')?.querySelector('.rs-skill-chips');

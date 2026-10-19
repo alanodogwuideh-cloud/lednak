@@ -1018,6 +1018,7 @@ const emptyMasterProfile = () => ({
 });
 const profileText = (value, max = 5000) => String(value ?? '').trim().slice(0, max);
 const profileArray = (value, max) => Array.isArray(value) ? value.slice(0, max) : [];
+const profileSkillArray = (value, max = 100) => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(skill => profileText(skill, 100)).filter(Boolean).slice(0, max);
 const profileId = value => profileText(value, 80) || crypto.randomUUID();
 function normalizeMasterProfile(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw Object.assign(new Error('The profile must be a JSON object.'), { status: 400 });
@@ -1048,7 +1049,7 @@ function normalizeMasterProfile(input) {
     })),
     skills: profileArray(input.skills, 50).map(item => ({
       category: profileText(item?.category, 100),
-      items: profileArray(item?.items, 100).map(skill => profileText(skill, 100)).filter(Boolean)
+      items: profileSkillArray(item?.items, 100)
     })),
     education: profileArray(input.education, 30).map(item => ({
       id: profileId(item?.id), institution: profileText(item?.institution, 180),

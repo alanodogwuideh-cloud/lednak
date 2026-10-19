@@ -16,6 +16,7 @@ const emptyProfile = () => ({
 
 const text = (value, max = 5000) => String(value ?? '').trim().slice(0, max);
 const array = (value, max) => Array.isArray(value) ? value.slice(0, max) : [];
+const skillArray = (value, max = 100) => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(skill => text(skill, 100)).filter(Boolean).slice(0, max);
 const makeId = value => text(value, 80) || crypto.randomUUID();
 
 function normalizeProfile(input) {
@@ -65,7 +66,7 @@ function normalizeProfile(input) {
     })),
     skills: array(input.skills, 50).map(item => ({
       category: text(item?.category, 100),
-      items: array(item?.items, 100).map(skill => text(skill, 100)).filter(Boolean),
+      items: skillArray(item?.items, 100),
     })),
     education: array(input.education, 30).map(item => ({
       id: makeId(item?.id),
