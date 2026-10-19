@@ -282,16 +282,70 @@
     }
     throw new Error('Unsupported file type. Upload a PDF or DOCX document.');
   }
+  function parseResumeLocally(text) {
+    const result = emptyProfile();
+    const lines = String(text || '').replace(/\r/g, '').split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const joined = lines.join('\n');
+    const email = joined.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    const phone = joined.match(/(?:\+?\d[\d().\s-]{7,}\d)/);
+    const urls = [...new Set(joined.match(/(?:https?:\/\/|www\.)[^\s<>]+/gi) || [])].slice(0, 10);
+    result.contact.email = email ? email[0] : '';
+    result.contact.phone = phone ? phone[0].trim() : '';
+    result.contact.links = urls.map(url => ({label:/linkedin/i.test(url)?'LinkedIn':/behance/i.test(url)?'Behance':/dribbble/i.test(url)?'Dribbble':/github/i.test(url)?'GitHub':'Professional link',url:url.replace(/[),.;]+$/,'')}));
+    const name = lines.slice(0, 8).find(line => line.split(' ').length >= 2 && line.split(' ').length <= 5 && !/@/.test(line) && !/\d{5,}/.test(line) && !/resume|curriculum vitae|product designer|graphic designer|linkedin|portfolio/i.test(line));
+    if (name) result.contact.fullName = name;
+    const defs = [
+      ['summaries',/^(professional summary|summary|profile|career objective|objective|about me):?$/i],
+      ['experience',/^(work experience|professional experience|employment history|experience|work history):?$/i],
+      ['projects',/^(selected projects|key projects|projects|portfolio projects):?$/i],
+      ['skills',/^(skills|core skills|technical skills|tools|competencies|areas of expertise):?$/i],
+      ['education',/^(education|academic background|qualifications|training):?$/i],
+      ['certifications',/^(certifications|certificates|licenses|licences|professional certifications):?$/i]
+    ];
+    const blocks=[]; let block={key:'intro',lines:[]};
+    for (const line of lines) {
+      const def=defs.find(item=>item[1].test(line));
+      if(def){if(block.lines.length)blocks.push(block);block={key:def[0],lines:[]};}
+      else block.lines.push(line);
+    }
+    if(block.lines.length)blocks.push(block);
+    const dates=/\b((?:19|20)\d{2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\s*(?:-|–|—|to)\s*((?:19|20)\d{2}|Present|Current|Now|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/i;
+    for(const part of blocks){
+      const content=part.lines.filter(line=>!(email&&line.includes(email[0]))&&!/^https?:\/\//i.test(line));
+      if(!content.length||part.key==='intro')continue;
+      if(part.key==='summaries')result.summaries.push({id:uid(),label:'Imported summary',text:content.join(' ')});
+      if(part.key==='skills')result.skills.push({id:uid(),category:'Imported skills',items:content.join(', ').split(/[,;|•]/).map(x=>x.trim()).filter(Boolean)});
+      if(part.key==='experience'){
+        let current=null;
+        for(const line of content){
+          const bullet=/^[•●▪◦*-]\s*/.test(line), hasDate=dates.test(line);
+          if(!current||(!bullet&&hasDate&&current.lines.length)){current={lines:[],bullets:[]};result.experience.push({id:uid(),title:'',company:'',location:'',startDate:'',endDate:'',current:false,bullets:[]});}
+          if(bullet)result.experience[result.experience.length-1].bullets.push({id:uid(),text:line.replace(/^[•●▪◦*-]\s*/,''),tags:[]});
+          else current.lines.push(line);
+          const item=result.experience[result.experience.length-1];
+          const match=line.match(dates);
+          if(match){item.startDate=match[1];item.endDate=match[2];item.current=/present|current|now/i.test(match[2]);}
+          else if(!item.title)item.title=line;
+          else if(!item.company&&line!==item.title)item.company=line;
+        }
+      }
+      if(part.key==='projects'){
+        for(const line of content.filter(x=>!/^[-•●▪◦*]\s*/.test(x)))result.projects.push({id:uid(),name:line,url:urls.find(url=>line.includes(url))||'',description:'',bullets:[]});
+      }
+      if(part.key==='education')for(const line of content)result.education.push({id:uid(),institution:line,degree:'',field:'',startDate:'',endDate:(line.match(/\b(?:19|20)\d{2}\b/g)||[]).slice(-1)[0]||'',notes:''});
+      if(part.key==='certifications')for(const line of content)result.certifications.push({id:uid(),name:line,issuer:'',date:(line.match(/\b(?:19|20)\d{2}\b/)||[])[0]||''});
+    }
+    return result;
+  }
   async function startResumeImport(file) {
     importBusy = true; importError = ''; importReview = null; render();
     try {
+      if (file.size > 15 * 1024 * 1024) throw new Error('This file is larger than 15 MB. Upload a smaller PDF or DOCX.');
       const text = await extractResumeText(file);
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
-      const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
-      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
-      if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
-      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name };
+      const parsed = parseResumeLocally(text);
+      importReview = { profile: parsed, warnings: ['Imported locally using text extraction and pattern matching; no AI request was made. Review every field because resume layouts vary.', 'The full extracted text is preserved below so you can recover information that was not classified.'], fileName: file.name, sourceText: text };
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';
@@ -330,7 +384,7 @@
     const skillsHtml = '<section class="rs-import-section"><h4>Skills</h4>'+((p.skills||[]).length ? p.skills.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Skill group','skills.'+i+'.category',x.category)+area('Skills (comma-separated)','skills.'+i+'._items',Array.isArray(x.items)?x.items.join(', '):x.items)+'</div></div>').join('') : '<p class="rs-import-empty">No skill groups were detected.</p>')+'</section>';
     const educationHtml = '<section class="rs-import-section"><h4>Education</h4>'+((p.education||[]).length ? p.education.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Institution','education.'+i+'.institution',x.institution)+input('Qualification','education.'+i+'.degree',x.degree)+input('Field of study','education.'+i+'.field',x.field)+input('Start date','education.'+i+'.startDate',x.startDate)+input('End date','education.'+i+'.endDate',x.endDate)+area('Notes','education.'+i+'.notes',x.notes)+'</div></div>').join('') : '<p class="rs-import-empty">No education details were detected.</p>')+'</section>';
     const certHtml = '<section class="rs-import-section"><h4>Certifications</h4>'+((p.certifications||[]).length ? p.certifications.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Certification','certifications.'+i+'.name',x.name)+input('Issuer','certifications.'+i+'.issuer',x.issuer)+input('Date','certifications.'+i+'.date',x.date)+'</div></div>').join('') : '<p class="rs-import-empty">No certifications were detected.</p>')+'</section>';
-    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
+    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<section class="rs-import-section"><h4>Full extracted resume text</h4><p class="muted">Use this source text to check or recover details that the automatic pattern matching did not place in a field. This text is not automatically added to your Master Profile.</p><label class="rs-field rs-wide"><span>Extracted source</span><textarea rows="10" readonly>' + escHtml(importReview.sourceText || '') + '</textarea></label></section><p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
   }
   function render() {
     if (activeView === 'resumes') { renderResumeView(); return; }
