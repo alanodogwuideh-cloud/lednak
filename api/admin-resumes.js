@@ -115,7 +115,7 @@ export default async function(req,res) {
       if (!existing[0]) return res.status(404).json({error:'Resume not found.'});
       const body=obj(req.body), content=normalizeContent(body.content), title=text(body.title,160)||'Untitled Resume';
       await tursoQuery('INSERT INTO resume_versions (resume_id,content,created_at) SELECT id,content,CURRENT_TIMESTAMP FROM resumes WHERE id=$1',[id]);
-      await tursoQuery('DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[id]);
+      await tursoQuery('DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[id,id]);
       await tursoQuery('UPDATE resumes SET title=$1,template=$2,content=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$4',[title,'us',JSON.stringify(content),id]);
       const {rows}=await tursoQuery('SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[id]);
       return res.json({...rows[0],content:normalizeContent(parseStoredJson(rows[0].content,{}))});

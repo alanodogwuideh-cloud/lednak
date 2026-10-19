@@ -1141,7 +1141,7 @@ async function adminResumes(request,env) {
     if(!resumeId)return json({error:'Resume ID is required.'},400);const {rows:existing}=await tursoQuery(env,'SELECT id FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!existing[0])return json({error:'Resume not found.'},404);
     const content=normalizeResumeContent(body.content);const title=String(body.title||'Untitled Resume').trim().slice(0,160)||'Untitled Resume';
     await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) SELECT id,content,CURRENT_TIMESTAMP FROM resumes WHERE id=$1',[resumeId]);
-    await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[resumeId]);
+    await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[resumeId,resumeId]);
     await tursoQuery(env,'UPDATE resumes SET title=$1,template=$2,content=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$4',[title,'us',JSON.stringify(content),resumeId]);
     const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);return json({...rows[0],content:normalizeResumeContent(parseStoredJson(rows[0].content,{}))});
   }
