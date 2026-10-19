@@ -80,11 +80,6 @@
   function rpathSet(obj,path,value) { const keys=path.split('.'); let target=obj; for(const key of keys.slice(0,-1)) target=target[key]; target[keys[keys.length-1]]=value; }
   const rfield = (path,label,value,kind='text') => '<label class="rs-field"><span>'+escHtml(label)+'</span>'+(kind==='textarea'?'<textarea data-resume-path="'+escHtml(path)+'" rows="3">'+escHtml(value)+'</textarea>':'<input data-resume-path="'+escHtml(path)+'" value="'+escHtml(value)+'">')+'</label>';
   const rcheck = (path,label,checked) => '<label class="rs-check"><input type="checkbox" data-resume-path="'+escHtml(path)+'"'+(checked?' checked':'')+'><span>'+escHtml(label)+'</span></label>';
-  function updateEditorToolbarStickiness() {
-    const toolbar = root.querySelector('.rs-editor-toolbar');
-    if (!toolbar) return;
-    toolbar.classList.toggle('is-stuck', toolbar.getBoundingClientRect().top <= 20);
-  }
   function renderResumeView() {
     const dirty = resumeIsDirty();
     const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
@@ -110,7 +105,6 @@
       }
       fields+='</div>';
       root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>';
-      updateEditorToolbarStickiness();
       return;
     }
     root.innerHTML=head+'<div class="rs-list-head"><div><h3>Your resumes</h3><p>Saved documents are independent copies of your Master Profile.</p></div><span class="rs-profile-count">'+resumeRows.length+' resume'+(resumeRows.length===1?'':'s')+'</span></div>'+
@@ -387,8 +381,6 @@
     } else return;
     markDirty(); render();
   });
-  document.addEventListener('scroll', updateEditorToolbarStickiness, {capture:true,passive:true});
-  window.addEventListener('resize', updateEditorToolbarStickiness, {passive:true});
   document.addEventListener('resume-studio-open', () => { void loadProfile(); });
   document.addEventListener('click', event => {
     const tab = event.target.closest('.tab[data-tab]');
