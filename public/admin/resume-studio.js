@@ -59,7 +59,7 @@
   const actions = (group, index, length) => '<div class="rs-card-actions"><button type="button" class="rs-icon-action" data-action="move-' + group + '" data-index="' + index + '" data-dir="up" aria-label="Move up" title="Move up"' + (index === 0 ? ' disabled' : '') + '>↑</button><button type="button" class="rs-icon-action" data-action="move-' + group + '" data-index="' + index + '" data-dir="down" aria-label="Move down" title="Move down"' + (index === length - 1 ? ' disabled' : '') + '>↓</button><button type="button" class="rs-remove" data-action="remove-' + group + '" data-index="' + index + '">Remove</button></div>';
   const bulletEditor = (group, parentIndex, bullets) => '<div class="rs-bullets"><div class="rs-subhead"><div><strong>Achievement bullets</strong><p>Use one clear, evidence-backed statement per bullet.</p></div><button type="button" class="rs-small-button" data-action="add-bullet" data-group="' + group + '" data-parent-index="' + parentIndex + '">+ Add bullet</button></div>' +
     (bullets.length ? bullets.map((bullet, i) => '<div class="rs-bullet-row"><div class="rs-bullet-number">' + (i + 1) + '</div><div class="rs-bullet-fields"><textarea data-path="' + group + '.' + parentIndex + '.bullets.' + i + '.text" rows="2" maxlength="2000" placeholder="Describe the action, scope, and outcome.">' + escHtml(bullet.text) + '</textarea><label class="rs-field"><span>Evidence tags (comma-separated, optional)</span><input data-path="' + group + '.' + parentIndex + '.bullets.' + i + '.tags" data-kind="csv" value="' + escHtml((bullet.tags || []).join(', ')) + '" placeholder="research, prototyping, payments"></label></div><div class="rs-bullet-actions"><button type="button" class="rs-icon-action" data-action="move-bullet" data-group="' + group + '" data-parent-index="' + parentIndex + '" data-index="' + i + '" data-dir="up" aria-label="Move bullet up"' + (i === 0 ? ' disabled' : '') + '>↑</button><button type="button" class="rs-icon-action" data-action="move-bullet" data-group="' + group + '" data-parent-index="' + parentIndex + '" data-index="' + i + '" data-dir="down" aria-label="Move bullet down"' + (i === bullets.length - 1 ? ' disabled' : '') + '>↓</button><button type="button" class="rs-remove" data-action="remove-bullet" data-group="' + group + '" data-parent-index="' + parentIndex + '" data-index="' + i + '">Remove</button></div></div>').join('') : '<p class="rs-empty-inline">No bullets yet. Add one when you are ready.</p>') + '</div>';
-  const section = (key, title, description, content, isOpen) => '<details class="rs-section" data-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary><span class="rs-section-summary"><strong>' + title + '</strong><small>' + description + '</small></span><span class="rs-chevron" aria-hidden="true">⌄</span></summary><div class="rs-section-body">' + content + '</div></details>';
+  const section = (key, title, description, content, isOpen) => '<details class="rs-section" data-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary><span class="rs-section-summary"><strong>' + title + '</strong><small>' + description + '</small></span><span class="rs-chevron" aria-hidden="true"><img src="/admin/chevron-down.svg" alt="" width="24" height="24">⌄</span></summary><div class="rs-section-body">' + content + '</div></details>';
   const emptyState = text => '<div class="rs-empty-inline">' + escHtml(text) + '</div>';
   function currentOpenSections() {
     return new Set([...root.querySelectorAll('details.rs-section[open]')].map(node => node.dataset.section));
@@ -85,7 +85,7 @@
   }
   function updateSaveState() {
     const dirty = JSON.stringify(profile) !== savedJson;
-    const label = saving ? 'Saving…' : saveError ? 'Save failed: ' + saveError : dirty ? 'Unsaved changes' : formatSaved(lastSavedAt);
+    const label = saving ? 'Saving…' : saveError ? saveError : dirty ? 'Unsaved changes' : formatSaved(lastSavedAt);
     const state = root.querySelector('#rsSaveState');
     const sticky = root.querySelector('#rsStickyState');
     const button = root.querySelector('#rsSaveButton');
@@ -118,14 +118,11 @@
       loaded = true;
       const localDraft = readLocalDraft();
       if (localDraft && JSON.stringify(localDraft.profile) !== savedJson) {
-        const restore = confirm('A local recovery draft from this browser was found and differs from the saved Master Profile. Restore that draft into the editor? Choose Cancel to keep the version currently saved on the server.');
-        if (restore) {
-          profile = localDraft.profile;
-          profile.contact = profile.contact || emptyProfile().contact;
-          for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
-          savedJson = JSON.stringify(result.profile || emptyProfile());
-          saveError = '';
-        } else clearLocalDraft();
+        profile = localDraft.profile;
+        profile.contact = profile.contact || emptyProfile().contact;
+        for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
+        savedJson = JSON.stringify(result.profile || emptyProfile());
+        saveError = 'Recovered browser draft — save to store these edits on the server';
       } else if (localDraft && JSON.stringify(localDraft.profile) === savedJson) clearLocalDraft();
       render();
     } catch (error) {
@@ -150,7 +147,7 @@
       if (typeof cmsToast === 'function') cmsToast('Master Profile saved.');
     } catch (error) {
       persistLocalDraft();
-      saveError = (error.message || 'The server did not confirm the save.') + ' A recovery draft has been kept in this browser.';
+      saveError = 'Save failed: ' + (error.message || 'The server did not confirm the save.') + ' A recovery draft has been kept in this browser.';
       const state = root.querySelector('#rsSaveState');
       if (state) state.textContent = 'Save failed: ' + saveError;
       const sticky = root.querySelector('#rsStickyState');
@@ -263,4 +260,5 @@
     if (loaded && JSON.stringify(profile) !== savedJson) { event.preventDefault(); event.returnValue = ''; }
   });
   root.innerHTML = '<div class="panel rs-loading"><span class="rs-spinner" aria-hidden="true"></span><p>Resume Studio is ready. Open this tab to load your profile.</p></div>';
+  if (!document.querySelector('#resumeTab')?.hidden) void loadProfile();
 })();
