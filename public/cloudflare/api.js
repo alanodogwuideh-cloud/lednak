@@ -889,10 +889,10 @@ async function adminResumeStudio(request, env) {
     if (url.searchParams.get('view') === 'ai-check') {
       if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
       try {
-        const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
-        const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || '');
-        if (!output.trim()) return json({ ok: false, stage: 'model-response', error: 'The AI binding ran but returned an empty response.' }, 502);
-        return json({ ok: true, model: '@cf/meta/llama-3.1-8b-instruct', message: output.trim().slice(0, 160) });
+        const result = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
+        const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');
+        if (!output.trim()) return json({ ok: false, stage: 'model-response', model: '@cf/meta/llama-4-scout-17b-16e-instruct', error: 'The AI binding ran but returned an empty response.' }, 502);
+        return json({ ok: true, model: '@cf/meta/llama-4-scout-17b-16e-instruct', message: output.trim().slice(0, 160) });
       } catch (error) {
         console.error('Resume Studio AI connection check failed:', error?.message || 'unknown', error?.stack || '');
         return json({ ok: false, stage: 'model-invocation', error: String(error?.message || 'Workers AI invocation failed.').slice(0, 300) }, 502);
@@ -989,14 +989,22 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
+    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const requestedTokens = isProfileImport ? 4000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      modelResult = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: (action === 'cover-only' || isAnalysis) ? 2200 : 6500 });
-    } catch (error) {
-      const detail = String(error?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-      console.error('Resume Studio Workers AI invocation failed:', detail, error?.name || 'Error');
-      return json({ error: 'Cloudflare Workers AI failed during model invocation.', diagnostic: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
+      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+    } catch (firstError) {
+      // Retry once with the same model and a smaller output budget. This handles transient
+      // Workers AI capacity/timeout failures without silently switching models.
+      try {
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: Math.min(requestedTokens, 1800) });
+      } catch (retryError) {
+        const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+        return json({ error: 'Llama 4 Scout failed during model invocation after one retry.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model }, 502);
+      }
     }
-    const output = typeof modelResult === 'string' ? modelResult : String(modelResult?.response || modelResult?.output_text || '');
+    const output = typeof modelResult === 'string' ? modelResult : String(modelResult?.response || modelResult?.output_text || modelResult?.result?.response || '');
     let parsed;
     try { parsed = resumeStudioJson(output); } catch (error) { return json({ error: error.message || 'The AI response was not valid JSON. Please retry.' }, 502); }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
