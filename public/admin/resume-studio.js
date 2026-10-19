@@ -124,7 +124,7 @@
           profile.contact = profile.contact || emptyProfile().contact;
           for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
           savedJson = JSON.stringify(result.profile || emptyProfile());
-          saveError = 'Recovered local draft — save it to store it on the server';
+          saveError = '';
         } else clearLocalDraft();
       } else if (localDraft && JSON.stringify(localDraft.profile) === savedJson) clearLocalDraft();
       render();

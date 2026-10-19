@@ -111,7 +111,7 @@ export default async function (req, res) {
       const profile = normalizeProfile(req.body?.profile);
       const serialized = JSON.stringify(profile);
       await tursoQuery(
-        'INSERT INTO master_profile (id, profile_json, created_at, updated_at) VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET profile_json=$1, updated_at=CURRENT_TIMESTAMP',
+        'INSERT INTO master_profile (id, profile_json, created_at, updated_at) VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET profile_json=excluded.profile_json, updated_at=CURRENT_TIMESTAMP',
         [serialized]
       );
       const { rows } = await tursoQuery('SELECT updated_at FROM master_profile WHERE id=1 LIMIT 1');
