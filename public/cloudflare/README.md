@@ -24,6 +24,16 @@ Configure these as Cloudflare Pages environment variables/secrets. Never commit 
 
 The Supabase publishable key is browser-visible by design; the service-role key must remain server-side. Configure the same Turso database and R2 bucket used by the portfolio only after verifying the credentials and access policies.
 
+## Resume Studio — Phase 1
+
+The first Resume Studio slice is the private Master Profile editor inside the existing admin sidebar. It uses the existing Supabase Bearer-token admin check and the same Turso database as the portfolio. The profile is stored as validated JSON in `master_profile`; the initial schema migration is tracked in `lib/migrations/001_resume_studio_phase1.sql` and was applied directly to the configured Turso database. Do not apply this SQLite/Turso migration to Hatchable's separate Postgres database.
+
+Implemented endpoints:
+- `GET /api/admin-resume-profile` — authenticated profile load, with an empty template when no profile has been saved
+- `PUT /api/admin-resume-profile` — authenticated, size-limited profile validation and upsert
+
+The Cloudflare Pages router includes the endpoint in its protected route list. Jobs, resumes, and cover-letter navigation remain disabled until their phases are implemented.
+
 ## Resume publishing
 
 The public portfolio's Resume/CV upload is managed separately in the About & site settings. It uses the existing `resume-pdf` route and is not part of the removed Resume Studio.

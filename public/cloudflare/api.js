@@ -1010,6 +1010,82 @@ async function adminResumeStudio(request, env) {
   return json({ error: 'Method not allowed.' }, 405);
 }
 
+const emptyMasterProfile = () => ({
+  contact: { fullName: '', email: '', phone: '', location: '', links: [] },
+  summaries: [], experience: [], projects: [], skills: [], education: [], certifications: []
+});
+const profileText = (value, max = 5000) => String(value ?? '').trim().slice(0, max);
+const profileArray = (value, max) => Array.isArray(value) ? value.slice(0, max) : [];
+const profileId = value => profileText(value, 80) || crypto.randomUUID();
+function normalizeMasterProfile(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw Object.assign(new Error('The profile must be a JSON object.'), { status: 400 });
+  const contact = object(input.contact);
+  const profile = {
+    contact: {
+      fullName: profileText(contact.fullName, 160), email: profileText(contact.email, 254),
+      phone: profileText(contact.phone, 80), location: profileText(contact.location, 160),
+      links: profileArray(contact.links, 20).map(link => ({ label: profileText(link?.label, 80), url: profileText(link?.url, 500) }))
+    },
+    summaries: profileArray(input.summaries, 10).map(item => ({ label: profileText(item?.label, 120), text: profileText(item?.text, 2500) })),
+    experience: profileArray(input.experience, 50).map(item => ({
+      id: profileId(item?.id), company: profileText(item?.company, 180), title: profileText(item?.title, 180),
+      location: profileText(item?.location, 160), startDate: profileText(item?.startDate, 40),
+      endDate: profileText(item?.endDate, 40), current: item?.current === true,
+      bullets: profileArray(item?.bullets, 40).map(bullet => ({
+        id: profileId(bullet?.id), text: profileText(bullet?.text, 2000),
+        tags: profileArray(bullet?.tags, 30).map(tag => profileText(tag, 80)).filter(Boolean)
+      }))
+    })),
+    projects: profileArray(input.projects, 50).map(item => ({
+      id: profileId(item?.id), name: profileText(item?.name, 180), url: profileText(item?.url, 500),
+      description: profileText(item?.description, 2000),
+      bullets: profileArray(item?.bullets, 40).map(bullet => ({
+        id: profileId(bullet?.id), text: profileText(bullet?.text, 2000),
+        tags: profileArray(bullet?.tags, 30).map(tag => profileText(tag, 80)).filter(Boolean)
+      }))
+    })),
+    skills: profileArray(input.skills, 50).map(item => ({
+      category: profileText(item?.category, 100),
+      items: profileArray(item?.items, 100).map(skill => profileText(skill, 100)).filter(Boolean)
+    })),
+    education: profileArray(input.education, 30).map(item => ({
+      id: profileId(item?.id), institution: profileText(item?.institution, 180),
+      degree: profileText(item?.degree, 180), field: profileText(item?.field, 180),
+      startDate: profileText(item?.startDate, 40), endDate: profileText(item?.endDate, 40),
+      notes: profileText(item?.notes, 1200)
+    })),
+    certifications: profileArray(input.certifications, 50).map(item => ({
+      id: profileId(item?.id), name: profileText(item?.name, 180),
+      issuer: profileText(item?.issuer, 180), date: profileText(item?.date, 80)
+    }))
+  };
+  if (JSON.stringify(profile).length > 250000) throw Object.assign(new Error('The master profile is too large. Please shorten some entries and try again.'), { status: 413 });
+  return profile;
+}
+async function adminResumeProfile(request, env) {
+  const method = request.method.toUpperCase();
+  if (method === 'GET') {
+    const { rows } = await tursoQuery(env, 'SELECT profile_json, updated_at FROM master_profile WHERE id=1 LIMIT 1');
+    let profile = emptyMasterProfile();
+    if (rows[0]?.profile_json) {
+      try { profile = normalizeMasterProfile(JSON.parse(rows[0].profile_json)); }
+      catch { return json({ error: 'The saved master profile could not be read safely.' }, 500); }
+    }
+    return json({ profile, updatedAt: rows[0]?.updated_at || null });
+  }
+  if (method === 'PUT') {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: 'Please send a valid JSON profile.' }, 400); }
+    let profile;
+    try { profile = normalizeMasterProfile(body?.profile); }
+    catch (error) { return json({ error: error.message || 'The profile is invalid.' }, Number(error.status) || 400); }
+    await tursoQuery(env, 'INSERT INTO master_profile (id, profile_json, created_at, updated_at) VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET profile_json=$1, updated_at=CURRENT_TIMESTAMP', [JSON.stringify(profile)]);
+    const { rows } = await tursoQuery(env, 'SELECT updated_at FROM master_profile WHERE id=1 LIMIT 1');
+    return json({ ok: true, profile, updatedAt: rows[0]?.updated_at || null });
+  }
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
 async function resumePdf(request, env) {
   const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
   const branding = rows[0] || {};
@@ -1069,7 +1145,7 @@ export async function handleCloudflareApi(request, env) {
     const protectedRoutes = new Set([
       'admin-login','admin-case-study','admin-config','admin-duplicate-case-study',
       'admin-media-preview','admin-media','admin-preview','admin-projects',
-      'admin-session','admin-settings','admin-trash','admin-upload'
+      'admin-session','admin-settings','admin-resume-profile','admin-trash','admin-upload'
     ]);
     if (protectedRoutes.has(route)) {
       if (route !== 'admin-login') {
@@ -1078,7 +1154,8 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
-        // Resume Studio route removed.
+        if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
+        // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
         if (route === 'admin-media') return await adminMedia(request, env, auth);
         if (route === 'admin-duplicate-case-study' && method === 'POST') return await adminDuplicateCaseStudy(request, env);
