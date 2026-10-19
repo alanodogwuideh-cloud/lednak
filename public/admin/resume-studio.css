@@ -159,7 +159,7 @@
 
 /* Compact Resume Studio section menu on tablet and mobile */
 #resumeTab .rs-mobile-nav-toggle{display:none}
-@media(max-width:760px){
+@media(max-width:900px){
  #resumeTab .rs-mobile-nav-toggle{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:46px;margin:0 0 12px;padding:12px 14px;border:1px solid #dedfd9;border-radius:11px;background:#fff;color:#272923;font:700 13px 'DM Sans',sans-serif;text-align:left}
  #resumeTab .rs-mobile-nav-toggle span:first-child{display:grid;place-items:center;width:22px;height:22px;font-size:18px}
  #resumeTab .rs-tabs{display:none;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:18px}
