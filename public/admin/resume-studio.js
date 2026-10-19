@@ -256,9 +256,14 @@
     if (file.size > 15 * 1024 * 1024) throw new Error('Choose a file smaller than 15 MB.');
     const name = String(file.name || '').toLowerCase();
     if (name.endsWith('.pdf') || file.type === 'application/pdf') {
-      const pdfjs = await loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+      // Download the parser and read the selected file at the same time so the
+      // user does not pay these two independent costs sequentially.
+      const [pdfjs, fileBuffer] = await Promise.all([
+        loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib'),
+        file.arrayBuffer()
+      ]);
       pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pdf = await pdfjs.getDocument({ data: fileBuffer }).promise;
       // Read pages concurrently instead of waiting for each page sequentially.
       const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
         const page = await pdf.getPage(index + 1);
@@ -268,8 +273,11 @@
       return pages.join('\n').trim();
     }
     if (name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      const mammoth = await loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js', 'mammoth');
-      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      const [mammoth, fileBuffer] = await Promise.all([
+        loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js', 'mammoth'),
+        file.arrayBuffer()
+      ]);
+      const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
       return String(result.value || '').trim();
     }
     throw new Error('Unsupported file type. Upload a PDF or DOCX document.');
