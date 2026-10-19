@@ -58,6 +58,15 @@
 #resumeTab .rs-analysis-loading{display:flex;align-items:center;gap:12px;margin-top:20px;padding:18px;border:1px solid #dedfd9;border-radius:12px;background:#fff;color:#686c64;font-size:12px}
 @media(max-width:600px){#resumeTab .rs-analysis-panel{padding:15px}#resumeTab .rs-analysis-heading{align-items:flex-start;flex-direction:column}}
 
+/* Tablet editor toolbar: deliberate two-column layout with a clean action grid */
+@media (min-width:761px) and (max-width:1100px){
+ #resumeTab .rs-editor-toolbar{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr);align-items:center;gap:12px;padding:14px}
+ #resumeTab .rs-editor-toolbar>button[data-resume-action="back"]{grid-column:1;grid-row:1;align-self:start;white-space:nowrap;min-height:44px;padding:10px 14px}
+ #resumeTab .rs-editor-toolbar-actions{grid-column:2;grid-row:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:8px;width:100%;min-width:0}
+ #resumeTab .rs-resume-save-status{grid-column:1/-1;display:block;min-width:0;margin:0 0 2px;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+ #resumeTab .rs-editor-toolbar-actions>button{width:100%;min-width:0;min-height:44px;padding:10px 12px;white-space:normal;line-height:1.25}
+}
+
 /* Resume analysis overlay */
 #resumeTab .rs-analysis-backdrop{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(22,24,21,.48);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 #resumeTab .rs-analysis-modal{display:flex;flex-direction:column;width:min(760px,100%);max-height:min(82vh,900px);overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.7);border-radius:20px;box-shadow:0 24px 80px rgba(20,22,18,.24);outline:none}
