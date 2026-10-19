@@ -16,6 +16,9 @@
   let saveError = '';
   let openAfterRender = '';
   let activeView = 'profile';
+  let importBusy = false;
+  let importReview = null;
+  let importError = '';
   const draftKey = 'resume-studio-master-profile-draft-v1';
   function persistLocalDraft() {
     try {
@@ -237,6 +240,79 @@
     if(action==='move-section') { const sec=button.dataset.section,order=currentResume.content.sectionOrder,idx=order.indexOf(sec),to=idx+(button.dataset.dir==='up'?-1:1); if(to>=0&&to<order.length){[order[idx],order[to]]=[order[to],order[idx]];renderResumeView()} return; }
   }
 
+  function loadImportScript(src, globalName) {
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-resume-import-lib="' + globalName + '"]');
+      const script = existing || document.createElement('script');
+      if (!existing) { script.src = src; script.async = true; script.dataset.resumeImportLib = globalName; document.head.appendChild(script); }
+      script.addEventListener('load', () => window[globalName] ? resolve(window[globalName]) : reject(new Error('The document reader did not initialize.')), { once: true });
+      script.addEventListener('error', () => reject(new Error('Could not load the document reader. Check your connection and try again.')), { once: true });
+      if (window[globalName]) resolve(window[globalName]);
+    });
+  }
+  async function extractResumeText(file) {
+    if (!file) throw new Error('Choose a PDF or DOCX file first.');
+    if (file.size > 15 * 1024 * 1024) throw new Error('Choose a file smaller than 15 MB.');
+    const name = String(file.name || '').toLowerCase();
+    if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+      const pdfjs = await loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+      pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pages = [];
+      for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+        const page = await pdf.getPage(pageNo);
+        const content = await page.getTextContent();
+        pages.push(content.items.map(item => item.str || '').join(' '));
+      }
+      return pages.join('\n').trim();
+    }
+    if (name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const mammoth = await loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js', 'mammoth');
+      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      return String(result.value || '').trim();
+    }
+    throw new Error('Unsupported file type. Upload a PDF or DOCX document.');
+  }
+  async function startResumeImport(file) {
+    importBusy = true; importError = ''; importReview = null; render();
+    try {
+      const text = await extractResumeText(file);
+      if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
+      if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
+      const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodoguideh.com/api/admin-resume-studio' : '/admin-resume-studio';
+      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
+      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name };
+      importError = '';
+    } catch (error) {
+      importError = error.message || 'Could not import this resume. Please try again.';
+    } finally { importBusy = false; render(); }
+  }
+  function normalizeImportedProfile(value) {
+    const p = value && typeof value === 'object' ? value : {};
+    const normalized = { ...emptyProfile(), ...p };
+    normalized.contact = { ...emptyProfile().contact, ...(p.contact || {}) };
+    normalized.contact.links = Array.isArray(normalized.contact.links) ? normalized.contact.links : [];
+    for (const key of ['summaries','experience','projects','skills','education','certifications']) normalized[key] = Array.isArray(p[key]) ? p[key] : [];
+    normalized.summaries = normalized.summaries.map(x => ({ id: uid(), label: clean(x.label), text: clean(x.text) }));
+    normalized.experience = normalized.experience.map(x => ({ id: uid(), company: clean(x.company), title: clean(x.title), location: clean(x.location), startDate: clean(x.startDate), endDate: clean(x.endDate), current: !!x.current, bullets: (Array.isArray(x.bullets) ? x.bullets : []).map(b => ({ id: uid(), text: clean(b.text), tags: Array.isArray(b.tags) ? b.tags : [] })) }));
+    normalized.projects = normalized.projects.map(x => ({ id: uid(), name: clean(x.name), url: clean(x.url), description: clean(x.description), bullets: (Array.isArray(x.bullets) ? x.bullets : []).map(b => ({ id: uid(), text: clean(b.text), tags: Array.isArray(b.tags) ? b.tags : [] })) }));
+    normalized.skills = normalized.skills.map(x => ({ id: uid(), category: clean(x.category), items: Array.isArray(x.items) ? x.items.map(clean) : typeof x.items === 'string' ? splitTags(x.items) : [] }));
+    normalized.education = normalized.education.map(x => ({ id: uid(), institution: clean(x.institution), degree: clean(x.degree), field: clean(x.field), startDate: clean(x.startDate), endDate: clean(x.endDate), notes: clean(x.notes) }));
+    normalized.certifications = normalized.certifications.map(x => ({ id: uid(), name: clean(x.name), issuer: clean(x.issuer), date: clean(x.date) }));
+    normalized.contact.links = normalized.contact.links.map(x => ({ label: clean(x.label), url: clean(x.url) }));
+    return normalized;
+  }
+  function renderImportReview() {
+    if (!importReview) return '';
+    const p = importReview.profile || {};
+    const counts = [
+      ['Experience', p.experience?.length || 0], ['Projects', p.projects?.length || 0],
+      ['Skill groups', p.skills?.length || 0], ['Education', p.education?.length || 0],
+      ['Certifications', p.certifications?.length || 0]
+    ];
+    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Check the extracted fields before they are applied. Unknown details should remain blank.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">No extraction warnings were returned. Still verify the details below.</p>') + '<label class="rs-field rs-wide"><span>Editable structured profile data (JSON)</span><textarea id="rsImportJson" rows="18" spellcheck="false">' + escHtml(JSON.stringify(p, null, 2)) + '</textarea><small>Review names, employers, dates, achievements, links and credentials. Edit the JSON if anything is misplaced. Nothing is saved until you confirm.</small></label><p class="rs-import-note">For safety, importing replaces the current Master Profile after confirmation. Your existing saved profile remains unchanged if you cancel.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
+  }
   function render() {
     if (activeView === 'resumes') { renderResumeView(); return; }
     const wasOpen = currentOpenSections();
@@ -244,7 +320,8 @@
     const dirty = JSON.stringify(profile) !== savedJson;
     root.innerHTML = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2 id="resumeStudioHeading">Resume Studio</h2><p class="muted">Build one accurate master profile, then reuse it across tailored resumes and cover letters.</p></div><div class="rs-header-status"><span class="rs-status-dot ' + (dirty ? 'is-dirty' : '') + '"></span><span id="rsSaveState">' + (dirty ? 'Unsaved changes' : formatSaved(lastSavedAt)) + '</span></div></div>' +
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab is-active" data-resume-view="profile" role="tab" aria-selected="true">Master Profile</button><button type="button" class="rs-tab" disabled title="Coming soon">Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" data-resume-view="resumes" role="tab" aria-selected="false">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>' +
-      '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Future AI features will use this information as their source of truth.</p></div><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div></div>' +
+      '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Future AI features will use this information as their source of truth.</p></div><div class="rs-import-actions"><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div><input id="rsImportFile" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden><button type="button" class="secondary" data-action="import-resume" ' + (importBusy ? 'disabled' : '') + '>' + (importBusy ? 'Importing…' : 'Import existing resume') + '</button></div></div>' +
+      (importError ? '<div class="rs-notice rs-import-error"><p>' + escHtml(importError) + '</p></div>' : '') +
       '<div class="rs-notice"><span class="rs-notice-icon" aria-hidden="true">i</span><p>Enter only information you can verify. You can leave fields blank and complete the profile over time. Nothing is published to your public portfolio by saving here.</p></div>' +
       section('contact','Contact details','Name, email, location and professional links', '<div class="rs-form-grid">' + field('contact.fullName','Full name',profile.contact.fullName,{max:160}) + field('contact.email','Email address',profile.contact.email,{kind:'email',max:254}) + field('contact.phone','Phone number',profile.contact.phone,{kind:'tel',max:80}) + field('contact.location','Location',profile.contact.location,{max:160}) + '</div><div class="rs-list-head"><div><strong>Professional links</strong><p>Portfolio, LinkedIn, case studies or other relevant links.</p></div><button type="button" class="rs-small-button" data-action="add-link">+ Add link</button></div>' + (profile.contact.links.length ? profile.contact.links.map((link,i) => '<div class="rs-link-row">' + field('contact.links.'+i+'.label','Link label',link.label,{max:80,placeholder:'LinkedIn'}) + field('contact.links.'+i+'.url','URL',link.url,{kind:'url',max:500,placeholder:'https://...'}) + '<button type="button" class="rs-remove" data-action="remove-link" data-index="'+i+'">Remove</button></div>').join('') : emptyState('No links added yet.')) ,wasOpen.has('contact') || wasOpen.size === 0) +
       section('summaries','Professional summaries','Keep multiple versions for different roles', '<div class="rs-list-head"><div><strong>Summary options</strong><p>Use a short, factual introduction. Label each version for easy selection later.</p></div><button type="button" class="rs-small-button" data-action="add-summary">+ Add summary</button></div>' + (profile.summaries.length ? profile.summaries.map((item,i) => '<article class="rs-item-card"><div class="rs-item-head"><span class="rs-item-index">' + (i+1) + '</span><div class="rs-item-title"><strong>' + escHtml(item.label || 'Untitled summary') + '</strong><small>Summary ' + (i+1) + '</small></div>' + actions('summary',i,profile.summaries.length) + '</div><div class="rs-form-grid">' + field('summaries.'+i+'.label','Summary label',item.label,{max:120,placeholder:'Product design roles'}) + field('summaries.'+i+'.text','Summary text',item.text,{kind:'textarea',wide:true,max:2500,rows:4,placeholder:'A concise summary of your experience, strengths, and relevant focus.'}) + '</div></article>').join('') : emptyState('Add your first summary when you are ready.')) ,wasOpen.has('summaries')) +
@@ -257,6 +334,7 @@
     root.querySelectorAll('.rs-tab').forEach(tab => { if (tab.textContent.trim().startsWith('Resumes')) { tab.removeAttribute('disabled'); tab.innerHTML='Resumes'; tab.dataset.view = 'resumes'; tab.setAttribute('role','tab'); tab.setAttribute('aria-selected','false'); } else if (tab.textContent.trim().startsWith('Master Profile')) { tab.dataset.view = 'profile'; tab.setAttribute('role','tab'); tab.setAttribute('aria-selected','true'); } });
     openAfterRender = '';
     updateSaveState();
+    if (importReview) root.insertAdjacentHTML('beforeend', renderImportReview());
   }
   function updateSaveState() {
     const dirty = JSON.stringify(profile) !== savedJson;
@@ -383,6 +461,22 @@
     markDirty();
   });
   root.addEventListener('click', async event => {
+    const importControl = event.target.closest('[data-import-action]');
+    if (importControl) {
+      if (importControl.dataset.importAction === 'dismiss') { importReview = null; render(); return; }
+      if (importControl.dataset.importAction === 'apply') {
+        let imported;
+        try { imported = JSON.parse(root.querySelector('#rsImportJson')?.value || '{}'); }
+        catch (_) { alert('The profile JSON has a syntax error. Correct it before importing.'); return; }
+        if (!imported || typeof imported !== 'object' || Array.isArray(imported) || !imported.contact) { alert('The profile data is incomplete. Keep the contact object and profile sections in the expected structure.'); return; }
+        const hasExisting = profile.contact.fullName || profile.contact.email || profile.experience.length || profile.projects.length || profile.skills.length || profile.education.length || profile.certifications.length || profile.summaries.length;
+        if (hasExisting && !confirm('This will replace the current Master Profile fields with the imported information. Your saved server profile will not change until you click Save Master Profile. Continue?')) return;
+        profile = normalizeImportedProfile(imported);
+        importReview = null; importError = ''; openAfterRender = 'contact';
+        markDirty(); render();
+        return;
+      }
+    }
     const studioMenu=event.target.closest('.rs-mobile-nav-toggle');
     if(studioMenu){const tabs=root.querySelector('#rsStudioTabs');const open=!tabs?.classList.contains('is-open');tabs?.classList.toggle('is-open',open);studioMenu.setAttribute('aria-expanded',String(open));return;}
     const viewTab=event.target.closest('[data-view], [data-resume-view]');
@@ -398,6 +492,7 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+    if (action === 'import-resume') { root.querySelector('#rsImportFile')?.click(); return; }
     const index = Number(button.dataset.index);
     const group = button.dataset.group;
     const parentIndex = Number(button.dataset.parentIndex);
@@ -443,7 +538,17 @@
     } else return;
     markDirty(); render();
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && resumeAnalysisOpen) { resumeAnalysisOpen=false; renderResumeView(); } });
+  root.addEventListener('change', event => {
+    if (event.target.matches('#rsImportFile')) {
+      const file = event.target.files?.[0];
+      if (file) void startResumeImport(file);
+      event.target.value = '';
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && importReview) { importReview = null; render(); return; }
+    if (event.key === 'Escape' && resumeAnalysisOpen) { resumeAnalysisOpen=false; renderResumeView(); }
+  });
   document.addEventListener('scroll', updateEditorToolbarStickiness, {capture:true,passive:true});
   window.addEventListener('resize', updateEditorToolbarStickiness, {passive:true});
   document.addEventListener('resume-studio-open', () => { void loadProfile(); });

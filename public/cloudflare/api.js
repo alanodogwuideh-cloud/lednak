@@ -965,10 +965,11 @@ async function adminResumeStudio(request, env) {
     if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'Cloudflare Workers AI is not bound to this Pages project yet. Add the AI binding named AI in Cloudflare Pages Settings → Functions → Workers AI.' }, 503);
     const master = String(body.master_resume_text || record.master_resume_text || '').trim();
     const job = String(body.job_description || '').trim();
-    if (!master) return json({ error: 'Add resume content before running an analysis.' }, 400);
-    if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
     const isAnalysis = action === 'analyze-resume';
-    if (!isAnalysis && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    const isProfileImport = action === 'import-profile';
+    if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
+    if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
+    if (!isAnalysis && !isProfileImport && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
@@ -976,7 +977,9 @@ async function adminResumeStudio(request, env) {
     const length = ['concise','standard','detailed'].includes(body.cover_length) ? body.cover_length : 'standard';
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
-    if (isAnalysis) {
+    if (isProfileImport) {
+      prompt = 'Extract the supplied resume into a structured career profile. Return valid JSON only with this exact shape: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"id":"","label":"Professional summary","text":""}],"experience":[{"id":"","company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"id":"","text":"","tags":[]}]}],"projects":[{"id":"","name":"","url":"","description":"","bullets":[{"id":"","text":"","tags":[]}]}],"skills":[{"id":"","category":"","items":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}]},"warnings":["..."]}. Use empty arrays when a section has no evidence and empty strings for unknown values. Extract only information explicitly present; do not infer dates, metrics, qualifications, skills, employers, or URLs. Preserve achievement wording and numbers. Split distinct roles and achievements into separate structured entries. Do not treat headings or contact details as achievements. Keep the profile object complete even when sections are absent. Add a warning for any ambiguous or unreadable information. RESUME TEXT:\\n' + master;
+    } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
     } else if (action === 'cover-only') {
       const tailored = String(body.tailored_resume || '').trim();
@@ -997,6 +1000,11 @@ async function adminResumeStudio(request, env) {
     let parsed;
     try { parsed = resumeStudioJson(output); } catch (error) { return json({ error: error.message || 'The AI response was not valid JSON. Please retry.' }, 502); }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
+    if (isProfileImport) {
+      const imported = object(parsed.profile);
+      if (!imported.contact || !Array.isArray(imported.experience) || !Array.isArray(imported.skills) || !Array.isArray(imported.education)) return json({ error: 'The extracted profile did not match the expected structure. Please try again with a clearer PDF or DOCX.' }, 502);
+      return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
+    }
     if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
     if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
     return json({

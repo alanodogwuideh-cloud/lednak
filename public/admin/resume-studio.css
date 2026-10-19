@@ -23,6 +23,25 @@
 #resumeTab .rs-paper-header h1{font-size:2.2em;line-height:1.1;margin:0 0 .35em;font-weight:700}
 #resumeTab .rs-paper-contact{font-size:.9em;overflow-wrap:anywhere;display:grid;gap:.2em}#resumeTab .rs-paper-contact-details,#resumeTab .rs-paper-contact-links{display:block;text-align:center}#resumeTab .rs-contact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#resumeTab .rs-contact-links{display:grid;gap:10px}#resumeTab .rs-contact-link-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px;padding:12px;border:1px solid #e4e5df;border-radius:10px;background:#fcfcfa}
 #resumeTab .rs-preview-sep{padding:0 .35em;color:#555}
+#resumeTab .rs-import-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+#resumeTab .rs-import-backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:20px;background:rgba(18,20,17,.52)}
+#resumeTab .rs-import-modal{display:flex;flex-direction:column;width:min(820px,100%);max-height:88vh;overflow:hidden;border:1px solid #dedfd9;border-radius:16px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.24)}
+#resumeTab .rs-import-modal>header,#resumeTab .rs-import-modal>footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:#fff}
+#resumeTab .rs-import-modal>header{border-bottom:1px solid #e8e9e3}
+#resumeTab .rs-import-modal>header h3{margin:5px 0;font-size:19px;color:#20211e}
+#resumeTab .rs-import-modal>header p{margin:0;color:#73766f;font-size:12px;line-height:1.5}
+#resumeTab .rs-import-modal-body{padding:20px 22px;overflow:auto;display:grid;gap:16px}
+#resumeTab .rs-import-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+#resumeTab .rs-import-counts>div{display:grid;gap:4px;padding:12px;border:1px solid #e3e4de;border-radius:10px;background:#fcfcfa}
+#resumeTab .rs-import-counts strong{font-size:19px;color:#20211e}
+#resumeTab .rs-import-counts span{font-size:10px;color:#73766f}
+#resumeTab .rs-import-warnings{padding:13px 15px;border:1px solid #f0d5b7;border-radius:10px;background:#fff9f2;color:#795332;font-size:12px}
+#resumeTab .rs-import-warnings ul{margin:8px 0 0;padding-left:20px;display:grid;gap:5px}
+#resumeTab .rs-import-ok,#resumeTab .rs-import-note{margin:0;font-size:12px;line-height:1.6;color:#656960}
+#resumeTab #rsImportJson{min-height:280px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;resize:vertical}
+#resumeTab .rs-import-modal>footer{justify-content:flex-end;border-top:1px solid #e8e9e3}
+#resumeTab .rs-import-error{border-color:#e6b8b4;background:#fff5f4}
+@media(max-width:600px){#resumeTab .rs-intro-row{align-items:flex-start;flex-direction:column}#resumeTab .rs-import-actions{width:100%;justify-content:space-between}#resumeTab .rs-import-backdrop{padding:8px}#resumeTab .rs-import-modal{max-height:94vh;border-radius:12px}#resumeTab .rs-import-modal>header,#resumeTab .rs-import-modal>footer{padding:14px}#resumeTab .rs-import-modal-body{padding:14px;gap:12px}#resumeTab .rs-import-counts{grid-template-columns:repeat(2,minmax(0,1fr))}#resumeTab .rs-import-counts>div:last-child{grid-column:1/-1}#resumeTab #rsImportJson{min-height:220px}}
 #resumeTab .rs-paper-section{margin-top:1.15em;break-inside:avoid}
 #resumeTab .rs-paper-section h2{font-size:1.08em;line-height:1.2;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #333;padding-bottom:.25em;margin:0 0 .5em}
 #resumeTab .rs-paper-summary,#resumeTab .rs-paper-section p{margin:.25em 0;line-height:1.3}
