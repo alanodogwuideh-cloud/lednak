@@ -72,7 +72,39 @@
   let resumeSaving = false;
   let resumeMessage = '';
   let resumeSavedTitle = '';
+  let resumeAnalysis = null;
+  let resumeAnalyzing = false;
   const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
+  function resumeAnalysisText(resume) {
+    const c = resume?.content || {};
+    const lines = [resume?.title || 'Resume'];
+    const contact = c.contact || {};
+    if (contact.fullName) lines.push(contact.fullName);
+    lines.push([contact.email,contact.phone,contact.location].filter(Boolean).join(' | '));
+    (contact.links || []).forEach(link => { if (link.url) lines.push((link.label ? link.label + ': ' : '') + link.url); });
+    if (c.summary) lines.push('PROFESSIONAL SUMMARY\n' + c.summary);
+    for (const section of c.sectionOrder || resumeSections) {
+      if (section === 'summary' || (c.hiddenSections || []).includes(section)) continue;
+      const title = c.sectionTitles?.[section] || resumeSectionNames[section] || section;
+      lines.push('\n' + title.toUpperCase());
+      for (const item of c[section] || []) {
+        if (item.hidden) continue;
+        if (section === 'experience') lines.push([item.title,item.company,item.location,[item.startDate,item.endDate || (item.current ? 'Present' : '')].filter(Boolean).join(' - ')].filter(Boolean).join(' | '));
+        else if (section === 'projects') lines.push([item.name,item.url,item.description].filter(Boolean).join(' | '));
+        else if (section === 'skills') lines.push([item.category,(item.items || []).join(', ')].filter(Boolean).join(': '));
+        else if (section === 'education') lines.push([item.degree,item.field,item.institution,item.startDate,item.endDate,item.notes].filter(Boolean).join(' | '));
+        else if (section === 'certifications') lines.push([item.name,item.issuer,item.date].filter(Boolean).join(' | '));
+        (item.bullets || []).forEach(b => { if (!b.hidden && b.text) lines.push('- ' + b.text); });
+      }
+    }
+    return lines.filter(Boolean).join('\n').slice(0,40000);
+  }
+  function resumeAnalysisHtml() {
+    if (!resumeAnalysis) return '';
+    const a = resumeAnalysis;
+    const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
+    return '<section class="rs-analysis-panel" aria-live="polite"><div class="rs-analysis-heading"><div><span class="eyebrow">RESUME REVIEW</span><h3>Analysis results</h3></div><button type="button" class="secondary" data-resume-action="clear-analysis">Dismiss</button></div>'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></section>';
+  }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
   const rtext = (value, max=500) => String(value ?? '').slice(0,max);
@@ -92,7 +124,7 @@
     if (resumeLoading && !currentResume) { root.innerHTML=head+'<div class="panel rs-loading"><span class="rs-spinner"></span><p>Loading resumes…</p></div>'; return; }
     if (currentResume) {
       const c=currentResume.content||{};
-      const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
+      const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><button class="secondary" type="button" data-resume-action="analyze" '+(resumeAnalyzing?'disabled':'')+'>'+(resumeAnalyzing?'Analyzing…':'Analyze resume')+'</button><button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
       '<div class="rs-resume-editor-heading"><div><div class="eyebrow">US RESUME · US LETTER</div><h2>'+escHtml(currentResume.title||'Untitled Resume')+'</h2><p class="muted">Edit on the left; the resume preview updates as you type.</p></div><div class="rs-resume-heading-actions"><button type="button" class="secondary" data-resume-action="duplicate">Duplicate</button><button type="button" class="danger" data-resume-action="delete">Delete</button></div></div>';
       let fields='<div class="rs-editor-fields">'+rfield('title','Resume title',currentResume.title||'Untitled Resume');
       const contactLinks=Array.isArray(c.contact?.links)?c.contact.links:[];
@@ -110,7 +142,7 @@
         fields+='</section>';
       }
       fields+='</div>';
-      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>';
+      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':resumeAnalysisHtml());
       updateEditorToolbarStickiness();
       return;
     }
@@ -169,6 +201,20 @@
   }
   async function resumeAction(button) {
     const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
+    if(action==='analyze') {
+      if(!currentResume || resumeAnalyzing) return;
+      const resumeText=resumeAnalysisText(currentResume);
+      if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
+      resumeAnalyzing=true; resumeMessage=''; renderResumeView();
+      try {
+        const result=await api('/admin-resume-studio',{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
+        resumeAnalysis=result.analysis||null;
+        resumeMessage=resumeAnalysis?'Analysis complete. No resume content was changed.':'The analysis returned no results.';
+      } catch(error) { resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
+      finally { resumeAnalyzing=false; renderResumeView(); }
+      return;
+    }
+    if(action==='clear-analysis') { resumeAnalysis=null; renderResumeView(); return; }
     if(action==='new') return createResume();
     if(action==='back') { if(currentResume&&resumeIsDirty()&&!confirm('Discard unsaved changes to this resume?')) return; currentResume=null; return loadResumeList(); }
     if(action==='open') return openResume(id);

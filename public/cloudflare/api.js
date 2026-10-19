@@ -965,9 +965,10 @@ async function adminResumeStudio(request, env) {
     if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'Cloudflare Workers AI is not bound to this Pages project yet. Add the AI binding named AI in Cloudflare Pages Settings → Functions → Workers AI.' }, 503);
     const master = String(body.master_resume_text || record.master_resume_text || '').trim();
     const job = String(body.job_description || '').trim();
-    if (!master) return json({ error: 'Save or paste your master resume first.' }, 400);
-    if (master.length > 40000) return json({ error: 'Master resume is too long (maximum 40,000 characters).' }, 400);
-    if (!job || job.length > 20000) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    if (!master) return json({ error: 'Add resume content before running an analysis.' }, 400);
+    if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
+    const isAnalysis = action === 'analyze-resume';
+    if (!isAnalysis && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
@@ -975,7 +976,9 @@ async function adminResumeStudio(request, env) {
     const length = ['concise','standard','detailed'].includes(body.cover_length) ? body.cover_length : 'standard';
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
-    if (action === 'cover-only') {
+    if (isAnalysis) {
+      prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
+    } else if (action === 'cover-only') {
       const tailored = String(body.tailored_resume || '').trim();
       if (!tailored || tailored.length > 40000) return json({ error: 'A tailored resume is required to regenerate the cover letter.' }, 400);
       prompt = 'Return JSON with one string field "cover_letter". Write a ' + length + ' cover letter in a ' + tone + ' tone for ' + (jobTitle || 'the advertised role') + ' at ' + (company || 'the company') + '. Use only the candidate evidence in the supplied resume. Do not fabricate details. Company context: ' + companyDetails + '\nJOB DESCRIPTION:\n' + job + '\nTAILORED RESUME:\n' + tailored;
@@ -984,7 +987,7 @@ async function adminResumeStudio(request, env) {
     }
     let modelResult;
     try {
-      modelResult = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: action === 'cover-only' ? 2200 : 6500 });
+      modelResult = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: (action === 'cover-only' || isAnalysis) ? 2200 : 6500 });
     } catch (error) {
       const detail = String(error?.message || 'Unknown Workers AI invocation error').slice(0, 400);
       console.error('Resume Studio Workers AI invocation failed:', detail, error?.name || 'Error');
@@ -994,6 +997,7 @@ async function adminResumeStudio(request, env) {
     let parsed;
     try { parsed = resumeStudioJson(output); } catch (error) { return json({ error: error.message || 'The AI response was not valid JSON. Please retry.' }, 502); }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
+    if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
     if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
     return json({
       analysis: object(parsed.analysis),
