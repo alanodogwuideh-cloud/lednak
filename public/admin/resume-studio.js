@@ -15,6 +15,24 @@
   let lastSavedAt = null;
   let saveError = '';
   let openAfterRender = '';
+  const draftKey = 'resume-studio-master-profile-draft-v1';
+  function persistLocalDraft() {
+    try {
+      const value = JSON.stringify({ profile, savedJson, savedAt: new Date().toISOString() });
+      if (value.length <= 250000) localStorage.setItem(draftKey, value);
+    } catch (_) { /* Storage may be unavailable; server save remains authoritative. */ }
+  }
+  function clearLocalDraft() {
+    try { localStorage.removeItem(draftKey); } catch (_) {}
+  }
+  function readLocalDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      return draft && draft.profile && typeof draft.profile === 'object' ? draft : null;
+    } catch (_) { return null; }
+  }
   const escHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const clean = value => String(value ?? '');
   const splitTags = value => clean(value).split(',').map(item => item.trim()).filter(Boolean).slice(0, 100);
@@ -78,6 +96,7 @@
   }
   function markDirty() {
     saveError = '';
+    persistLocalDraft();
     updateSaveState();
   }
   async function loadProfile() {
@@ -97,6 +116,17 @@
       savedJson = JSON.stringify(profile);
       lastSavedAt = result.updatedAt || null;
       loaded = true;
+      const localDraft = readLocalDraft();
+      if (localDraft && JSON.stringify(localDraft.profile) !== savedJson) {
+        const restore = confirm('A local recovery draft from this browser was found and differs from the saved Master Profile. Restore that draft into the editor? Choose Cancel to keep the version currently saved on the server.');
+        if (restore) {
+          profile = localDraft.profile;
+          profile.contact = profile.contact || emptyProfile().contact;
+          for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
+          savedJson = JSON.stringify(result.profile || emptyProfile());
+          saveError = 'Recovered local draft — save it to store it on the server';
+        } else clearLocalDraft();
+      } else if (localDraft && JSON.stringify(localDraft.profile) === savedJson) clearLocalDraft();
       render();
     } catch (error) {
       root.innerHTML = '<div class="panel rs-error"><h3>Could not load Master Profile</h3><p>' + escHtml(error.message || 'Please try again.') + '</p><button type="button" class="secondary" id="rsRetryLoad">Retry</button></div>';
@@ -115,10 +145,12 @@
       savedJson = JSON.stringify(profile);
       lastSavedAt = result.updatedAt || new Date().toISOString();
       saveError = '';
+      clearLocalDraft();
       render();
       if (typeof cmsToast === 'function') cmsToast('Master Profile saved.');
     } catch (error) {
-      saveError = error.message || 'Your edits are preserved. Please retry.';
+      persistLocalDraft();
+      saveError = (error.message || 'The server did not confirm the save.') + ' A recovery draft has been kept in this browser.';
       const state = root.querySelector('#rsSaveState');
       if (state) state.textContent = 'Save failed: ' + saveError;
       const sticky = root.querySelector('#rsStickyState');
@@ -148,6 +180,7 @@
     if (!target.matches('[data-path]') || target.type === 'checkbox') return;
     const path = target.dataset.path;
     setPath(path, target.dataset.kind === 'csv' ? splitTags(target.value) : target.value);
+    persistLocalDraft();
     if (path.startsWith('skills.') && path.endsWith('.items')) {
       const chips = target.closest('.rs-item-card')?.querySelector('.rs-skill-chips');
       const items = splitTags(target.value);
@@ -159,6 +192,7 @@
     const target = event.target;
     if (!target.matches('[data-path]') || target.type !== 'checkbox') return;
     setPath(target.dataset.path, target.checked);
+    persistLocalDraft();
     markDirty();
   });
   root.addEventListener('click', async event => {
