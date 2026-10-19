@@ -13,6 +13,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers }
 });
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 const normalizeR2Url = value => {
   const raw = String(value || '');
   if (!raw) return '';
@@ -1068,7 +1069,7 @@ async function adminResumeProfile(request, env) {
     const { rows } = await tursoQuery(env, 'SELECT profile_json, updated_at FROM master_profile WHERE id=1 LIMIT 1');
     let profile = emptyMasterProfile();
     if (rows[0]?.profile_json) {
-      try { profile = normalizeMasterProfile(JSON.parse(rows[0].profile_json)); }
+      try { profile = normalizeMasterProfile(parseStoredJson(rows[0].profile_json,{})); }
       catch { return json({ error: 'The saved master profile could not be read safely.' }, 500); }
     }
     return json({ profile, updatedAt: rows[0]?.updated_at || null });
@@ -1124,16 +1125,16 @@ async function adminResumes(request,env) {
   let body={}; if(['POST','PUT','DELETE'].includes(method)){try{body=await request.json()}catch{return json({error:'Please send valid JSON.'},400)}}
   const resumeId=id||String(body.id||'').trim();
   if(method==='GET'){
-    if(resumeId){const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!rows[0])return json({error:'Resume not found.'},404);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))});}
+    if(resumeId){const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!rows[0])return json({error:'Resume not found.'},404);return json({...rows[0],content:normalizeResumeContent(parseStoredJson(rows[0].content,{}))});}
     const {rows}=await tursoQuery(env,'SELECT id,title,template,created_at,updated_at,job_id FROM resumes ORDER BY updated_at DESC,id DESC');return json(rows);
   }
   if(method==='POST'){
     let title=String(body.title||'Untitled Resume').trim().slice(0,160)||'Untitled Resume',template='us',content;
-    if(body.action==='duplicate'){const {rows}=await tursoQuery(env,'SELECT title,template,content FROM resumes WHERE id=$1 LIMIT 1',[String(body.id||'')]);if(!rows[0])return json({error:'Resume not found.'},404);title=String(body.title||('Copy of '+rows[0].title)).slice(0,160);template=rows[0].template||'us';content=normalizeResumeContent(JSON.parse(rows[0].content||'{}'));}
+    if(body.action==='duplicate'){const {rows}=await tursoQuery(env,'SELECT title,template,content FROM resumes WHERE id=$1 LIMIT 1',[String(body.id||'')]);if(!rows[0])return json({error:'Resume not found.'},404);title=String(body.title||('Copy of '+rows[0].title)).slice(0,160);template=rows[0].template||'us';content=normalizeResumeContent(parseStoredJson(rows[0].content,{}));}
     else {const {rows}=await tursoQuery(env,'SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');let profile={};try{profile=JSON.parse(rows[0]?.profile_json||'{}')}catch{}content=normalizeResumeContent(resumeSnapshotFromMaster(profile));}
     const created=await tursoQuery(env,'INSERT INTO resumes (title,template,content,created_at,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[title,template,JSON.stringify(content)]);const newId=created.rows[0]?.id;if(!newId)throw new Error('The resume could not be created.');
     await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) VALUES ($1,$2,CURRENT_TIMESTAMP)',[newId,JSON.stringify(content)]);
-    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))},201);
+    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);return json({...rows[0],content:normalizeResumeContent(parseStoredJson(rows[0].content,{}))},201);
   }
   if(method==='PUT'){
     if(!resumeId)return json({error:'Resume ID is required.'},400);const {rows:existing}=await tursoQuery(env,'SELECT id FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);if(!existing[0])return json({error:'Resume not found.'},404);
@@ -1141,7 +1142,7 @@ async function adminResumes(request,env) {
     await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) SELECT id,content,CURRENT_TIMESTAMP FROM resumes WHERE id=$1',[resumeId]);
     await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1 AND id NOT IN (SELECT id FROM resume_versions WHERE resume_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20)',[resumeId]);
     await tursoQuery(env,'UPDATE resumes SET title=$1,template=$2,content=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$4',[title,'us',JSON.stringify(content),resumeId]);
-    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);return json({...rows[0],content:normalizeResumeContent(JSON.parse(rows[0].content||'{}'))});
+    const {rows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);return json({...rows[0],content:normalizeResumeContent(parseStoredJson(rows[0].content,{}))});
   }
   if(method==='DELETE'){if(!resumeId)return json({error:'Resume ID is required.'},400);await tursoQuery(env,'DELETE FROM cover_letters WHERE resume_id=$1',[resumeId]);await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1',[resumeId]);const {rows}=await tursoQuery(env,'DELETE FROM resumes WHERE id=$1 RETURNING id',[resumeId]);if(!rows.length)return json({error:'Resume not found.'},404);return json({ok:true,id:resumeId});}
   return json({error:'Method not allowed.'},405);

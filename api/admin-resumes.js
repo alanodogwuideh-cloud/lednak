@@ -7,6 +7,7 @@ export const methods = ['GET','POST','PUT','DELETE'];
 const text = (value, max = 500) => String(value ?? '').trim().slice(0, max);
 const obj = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 const arr = value => Array.isArray(value) ? value : [];
+const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 
 function snapshotFromProfile(profile) {
   const contact = obj(profile.contact);
@@ -74,7 +75,7 @@ export default async function(req,res) {
       if (id) {
         const {rows}=await tursoQuery('SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[id]);
         if (!rows[0]) return res.status(404).json({error:'Resume not found.'});
-        return res.json({...rows[0],content:normalizeContent(JSON.parse(rows[0].content||'{}'))});
+        return res.json({...rows[0],content:normalizeContent(parseStoredJson(rows[0].content,{}))});
       }
       const {rows}=await tursoQuery('SELECT id,title,template,created_at,updated_at,job_id FROM resumes ORDER BY updated_at DESC,id DESC');
       return res.json(rows);
@@ -86,17 +87,17 @@ export default async function(req,res) {
         const {rows}=await tursoQuery('SELECT title,template,content FROM resumes WHERE id=$1 LIMIT 1',[sourceId]);
         if (!rows[0]) return res.status(404).json({error:'Resume not found.'});
         const title=text(body.title,160)||('Copy of '+rows[0].title).slice(0,160);
-        const content=normalizeContent(JSON.parse(rows[0].content||'{}'));
+        const content=normalizeContent(parseStoredJson(rows[0].content,{}));
         const created=await tursoQuery('INSERT INTO resumes (title,template,content,created_at,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[title,rows[0].template||'us',JSON.stringify(content)]);
         const newId=created.rows[0]?.id;
         if (!newId) throw new Error('The duplicate resume could not be created.');
         await tursoQuery('INSERT INTO resume_versions (resume_id,content,created_at) VALUES ($1,$2,CURRENT_TIMESTAMP)',[newId,JSON.stringify(content)]);
         const {rows:result}=await tursoQuery('SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);
-        return res.status(201).json({...result[0],content:normalizeContent(JSON.parse(result[0].content||'{}'))});
+        return res.status(201).json({...result[0],content:normalizeContent(parseStoredJson(result[0].content,{}))});
       }
       const {rows:master}=await tursoQuery('SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');
       let profile={};
-      try { profile=JSON.parse(master[0]?.profile_json||'{}'); } catch {}
+      profile=parseStoredJson(master[0]?.profile_json,{});
       const content=snapshotFromProfile(profile);
       const title=text(body.title,160)||'Untitled Resume';
       const template='us';
@@ -105,7 +106,7 @@ export default async function(req,res) {
       if (!newId) throw new Error('The resume could not be created.');
       await tursoQuery('INSERT INTO resume_versions (resume_id,content,created_at) VALUES ($1,$2,CURRENT_TIMESTAMP)',[newId,JSON.stringify(content)]);
       const {rows}=await tursoQuery('SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);
-      return res.status(201).json({...rows[0],content:normalizeContent(JSON.parse(rows[0].content||'{}'))});
+      return res.status(201).json({...rows[0],content:normalizeContent(parseStoredJson(rows[0].content,{}))});
     }
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({error:'Resume ID is required.'});
