@@ -1045,7 +1045,6 @@ async function adminResumeStudio(request, env) {
       // valid extraction. A transient invocation failure gets one same-model retry.
       modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
     } catch (firstError) {
-      await new Promise(resolve => setTimeout(resolve, 200));
       try {
         modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       } catch (retryError) {
@@ -1061,7 +1060,9 @@ async function adminResumeStudio(request, env) {
       parsed = resumeStudioJson(output);
     } catch (firstParseError) {
       if (isProfileImport) {
-        parsed = resumeStudioFastProfile(master);
+        const detail = String(firstParseError?.message || 'The model returned invalid JSON.').slice(0, 240);
+        console.error('Resume Studio Llama 4 Scout import JSON response failed validation:', detail);
+        return json({ error: 'Llama 4 Scout returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
       } else {
         // Other Resume Studio tasks retain the full-budget JSON repair retry.
         try {

@@ -17,6 +17,7 @@
   let openAfterRender = '';
   let activeView = 'profile';
   let importBusy = false;
+  let importStage = 'Preparing your resume…';
   let importReview = null;
   let importError = '';
   const draftKey = 'resume-studio-master-profile-draft-v1';
@@ -282,16 +283,24 @@
     }
     throw new Error('Unsupported file type. Upload a PDF or DOCX document.');
   }
+  function renderImportProgress() {
+    if (!importBusy) return '';
+    const steps = ['Reading your document', 'Organizing details with AI', 'Preparing your review'];
+    const active = importStage.includes('Reading') ? 0 : importStage.includes('Organizing') ? 1 : 2;
+    return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><div class="rs-import-progress-track"><span></span></div><ol>' + steps.map((label, i) => '<li class="' + (i < active ? 'is-done' : i === active ? 'is-active' : '') + '"><span>' + (i < active ? '✓' : String(i + 1)) + '</span>' + label + '</li>').join('') + '</ol><small>This may take a moment. Keep this window open while we organize your information.</small></section></div>';
+  }
   async function startResumeImport(file) {
-    importBusy = true; importError = ''; importReview = null; render();
+    importBusy = true; importStage = 'Reading your document…'; importError = ''; importReview = null; render();
     try {
       const text = await extractResumeText(file);
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
+      importStage = 'Organizing details with AI…'; render();
       const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
       const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
       if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
-      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name };
+      importStage = 'Preparing your review…'; render();
+      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name, sourceText: text };
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';
@@ -354,6 +363,7 @@
     openAfterRender = '';
     updateSaveState();
     if (importReview) root.insertAdjacentHTML('beforeend', renderImportReview());
+    if (importBusy) root.insertAdjacentHTML('beforeend', renderImportProgress());
   }
   function updateSaveState() {
     const dirty = JSON.stringify(profile) !== savedJson;

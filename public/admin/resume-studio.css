@@ -208,4 +208,24 @@
 #resumeTab .rs-import-card>strong{font-size:12px;color:#292a25}
 #resumeTab .rs-import-empty{margin:0;color:#777a73;font-size:12px}
 #resumeTab .rs-import-modal-body{scrollbar-gutter:stable}
+#resumeTab .rs-import-progress-backdrop{position:fixed;inset:0;z-index:2100;display:grid;place-items:center;padding:18px;background:rgba(22,23,20,.48);backdrop-filter:blur(3px)}
+#resumeTab .rs-import-progress{box-sizing:border-box;width:min(390px,100%);padding:28px 26px 24px;border:1px solid #e4e5df;border-radius:18px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.22);text-align:center;color:#22231f}
+#resumeTab .rs-import-progress-mark{width:46px;height:46px;margin:0 auto 18px;border-radius:14px;background:#fff2e7;display:grid;place-items:center}
+#resumeTab .rs-import-progress-mark span{width:19px;height:19px;border:2px solid #f8c59b;border-top-color:#f8831d;border-radius:50%;animation:rsImportSpin .8s linear infinite}
+#resumeTab .rs-import-progress .eyebrow{margin:0 0 8px;color:#a65a1a;font-size:9px;font-weight:800;letter-spacing:.12em}
+#resumeTab .rs-import-progress h3{margin:0;font-size:20px;letter-spacing:-.025em}
+#resumeTab .rs-import-progress-copy{margin:8px 0 18px;color:#73766f;font-size:13px}
+#resumeTab .rs-import-progress-track{height:4px;overflow:hidden;border-radius:99px;background:#f0f0eb}
+#resumeTab .rs-import-progress-track span{display:block;width:38%;height:100%;border-radius:99px;background:#f8831d;animation:rsImportTravel 1.35s ease-in-out infinite alternate}
+#resumeTab .rs-import-progress ol{list-style:none;padding:0;margin:20px 0;display:grid;gap:11px;text-align:left}
+#resumeTab .rs-import-progress li{display:flex;align-items:center;gap:10px;color:#a0a198;font-size:12px}
+#resumeTab .rs-import-progress li>span{width:22px;height:22px;display:grid;place-items:center;border:1px solid #e3e4de;border-radius:50%;font-size:10px}
+#resumeTab .rs-import-progress li.is-active{color:#282923;font-weight:700}
+#resumeTab .rs-import-progress li.is-active>span{border-color:#f8831d;background:#fff2e7;color:#b65c14}
+#resumeTab .rs-import-progress li.is-done{color:#62655d}
+#resumeTab .rs-import-progress li.is-done>span{border-color:#d7e6d7;background:#f0f7ef;color:#35753a}
+#resumeTab .rs-import-progress small{display:block;color:#85877f;font-size:10px;line-height:1.5}
+@keyframes rsImportSpin{to{transform:rotate(360deg)}}
+@keyframes rsImportTravel{from{transform:translateX(0)}to{transform:translateX(165%)}}
+@media(prefers-reduced-motion:reduce){#resumeTab .rs-import-progress-mark span,#resumeTab .rs-import-progress-track span{animation:none}}
 @media(max-width:600px){#resumeTab .rs-import-card{padding:11px}#resumeTab .rs-import-section{padding:12px 0}#resumeTab .rs-import-section .rs-form-grid{grid-template-columns:minmax(0,1fr)}}
