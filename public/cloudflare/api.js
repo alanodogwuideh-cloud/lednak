@@ -1027,7 +1027,7 @@ async function adminResumeStudio(request, env) {
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
     if (isProfileImport) {
-      prompt = 'Extract the supplied resume into a structured career profile. Return valid JSON only with this exact shape: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"id":"","label":"Professional summary","text":""}],"experience":[{"id":"","company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"id":"","text":"","tags":[]}]}],"projects":[{"id":"","name":"","url":"","description":"","bullets":[{"id":"","text":"","tags":[]}]}],"skills":[{"id":"","category":"","items":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}]},"warnings":["..."]}. Use empty arrays when a section has no evidence and empty strings for unknown values. Extract only information explicitly present; do not infer dates, metrics, qualifications, skills, employers, or URLs. Preserve achievement wording and numbers. Split distinct roles and achievements into separate structured entries. Do not treat headings or contact details as achievements. Keep the profile object complete even when sections are absent. Add a warning for any ambiguous or unreadable information. For speed, do not generate IDs or tags even if those keys appear in the schema; the application creates IDs itself. Keep each bullet to one concise sentence, avoid repeated wording, and preserve every distinct role, project, qualification, skill group, date, and achievement. Return only the required data with no explanations. Never output explanations outside the JSON. RESUME TEXT:\\n' + master;
+      prompt = 'Extract the resume into a structured profile. Return valid JSON only in this shape: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"label":"Professional summary","text":""}],"experience":[{"company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"text":""}]}],"projects":[{"name":"","url":"","description":"","bullets":[{"text":""}]}],"skills":[{"category":"","items":[]}],"education":[{"institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"name":"","issuer":"","date":""}]},"warnings":[]}. Keep all sections. Use empty arrays for absent sections and empty strings for unknown values. Extract only explicit facts; never invent details. Preserve every distinct role, project, qualification, skill group, date, and achievement, without duplicating content. Do not generate IDs or tags. Use concise bullets. Include warnings only for ambiguous or unreadable information. Return JSON only. RESUME TEXT:\\n' + master;
     } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
     } else if (action === 'cover-only') {
@@ -1041,35 +1041,17 @@ async function adminResumeStudio(request, env) {
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
     const requestedTokens = isProfileImport ? 4000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      if (isProfileImport) {
-        let timeoutHandle;
-        try {
-          modelResult = await Promise.race([
-            env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens }),
-            new Promise((_, reject) => { timeoutHandle = setTimeout(() => { const error = new Error('Resume import AI time budget exceeded'); error.name = 'ResumeImportTimeout'; reject(error); }, 7000); })
-          ]);
-        } finally { clearTimeout(timeoutHandle); }
-      } else {
-        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
-      }
+      // Let the model complete naturally; a client-facing timeout must not truncate
+      // valid extraction. A transient invocation failure gets one same-model retry.
+      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
     } catch (firstError) {
-      if (isProfileImport && firstError?.name === 'ResumeImportTimeout') {
-        // Return a structured fallback rather than a script-like model response or a long spinner.
-        modelResult = { response: JSON.stringify(resumeStudioFastProfile(master)) };
-      } else {
-        // Keep the same model and original output budget on transient invocation errors.
-        await new Promise(resolve => setTimeout(resolve, 350));
-        try {
-          modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
-        } catch (retryError) {
-          if (isProfileImport) {
-            modelResult = { response: JSON.stringify(resumeStudioFastProfile(master)) };
-          } else {
-            const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-            console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-            return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
-          }
-        }
+      await new Promise(resolve => setTimeout(resolve, 200));
+      try {
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      } catch (retryError) {
+        const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+        return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
       }
     }
     const extractModelOutput = result => typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');

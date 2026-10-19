@@ -259,12 +259,12 @@
       const pdfjs = await loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
       pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-      const pages = [];
-      for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
-        const page = await pdf.getPage(pageNo);
+      // Read pages concurrently instead of waiting for each page sequentially.
+      const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
+        const page = await pdf.getPage(index + 1);
         const content = await page.getTextContent();
-        pages.push(content.items.map(item => item.str || '').join(' '));
-      }
+        return content.items.map(item => item.str || '').join(' ');
+      }));
       return pages.join('\n').trim();
     }
     if (name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
@@ -281,15 +281,7 @@
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
       const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 10000);
-      let result;
-      try {
-        result = await api(endpoint, { method: 'POST', signal: controller.signal, body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
-      } catch (requestError) {
-        if (requestError?.name === 'AbortError') throw new Error('Resume import exceeded the 10-second limit. Please retry with a text-based PDF or DOCX; your existing Master Profile has not been changed.');
-        throw requestError;
-      } finally { window.clearTimeout(timeoutId); }
+      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
       if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
       importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name };
       importError = '';
