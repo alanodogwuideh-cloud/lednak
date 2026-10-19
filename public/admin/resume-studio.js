@@ -474,6 +474,10 @@
   root.addEventListener('click', async event => {
     const importControl = event.target.closest('[data-import-action]');
     if (importControl) {
+      // The backdrop carries data-import-action="dismiss" for outside clicks.
+      // Ignore bubbled clicks from inside the dialog, otherwise a second click
+      // on a field or the modal body accidentally closes the review.
+      if (importControl.classList.contains('rs-import-backdrop') && event.target !== importControl) return;
       if (importControl.dataset.importAction === 'dismiss') { importReview = null; render(); return; }
       if (importControl.dataset.importAction === 'apply') {
         const imported = JSON.parse(JSON.stringify(importReview?.profile || {}));
