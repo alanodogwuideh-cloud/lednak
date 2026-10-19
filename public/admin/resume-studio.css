@@ -5,7 +5,7 @@
 #resumeTab .rs-resume-editor-heading h2{font-size:24px;margin:4px 0 6px}
 #resumeTab .rs-resume-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.9fr);gap:20px;align-items:start}
 #resumeTab .rs-resume-form-pane{display:grid;gap:14px;min-width:0}
-#resumeTab .rs-edit-section{padding:16px;border:1px solid #dedfd9;border-radius:12px;background:#fff;display:grid;gap:14px;min-width:0}
+#resumeTab .rs-edit-section{padding:16px;border:1px solid #dedfd9;border-radius:12px;background:#fff;display:grid;gap:14px;min-width:0}#resumeTab .rs-editor-fields>.rs-field+.rs-edit-section{margin-top:10px}
 #resumeTab .rs-edit-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 #resumeTab .rs-edit-section-head h3{font-size:14px;margin:0}
 #resumeTab .rs-edit-section-head>.rs-field{flex:1;max-width:220px}
