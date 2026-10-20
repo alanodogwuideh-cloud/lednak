@@ -82,6 +82,14 @@
   let resumeSuggestions = [];
   let resumeSuggestionsLoading = false;
   let resumeAnalyzing = false;
+  function autoClearResumeMessage(message, delay=12000) {
+    setTimeout(() => {
+      if(resumeMessage===message) {
+        resumeMessage='';
+        if(currentResume) renderResumeView();
+      }
+    }, delay);
+  }
   const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
   function resumeAnalysisText(resume) {
     const c = resume?.content || {};
@@ -248,7 +256,12 @@
         resumeAnalysis=normalizeResumeAnalysis(result?.analysis);
         resumeAnalysisOpen=true;
         resumeMessage='Analysis complete. No resume content was changed.';
-      } catch(error) { resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
+        autoClearResumeMessage(resumeMessage,12000);
+      } catch(error) {
+        resumeAnalysis=null; resumeAnalysisOpen=false;
+        resumeMessage='Analysis failed: '+(error.message||'Please try again.');
+        autoClearResumeMessage(resumeMessage,12000);
+      }
       finally { resumeAnalyzing=false; renderResumeView(); }
       return;
     }
@@ -267,14 +280,8 @@
         if(!resumeSuggestions.length) throw new Error('No editable examples were returned. Please try again.');
       } catch(error) {
         resumeMessage='Suggestion generation failed: '+(error.message||'Please try again.');
-        const transientMessage=resumeMessage;
+        autoClearResumeMessage(resumeMessage,12000);
         resumeAnalysisTab='analysis';
-        setTimeout(() => {
-          if(resumeMessage===transientMessage) {
-            resumeMessage='';
-            if(currentResume) renderResumeView();
-          }
-        }, 45000);
       }
       finally { resumeSuggestionsLoading=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
       return;
