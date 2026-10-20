@@ -108,7 +108,8 @@
     if (!resumeAnalysis) return '';
     const a = resumeAnalysis;
     const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
-    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
+    const hasFindings = !!a.overall_assessment || ['strengths','issues','missing_information','structure_recommendations','evidence_warnings','next_steps'].some(key=>Array.isArray(a[key])&&a[key].length);
+    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+(!hasFindings?'<p class="rs-analysis-note">No actionable findings were returned. You can retry the analysis or review the resume manually.</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
   }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
@@ -185,7 +186,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -206,11 +207,12 @@
   }
   async function resumeAction(button, event) {
     const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
+    if(currentResume && ['add-contact-link','add-entry','remove-entry','add-bullet','remove-bullet','move-entry','move-bullet','move-section'].includes(action)) { resumeAnalysis=null; resumeAnalysisOpen=false; }
     if(action==='analyze') {
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
-      resumeAnalyzing=true; resumeMessage=''; renderResumeView();
+      resumeAnalyzing=true; resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage=''; renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
@@ -457,6 +459,7 @@
   root.addEventListener('input', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type !== 'checkbox' && currentResume) {
+      resumeAnalysis=null; resumeAnalysisOpen=false;
       const path = target.dataset.resumePath;
       const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
       if (path === 'title') currentResume.title = value; else { if (path.startsWith('content.contact.links.0.') && !currentResume.content.contact.links.length) currentResume.content.contact.links.push({label:'Portfolio',url:'',hidden:false}); rpathSet(currentResume, path, value); }
@@ -479,6 +482,7 @@
   root.addEventListener('change', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type === 'checkbox' && currentResume) {
+      resumeAnalysis=null; resumeAnalysisOpen=false;
       const path=target.dataset.resumePath;
       if (path.startsWith('content.hiddenSections.')) { const section=path.split('.').pop(); const list=currentResume.content.hiddenSections||[]; currentResume.content.hiddenSections=target.checked?[...new Set([...list,section])]:list.filter(x=>x!==section); }
       else rpathSet(currentResume,path,target.checked);
