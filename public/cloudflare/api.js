@@ -1016,11 +1016,12 @@ async function adminResumeStudio(request, env) {
     const job = String(body.job_description || '').trim();
     const isAnalysis = action === 'analyze-resume';
     const isSuggestion = action === 'suggest-resume-fixes';
+    const isJobSuggestion = action === 'suggest-job-specific-fixes';
     const isProfileImport = action === 'import-profile';
     if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
     if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
     // Milestone 3 resume-fix suggestions are based only on the resume and its analysis; they must never require job details.
-    const requiresJobDescription = !isAnalysis && !isSuggestion && !isProfileImport;
+    const requiresJobDescription = isJobSuggestion || (!isAnalysis && !isSuggestion && !isProfileImport);
     if (requiresJobDescription && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
@@ -1035,7 +1036,10 @@ async function adminResumeStudio(request, env) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
     } else if (isSuggestion) {
       const analysis = object(body.analysis);
-      prompt = 'Create 3 to 6 editable resume improvement examples grounded in the resume and the supplied analysis. Return JSON only with a suggestions array; each item must have title, reason, and text string fields. Prioritize issues identified in the analysis. Reuse only verified details from the resume. Where a stronger example needs information that was not supplied, use clear placeholders such as [add verified percentage], [number of customers], [time saved], [tool actually used], or [specific outcome]. Never invent metrics, employers, dates, qualifications, tools, scope, or outcomes. Make the text a practical example the candidate can edit, not a claim that the placeholder is true. Keep each text concise and ready to paste after personalization. ANALYSIS:\\n' + JSON.stringify(analysis).slice(0,12000) + '\\nRESUME:\\n' + master;
+      prompt = 'Create 3 to 6 editable general resume improvement examples grounded in the resume and supplied analysis only. Do not use or request job-description information. Return JSON only with a suggestions array; each item must have title, reason, and text string fields. Prioritize issues identified in the analysis. Reuse only verified details from the resume. Where a stronger example needs information that was not supplied, use clear placeholders such as [add verified percentage], [number of customers], [time saved], [tool actually used], or [specific outcome]. Never invent metrics, employers, dates, qualifications, tools, scope, or outcomes. Make the text a practical example the candidate can edit, not a claim that the placeholder is true. Keep each text concise and ready to paste after personalization. ANALYSIS:\\n' + JSON.stringify(analysis).slice(0,12000) + '\\nRESUME:\\n' + master;
+    } else if (isJobSuggestion) {
+      const analysis = object(body.analysis);
+      prompt = 'Create 3 to 6 editable job-specific resume improvement suggestions using the candidate resume, resume analysis, and supplied job description. Return JSON only with a suggestions array; each item must have title, reason, and text string fields. Each reason must explain which job requirement the suggestion addresses. Prioritize relevant evidence already present in the resume, improve emphasis and wording, and identify important keywords or competencies that are not demonstrated. Clearly distinguish (1) a keyword or experience that exists but is underemphasized from (2) a genuine gap or qualification not evidenced in the resume. Never imply the candidate has an unverified skill, qualification, certification, employer, date, metric, responsibility, or outcome. Where additional proof would help, use a clear placeholder or label it as a gap to verify. Suggestions are examples for manual review only; do not rewrite or apply changes to the saved resume. ANALYSIS:\\n' + JSON.stringify(analysis).slice(0,12000) + '\\nJOB DESCRIPTION:\\n' + job + '\\nRESUME:\\n' + master;
     } else if (action === 'cover-only') {
       const tailored = String(body.tailored_resume || '').trim();
       if (!tailored || tailored.length > 40000) return json({ error: 'A tailored resume is required to regenerate the cover letter.' }, 400);
@@ -1045,7 +1049,7 @@ async function adminResumeStudio(request, env) {
     }
     let modelResult;
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : isSuggestion ? 3000 : 6500;
+    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : (isSuggestion || isJobSuggestion) ? 3000 : 6500;
     try {
       // Let the model complete naturally; a client-facing timeout must not truncate
       // valid extraction. A transient invocation failure gets one same-model retry.
@@ -1090,7 +1094,7 @@ async function adminResumeStudio(request, env) {
       return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
     }
     if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
-    if (isSuggestion) return json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0,8).map(item => ({ title:String(item?.title||'Resume improvement').slice(0,160), reason:String(item?.reason||'').slice(0,800), text:String(item?.text||'').slice(0,4000) })).filter(item => item.text.trim()) : [], usage: nextUsage });
+    if (isSuggestion || isJobSuggestion) return json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0,8).map(item => ({ title:String(item?.title||(isJobSuggestion?'Job-specific improvement':'Resume improvement')).slice(0,160), reason:String(item?.reason||'').slice(0,800), text:String(item?.text||'').slice(0,4000) })).filter(item => item.text.trim()) : [], usage: nextUsage });
     if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
     return json({
       analysis: object(parsed.analysis),

@@ -80,6 +80,10 @@
   let resumeAnalysisOpen = false;
   let resumeAnalysisTab = 'analysis';
   let resumeSuggestions = [];
+  let resumeJobSuggestions = [];
+  let resumeJobDescription = '';
+  let resumeJobSuggestionsLoading = false;
+  let resumeSuggestionMode = 'general';
   let resumeSuggestionsLoading = false;
   let resumeAnalyzing = false;
   function autoClearResumeMessage(message, delay=12000) {
@@ -145,9 +149,12 @@
     const a = resumeAnalysis;
     const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
     const tabs = '<div class="rs-analysis-tabs" role="tablist"><button type="button" role="tab" aria-selected="'+(resumeAnalysisTab==='analysis')+'" class="rs-analysis-tab '+(resumeAnalysisTab==='analysis'?'is-active':'')+'" data-resume-action="analysis-tab" data-tab-value="analysis">Analysis</button><button type="button" role="tab" aria-selected="'+(resumeAnalysisTab==='suggestions')+'" class="rs-analysis-tab '+(resumeAnalysisTab==='suggestions'?'is-active':'')+'" data-resume-action="analysis-tab" data-tab-value="suggestions">Suggestions</button></div>';
-    const suggestions = resumeSuggestionsLoading ? '<div class="rs-suggestions-state" role="status"><strong>Preparing editable examples…</strong><p>Suggestions are based on your resume. Replace placeholders with accurate details.</p></div>' : resumeSuggestions.length ? resumeSuggestions.map((item,index)=>'<section class="rs-suggestion-card"><div class="rs-suggestion-card-head"><h4>'+escHtml(item.title||'Suggested improvement')+'</h4><button type="button" class="rs-suggestion-copy" data-resume-action="copy-suggestion" data-index="'+index+'">Copy text</button></div><p>'+escHtml(item.reason||'Example based on the information provided.')+'</p><label class="rs-suggestion-editor"><span>Edit this example to reflect your real experience</span><textarea rows="5" maxlength="4000" data-suggestion-index="'+index+'">'+escHtml(item.text||'')+'</textarea></label><small>Replace bracketed placeholders with real information. Do not claim unverified figures or responsibilities.</small></section>').join('') : '<div class="rs-suggestions-empty"><h4>Get an example to improve your resume</h4><p>Generate suggestions based on your resume and analysis. You can edit or copy them without changing your saved resume.</p><button type="button" class="primary" data-resume-action="generate-suggestions">Generate suggestions</button></div>';
+    const activeSuggestions = resumeSuggestionMode==='job' ? resumeJobSuggestions : resumeSuggestions;
+    const suggestionsBusy = resumeSuggestionMode==='job' ? resumeJobSuggestionsLoading : resumeSuggestionsLoading;
+    const suggestionControls = '<div class="rs-suggestion-modes" role="group" aria-label="Suggestion type"><button type="button" class="'+(resumeSuggestionMode==='general'?'primary':'secondary')+'" data-resume-action="suggestion-mode" data-mode="general">General resume fixes</button><button type="button" class="'+(resumeSuggestionMode==='job'?'primary':'secondary')+'" data-resume-action="suggestion-mode" data-mode="job">Job-specific fixes</button></div>'+(resumeSuggestionMode==='job' ? '<label class="rs-suggestion-editor rs-job-description-field"><span>Job description <em>(required for job-specific suggestions)</em></span><textarea rows="6" maxlength="20000" data-resume-job-description placeholder="Paste the job description here…">'+escHtml(resumeJobDescription)+'</textarea><small>Used only to compare this resume with the role. It will not be added to or saved in your resume.</small></label><button type="button" class="primary" data-resume-action="generate-job-suggestions" '+(resumeJobSuggestionsLoading?'disabled':'')+'>'+(resumeJobSuggestionsLoading?'Generating job-specific fixes…':'Suggest job-specific fixes')+'</button>' : '<button type="button" class="primary" data-resume-action="generate-suggestions" '+(resumeSuggestionsLoading?'disabled':'')+'>'+(resumeSuggestionsLoading?'Generating…':'Suggest resume fixes')+'</button>');
+    const suggestions = suggestionsBusy ? '<div class="rs-suggestions-state" role="status"><strong>Preparing editable examples…</strong><p>'+(resumeSuggestionMode==='job'?'Comparing your resume with the job description…':'Suggestions are based on your resume and analysis.')+'</p></div>' : activeSuggestions.length ? activeSuggestions.map((item,index)=>'<section class="rs-suggestion-card"><div class="rs-suggestion-card-head"><h4>'+escHtml(item.title||(resumeSuggestionMode==='job'?'Job-specific improvement':'Suggested improvement'))+'</h4><button type="button" class="rs-suggestion-copy" data-resume-action="copy-suggestion" data-suggestion-kind="'+resumeSuggestionMode+'" data-index="'+index+'">Copy text</button></div><p>'+escHtml(item.reason||'Example based on the information provided.')+'</p><label class="rs-suggestion-editor"><span>Edit this example before using it</span><textarea rows="5" maxlength="4000" data-suggestion-index="'+index+'" data-suggestion-kind="'+resumeSuggestionMode+'">'+escHtml(item.text||'')+'</textarea></label><small>Verify every claim. Replace placeholders with real information and do not claim skills or qualifications you do not have.</small></section>').join('') : '<div class="rs-suggestions-empty"><h4>'+(resumeSuggestionMode==='job'?'Find improvements for this role':'Improve your resume')+'</h4><p>'+(resumeSuggestionMode==='job'?'Get suggestions tied to this job description, including relevant evidence and gaps to verify.':'Get editable examples based on your resume and analysis, without needing a job description.')+'</p></div>';
     const analysisContent = (a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<div class="rs-analysis-generate"><div><strong>Want examples for improving these findings?</strong><p>Generate editable suggestions using your resume details.</p></div><button type="button" class="primary" data-resume-action="generate-suggestions" '+(resumeSuggestionsLoading?'disabled':'')+'>'+(resumeSuggestionsLoading?'Generating…':'Get suggestions')+'</button></div>';
-    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header>'+tabs+'<div class="rs-analysis-modal-body">'+(resumeAnalysisTab==='analysis'?analysisContent:'<div class="rs-suggestions-intro"><h4>Suggestions</h4><p>These are editable examples, not verified facts. Add your real figures, tools, scope and outcomes before using them.</p></div>'+suggestions)+'<p class="rs-analysis-note">Your resume will not be changed automatically. Verify every claim before using it.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
+    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header>'+tabs+'<div class="rs-analysis-modal-body">'+(resumeAnalysisTab==='analysis'?analysisContent:'<div class="rs-suggestions-intro"><h4>Suggestions</h4><p>Choose general resume improvements or compare your resume with a specific job description. Suggestions are editable and are never applied automatically.</p></div>'+suggestionControls+suggestions)+'<p class="rs-analysis-note">Your resume will not be changed automatically. Verify every claim before using it.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
   }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
@@ -267,11 +274,12 @@
     }
     if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; resumeAnalysisTab='analysis'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
     if(action==='analysis-tab') { resumeAnalysisTab=button.dataset.tabValue==='suggestions'?'suggestions':'analysis'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
+    if(action==='suggestion-mode') { resumeSuggestionMode=button.dataset.mode==='job'?'job':'general'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
     if(action==='generate-suggestions') {
       if(!currentResume || resumeSuggestionsLoading) return;
       const resumeText=resumeAnalysisText(currentResume);
-      if(resumeText.replace(/\\s/g,'').length<80) { resumeMessage='Add more resume details before generating suggestions.'; renderResumeView(); return; }
-      resumeSuggestionsLoading=true; resumeAnalysisTab='suggestions'; resumeSuggestions=[]; renderResumeView();
+      if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before generating suggestions.'; renderResumeView(); return; }
+      resumeSuggestionsLoading=true; resumeSuggestionMode='general'; resumeAnalysisTab='suggestions'; resumeSuggestions=[]; renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-resume-fixes',master_resume_text:resumeText,analysis:resumeAnalysis})});
@@ -286,11 +294,32 @@
       finally { resumeSuggestionsLoading=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
       return;
     }
+    if(action==='generate-job-suggestions') {
+      if(!currentResume || resumeJobSuggestionsLoading) return;
+      const resumeText=resumeAnalysisText(currentResume);
+      const jobDescription=resumeJobDescription.trim();
+      if(resumeText.replace(/\\s/g,'').length<80) { resumeMessage='Add more resume details before generating job-specific suggestions.'; renderResumeView(); return; }
+      if(jobDescription.length<80) { resumeMessage='Paste the full job description (at least 80 characters) before generating job-specific suggestions.'; autoClearResumeMessage(resumeMessage,12000); renderResumeView(); return; }
+      if(jobDescription.length>20000) { resumeMessage='The job description must be 20,000 characters or fewer.'; autoClearResumeMessage(resumeMessage,12000); renderResumeView(); return; }
+      resumeJobSuggestionsLoading=true; resumeSuggestionMode='job'; resumeAnalysisTab='suggestions'; resumeJobSuggestions=[]; resumeMessage=''; renderResumeView();
+      try {
+        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+        const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-job-specific-fixes',master_resume_text:resumeText,analysis:resumeAnalysis,job_description:jobDescription})});
+        if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No job-specific suggestions were returned. Please try again.');
+        resumeJobSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Job-specific improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
+        if(!resumeJobSuggestions.length) throw new Error('No editable job-specific examples were returned. Please try again.');
+      } catch(error) {
+        resumeMessage='Job-specific suggestions failed: '+(error.message||'Please try again.');
+        autoClearResumeMessage(resumeMessage,12000);
+      } finally { resumeJobSuggestionsLoading=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
+      return;
+    }
     if(action==='copy-suggestion') {
-      const item=resumeSuggestions[Number(button.dataset.index)];
+      const list=button.dataset.suggestionKind==='job'?resumeJobSuggestions:resumeSuggestions;
+      const item=list[Number(button.dataset.index)];
       if(!item?.text) return;
-      try { await navigator.clipboard.writeText(item.text); if(typeof cmsToast==='function') cmsToast('Suggestion copied. Replace placeholders with your real information before using it.'); else resumeMessage='Suggestion copied. Replace placeholders with your real information before using it.'; }
-      catch(error) { const field=root.querySelector('[data-suggestion-index="'+Number(button.dataset.index)+'"]'); if(field) { field.focus(); field.select(); resumeMessage='Clipboard access was blocked. The suggestion is selected so you can copy it manually.'; } }
+      try { await navigator.clipboard.writeText(item.text); if(typeof cmsToast==='function') cmsToast('Suggestion copied. Verify every claim before using it.'); else resumeMessage='Suggestion copied. Verify every claim before using it.'; }
+      catch(error) { const field=root.querySelector('[data-suggestion-index="'+Number(button.dataset.index)+'"][data-suggestion-kind="'+(button.dataset.suggestionKind||'general')+'"]'); if(field) { field.focus(); field.select(); resumeMessage='Clipboard access was blocked. The suggestion is selected so you can copy it manually.'; } }
       return;
     }
     if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; renderResumeView(); return; }
@@ -661,10 +690,12 @@
     markDirty(); render();
   });
   root.addEventListener('input', event => {
+    if(event.target.matches('[data-resume-job-description]')) { resumeJobDescription=event.target.value; return; }
     const field=event.target.closest('[data-suggestion-index]');
     if (!field) return;
     const index=Number(field.dataset.suggestionIndex);
-    if (resumeSuggestions[index]) resumeSuggestions[index].text=field.value;
+    const list=field.dataset.suggestionKind==='job'?resumeJobSuggestions:resumeSuggestions;
+    if (list[index]) list[index].text=field.value;
   });
   root.addEventListener('change', event => {
     if (event.target.matches('#rsImportFile')) {

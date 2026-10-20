@@ -30,10 +30,15 @@ The Resume Studio frontend calls `POST /api/admin-resume-studio` on `alanodogwui
 
 Milestone 3 actions:
 - `analyze-resume` reviews the supplied resume without changing it.
-- `suggest-resume-fixes` generates editable examples from the resume and analysis only. It must not require a job description.
-- Job-description validation applies only to job-tailoring actions, not analysis or resume-fix suggestions.
+- `suggest-resume-fixes` generates editable general examples from the resume and analysis only. It must not require a job description.
+- `suggest-job-specific-fixes` generates editable suggestions from the resume, analysis, and job description. It must require a non-empty job description of at most 20,000 characters.
+- Both suggestion actions return a `suggestions` array and must never modify the saved resume automatically.
+- Job-specific suggestions must distinguish underemphasized existing evidence from genuine skills or qualifications not evidenced in the resume; never invent experience or credentials.
+- Job-description validation applies to `suggest-job-specific-fixes` and job-tailoring actions, not resume analysis or general resume-fix suggestions.
 
-After pushing these files to the GitHub branch connected to Cloudflare Pages, wait for the Pages deployment to complete, then test `POST /api/admin-resume-studio` with `action: "suggest-resume-fixes"`, a non-empty `master_resume_text`, and an `analysis` object. A successful response contains a non-empty `suggestions` array. Do not mark Milestone 3 complete until this production test succeeds.
+After pushing these files to the GitHub branch connected to Cloudflare Pages, wait for the Pages deployment to complete and test both actions independently. For `suggest-resume-fixes`, send a non-empty `master_resume_text` and an `analysis` object without `job_description`; the request should succeed. For `suggest-job-specific-fixes`, send those fields plus a valid `job_description`; the response should contain a non-empty `suggestions` array. Also confirm the job-specific action returns HTTP 400 when the job description is omitted, while the general action does not. Do not mark Milestone 3 complete until the production tests succeed.
+
+After pushing these files to the GitHub branch connected to Cloudflare Pages, wait for the Pages deployment to complete and test both actions independently. For `suggest-resume-fixes`, send a non-empty `master_resume_text` and an `analysis` object without `job_description`; the request should succeed. For `suggest-job-specific-fixes`, send those fields plus a valid `job_description`; the response should contain a non-empty `suggestions` array. Also confirm the job-specific action returns HTTP 400 when the job description is omitted, while the general action does not. Do not mark Milestone 3 complete until the production tests succeed.
 
 ## Resume Studio — Phase 1
 
