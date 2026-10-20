@@ -937,14 +937,21 @@ async function adminResumeStudio(request, env) {
   if (method === 'GET') {
     if (url.searchParams.get('view') === 'ai-check') {
       if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
+      const model = '@cf/zai-org/glm-4.7-flash';
       try {
-        const result = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
-        const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');
-        if (!output.trim()) return json({ ok: false, stage: 'model-response', model: '@cf/meta/llama-4-scout-17b-16e-instruct', error: 'The AI binding ran but returned an empty response.' }, 502);
-        return json({ ok: true, model: '@cf/meta/llama-4-scout-17b-16e-instruct', message: output.trim().slice(0, 160) });
+        // Test the exact model used for resume import. A Llama-only health check
+        // can pass even when GLM is unavailable or failing in this deployment.
+        const result = await env.AI.run(model, { messages: [
+          { role: 'system', content: 'You are testing the Resume Studio model connection.' },
+          { role: 'user', content: 'Reply with exactly: GLM Resume Studio connection successful.' }
+        ], max_tokens: 48 });
+        const output = typeof result === 'string' ? result : String(result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? '');
+        if (!output.trim()) return json({ ok: false, stage: 'model-response', model, error: 'GLM-4.7-Flash was invoked but returned an empty or unrecognized response.', response_keys: result && typeof result === 'object' ? Object.keys(result).slice(0, 20) : [] }, 502);
+        return json({ ok: true, stage: 'complete', model, message: output.trim().slice(0, 160) });
       } catch (error) {
-        console.error('Resume Studio AI connection check failed:', error?.message || 'unknown', error?.stack || '');
-        return json({ ok: false, stage: 'model-invocation', error: String(error?.message || 'Workers AI invocation failed.').slice(0, 300) }, 502);
+        const detail = String(error?.message || 'Workers AI invocation failed.').slice(0, 500);
+        console.error('Resume Studio GLM-4.7-Flash connection check failed:', detail, error?.stack || '');
+        return json({ ok: false, stage: 'model-invocation', model, error: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
       }
     }
     const usage = await resumeStudioUsage(env, record);
@@ -1290,7 +1297,15 @@ function resumeStudioCors(response, request) {
 
 export async function handleCloudflareApi(request, env) {
   const url = new URL(request.url);
-  const route = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
+  // Normalize the API path defensively. Pages rewrites/proxies can sometimes
+  // preserve a duplicated /api prefix or an extra trailing slash; neither should
+  // turn a registered Resume Studio endpoint into a false 404.
+  const routeSegments = url.pathname.split('/').filter(Boolean).map(segment => segment.toLowerCase());
+  // Strip any leading API prefixes so both /admin-resume-studio and
+  // /api/admin-resume-studio (including accidental /api/api/...) resolve
+  // to the same registered handler.
+  while (routeSegments[0] === 'api') routeSegments.shift();
+  const route = routeSegments.join('/');
   const method = request.method.toUpperCase();
 
   if (route === 'admin-resume-studio' && method === 'OPTIONS') {
