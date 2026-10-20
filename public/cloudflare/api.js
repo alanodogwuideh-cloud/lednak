@@ -1310,8 +1310,7 @@ export async function handleCloudflareApi(request, env) {
   // occasionally preserve an extra /api prefix or a trailing slash. Resolve
   // those variants to the same canonical route before dispatch.
   const pathname = url.pathname.replace(/\/+$/, '') || '/';
-  const normalizedPath = pathname.replace(/^(?:\/api)+(?=\/)/, '/');
-  const route = normalizedPath.replace(/^\//, '');
+  const route = pathname.replace(/^(?:\/api)+\/?/, '').replace(/^\/+|\/+$/g, '');
   const method = request.method.toUpperCase();
 
   if (route === 'admin-resume-studio' && method === 'OPTIONS') {
