@@ -107,7 +107,7 @@
       resumeJobSuggestions=Array.isArray(state.jobSuggestions)?state.jobSuggestions.slice(0,8):[];
       resumeJobDescription=String(state.jobDescription||'').slice(0,20000);
       resumeSuggestionMode=state.suggestionMode==='job'?'job':'general';
-      resumeAnalysisOpen=!!resumeAnalysis;
+      resumeAnalysisOpen=false;
     } catch (_) { /* Ignore malformed cached review data. */ }
   }
   function clearResumeReview(id) {
