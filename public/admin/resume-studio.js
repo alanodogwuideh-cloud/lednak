@@ -376,6 +376,17 @@
     importBusy = true; importStage = 'Reading your document'; importError = ''; importReview = null; importContactPreview = null; importTiming = timing;
     importProgressSteps = [{label:'Reading your document',status:'active'}]; render();
     try {
+      const fileKey = 'file:' + await hashImportText([file.name || '',file.size || 0,file.lastModified || 0,file.type || ''].join('|'));
+      let fileCached = null;
+      try { fileCached = await importCacheGet(fileKey); } catch (_) {}
+      if (fileCached?.draft) {
+        timing.cacheHits = 1;
+        importReview = { ...fileCached.draft, fileName:file.name, sourceText:'', timings:{...timing}, cacheHit:true };
+        importContactPreview = importReview.profile?.contact || null;
+        importProgressSteps = [{label:'Reading your document',status:'done'},{label:'Finding contact details',status:'done'},{label:'Finding sections and entries',status:'done'},{label:'Checking completeness',status:'done'},{label:'Preparing your review',status:'done'}];
+        importStage = 'Cached draft ready'; importError = '';
+        return;
+      }
       const parser = await loadImportScript('/admin/resume-import.js', 'ResumeImport');
       const textStart = performance.now();
       const text = await extractResumeText(file, timing);
@@ -403,7 +414,7 @@
       const result = parser.extract(text);
       timing.codeExtractionMs = Math.round(performance.now() - codeStart);
       importContactPreview = result.profile.contact;
-      importReview = { profile:result.profile, warnings:result.warnings, fileName:file.name, sourceText:text, lines:result.lines, unplaced:result.unplaced, lowConfidence:result.lowConfidence, stats:result.stats, timings:timing, cacheHit:false };
+      importReview = { profile:result.profile, warnings:result.warnings, fileName:file.name, sourceText:text, lines:result.lines, unplaced:result.unplaced, lowConfidence:result.lowConfidence, contactConfidence:result.contactConfidence, stats:result.stats, timings:timing, cacheHit:false };
       importProgressSteps[1].status = 'done';
       importProgressSteps.push({label:'Finding sections and entries',status:'done'},{label:'Checking completeness',status:'active'});
       importStage = 'Checking completeness'; render();
@@ -416,7 +427,8 @@
       importProgressSteps[importProgressSteps.length-1].status = 'done';
       importProgressSteps.push({label:'Preparing your review',status:'done'});
       importStage = 'Preparing your review';
-      try { await importCachePut({hash,draft:{profile:result.profile,warnings:result.warnings,lines:result.lines,unplaced:result.unplaced,lowConfidence:result.lowConfidence,stats:result.stats,timings:{...timing},cacheHit:false},createdAt:Date.now()}); } catch (_) {}
+      const cachedDraft = {profile:result.profile,warnings:result.warnings,lines:result.lines,unplaced:result.unplaced,lowConfidence:result.lowConfidence,contactConfidence:result.contactConfidence,stats:result.stats,timings:{...timing},cacheHit:false};
+      try { await Promise.all([importCachePut({hash,draft:cachedDraft,createdAt:Date.now()}),importCachePut({hash:fileKey,draft:cachedDraft,createdAt:Date.now()})]); } catch (_) {}
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';
