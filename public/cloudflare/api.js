@@ -1017,9 +1017,11 @@ async function adminResumeStudio(request, env) {
     const isAnalysis = action === 'analyze-resume';
     const isSuggestions = action === 'suggest-resume-examples';
     const isProfileImport = action === 'import-profile';
+    const isCoverOnly = action === 'cover-only';
+    const jobIndependentActions = new Set(['analyze-resume', 'suggest-resume-examples', 'import-profile']);
     if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
     if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
-    if (!isAnalysis && !isSuggestions && !isProfileImport && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    if (!jobIndependentActions.has(action) && (!job || job.length > 20000)) return json({ error: isCoverOnly ? 'A job description is required to regenerate the cover letter.' : 'A job description is required to tailor a resume.' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
