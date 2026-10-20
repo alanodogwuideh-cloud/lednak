@@ -35,6 +35,24 @@
     assert(result.profile.experience.reduce((n,x)=>n+x.bullets.length,0) === 2, 'Bullet count preserved');
     assert(result.profile.experience.some(x=>x.bullets.some(b=>b.text === 'Designed a dashboard used by 120 customers.')), 'Bullet source text preserved');
     assert(result.profile.skills.some(x=>x.items.includes('Figma') && x.items.includes('Prototyping') && x.items.includes('Research')), 'Skill tokens preserved');
+    const multiline = window.ResumeImport.extract([
+      'Alex Example','alex@example.com','08012345678','Abuja, Nigeria',
+      'WORK EXPERIENCE',
+      'Senior Product Designer','Example Co','Jan 2021 - Mar 2023',
+      '• Led product discovery and prototyping.',
+      '• Improved onboarding completion by 24%.',
+      'Product Designer | Another Co | 09/2020 - 11/2022',
+      '• Designed payment flows.',
+      'EDUCATION',
+      'BSc Computer Science, Example University, 2018'
+    ].join('\n'));
+    assert(multiline.profile.experience.length === 2, 'Multi-line roles are separated into two jobs');
+    assert(multiline.profile.experience[0].title === 'Senior Product Designer', 'Multi-line job title stays in title field');
+    assert(multiline.profile.experience[0].company === 'Example Co', 'Date-only line does not overwrite company field');
+    assert(multiline.profile.experience[0].startDate === 'Jan 2021' && multiline.profile.experience[0].endDate === 'Mar 2023', 'Date-only line maps dates correctly');
+    assert(!multiline.profile.experience[0].bullets.some(b => /Jan 2021/.test(b.text)), 'Date metadata is not imported as a bullet');
+    assert(multiline.profile.education[0].degree.includes('BSc'), 'Education qualification is mapped to degree');
+    assert(multiline.profile.education[0].institution.includes('Example University'), 'Education institution is mapped separately');
     assert(result.stats.aiEntries === 0, 'Code-only import uses zero AI calls');
     return { ok: failures.length === 0, failures, stats: result.stats, linkLabels: result.profile.contact.links.map(x=>x.label) };
   };
