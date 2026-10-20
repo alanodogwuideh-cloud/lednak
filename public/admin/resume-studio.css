@@ -93,17 +93,6 @@
 #resumeTab .rs-analysis-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;border-top:1px solid #ecece7;background:#fcfcfa}
 #resumeTab .rs-analysis-modal-footer span{font-size:11px;line-height:1.5;color:#777a73}
 #resumeTab .rs-analysis-modal-footer button{flex:0 0 auto}
-#resumeTab .rs-analysis-suggestions{padding:16px;border:1px solid #e8e9e2;border-radius:14px;background:#fcfcfa;display:grid;gap:14px}
-#resumeTab .rs-analysis-suggestions-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-#resumeTab .rs-analysis-suggestions-head h4{margin:0 0 5px;font-size:14px;color:#292b25}
-#resumeTab .rs-analysis-suggestions-head p{margin:0;color:#777a73;font-size:12px;line-height:1.6}
-#resumeTab .rs-analysis-suggestions-head button{flex:0 0 auto;white-space:nowrap}
-#resumeTab .rs-analysis-example{padding:14px;border:1px solid #ecece7;border-radius:10px;background:#fff;display:grid;gap:10px}
-#resumeTab .rs-analysis-example h4{margin:0;font-size:13px;color:#292b25}
-#resumeTab .rs-analysis-example>div{display:grid;gap:4px}
-#resumeTab .rs-analysis-example strong{font-size:11px;color:#777a73}
-#resumeTab .rs-analysis-example p{margin:0;font-size:12px;line-height:1.7;color:#454840;white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:600px){#resumeTab .rs-analysis-suggestions{padding:12px}#resumeTab .rs-analysis-suggestions-head{flex-direction:column}#resumeTab .rs-analysis-suggestions-head button{width:100%;white-space:normal}}
 #resumeTab .rs-analysis-note{font-size:11px}
 @media(max-width:600px){#resumeTab .rs-analysis-backdrop{align-items:flex-end;padding:0}#resumeTab .rs-analysis-modal{width:100%;max-height:90dvh;border-radius:20px 20px 0 0;border-bottom:0}#resumeTab .rs-analysis-modal-header{padding:22px 20px 16px}#resumeTab .rs-analysis-modal-body{padding:18px 20px}#resumeTab .rs-analysis-modal-footer{padding:14px 20px;align-items:flex-start;flex-direction:column}#resumeTab .rs-analysis-modal-footer button{width:100%}}
 
@@ -239,22 +228,4 @@
 @keyframes rsImportSpin{to{transform:rotate(360deg)}}
 @keyframes rsImportTravel{from{transform:translateX(0)}to{transform:translateX(165%)}}
 @media(prefers-reduced-motion:reduce){#resumeTab .rs-import-progress-mark span,#resumeTab .rs-import-progress-track span{animation:none}}
-#resumeTab .rs-import-progress{width:min(520px,100%);max-height:88vh;overflow:auto;text-align:left}
-#resumeTab .rs-import-progress .rs-import-progress-mark{margin-left:auto;margin-right:auto}
-#resumeTab .rs-import-progress .rs-import-progress-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
-#resumeTab .rs-import-progress-actions small{margin:0;text-align:left}
-#resumeTab .rs-import-live-contact{margin-top:18px;padding:13px;border:1px solid #e6e7e0;border-radius:10px;background:#fcfcfa;display:grid;gap:8px}
-#resumeTab .rs-import-live-contact>div{display:grid;gap:5px;color:#454840;font-size:12px;overflow-wrap:anywhere}
-#resumeTab .rs-import-details{padding:13px 15px;border:1px solid #e3e4de;border-radius:10px;background:#fcfcfa;display:grid;gap:12px}
-#resumeTab .rs-import-details summary{font-size:12px;font-weight:700;cursor:pointer}
-#resumeTab .rs-import-confidence{display:inline-block;width:max-content;padding:4px 7px;border:1px solid #efd4b5;border-radius:6px;background:#fff7ed;color:#94511a;font-size:10px;font-weight:700}
-#resumeTab .rs-unplaced-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.6fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #e8e9e3}
-#resumeTab .rs-unplaced-row p{margin:0;overflow-wrap:anywhere;font-size:12px;line-height:1.5}
-#resumeTab .rs-unplaced-row select{min-width:0;max-width:100%;padding:8px;border:1px solid #d9dad3;border-radius:8px;background:#fff;font:inherit;font-size:11px}
-@media(max-width:600px){#resumeTab .rs-unplaced-row{grid-template-columns:minmax(0,1fr)}#resumeTab .rs-unplaced-row button{justify-self:end}}
-#resumeTab .rs-import-timing-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-#resumeTab .rs-import-timing-grid>div{display:grid;gap:5px;padding:10px;border:1px solid #e4e5df;border-radius:8px;background:#fff;min-width:0}
-#resumeTab .rs-import-timing-grid span{font-size:10px;color:#777a73}
-#resumeTab .rs-import-timing-grid strong{font-size:13px;color:#242620;overflow-wrap:anywhere}
-@media(max-width:600px){#resumeTab .rs-import-timing-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#resumeTab .rs-import-progress .rs-import-progress-actions{align-items:stretch;flex-direction:column}}
 @media(max-width:600px){#resumeTab .rs-import-card{padding:11px}#resumeTab .rs-import-section{padding:12px 0}#resumeTab .rs-import-section .rs-form-grid{grid-template-columns:minmax(0,1fr)}}

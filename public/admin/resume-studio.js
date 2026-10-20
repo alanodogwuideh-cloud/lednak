@@ -17,7 +17,6 @@
   let openAfterRender = '';
   let activeView = 'profile';
   let importBusy = false;
-  let importSelectedFile = null;
   let importStage = 'Preparing your resume…';
   let importReview = null;
   let importError = '';
@@ -80,9 +79,6 @@
   let resumeAnalysis = null;
   let resumeAnalysisOpen = false;
   let resumeAnalyzing = false;
-  let resumeSuggestions = null;
-  let resumeSuggesting = false;
-  let resumeSuggestionMessage = '';
   const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
   function resumeAnalysisText(resume) {
     const c = resume?.content || {};
@@ -112,9 +108,7 @@
     if (!resumeAnalysis) return '';
     const a = resumeAnalysis;
     const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
-    const hasFindings = !!a.overall_assessment || ['strengths','issues','missing_information','structure_recommendations','evidence_warnings','next_steps'].some(key=>Array.isArray(a[key])&&a[key].length);
-    const suggestionCards = resumeSuggestions && Array.isArray(resumeSuggestions.examples) ? resumeSuggestions.examples.map((item,index)=>'<section class="rs-analysis-example"><h4>Example '+(index+1)+': '+escHtml(item.focus||'Improvement opportunity')+'</h4>'+(item.current_text?'<div><strong>Current wording</strong><p>'+escHtml(item.current_text)+'</p></div>':'')+(item.example_rewrite?'<div><strong>Example wording — adapt with your real evidence</strong><p>'+escHtml(item.example_rewrite)+'</p></div>':'')+(item.evidence_to_add?'<div><strong>Evidence to supply</strong><p>'+escHtml(item.evidence_to_add)+'</p></div>':'')+(item.why_it_helps?'<div><strong>Why this helps</strong><p>'+escHtml(item.why_it_helps)+'</p></div>':'')+'</section>').join('') : '';
-    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+(!hasFindings?'<p class="rs-analysis-note">No actionable findings were returned. You can retry the analysis or review the resume manually.</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<section class="rs-analysis-suggestions"><div class="rs-analysis-suggestions-head"><div><h4>Improvement examples</h4><p>Ask AI for sample wording and the real evidence you should add yourself.</p></div><button type="button" class="secondary" data-resume-action="ask-suggestions" '+(resumeSuggesting?'disabled':'')+'>'+(resumeSuggesting?'Generating examples…':resumeSuggestions?'Regenerate examples':'Ask AI for suggestions')+'</button></div>'+(resumeSuggesting?'<p class="rs-analysis-note" role="status">Creating examples from your current resume. Your resume will not be edited.</p>':'')+(resumeSuggestionMessage?'<p class="rs-analysis-note" role="alert">'+escHtml(resumeSuggestionMessage)+'</p>':'')+(resumeSuggestions?(resumeSuggestions.guidance?'<p class="rs-analysis-note">'+escHtml(resumeSuggestions.guidance)+'</p>':'')+(suggestionCards||'<p class="rs-analysis-note">No examples were returned. You can try again.</p>'):'')+'</section><p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Do not use placeholder metrics or claims unless you can verify them with your own evidence.</p></div><footer class="rs-analysis-modal-footer"><span>Use the examples as a guide, then rewrite with your own verified experience.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
+    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
   }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
@@ -191,7 +185,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -212,12 +206,11 @@
   }
   async function resumeAction(button, event) {
     const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
-    if(currentResume && ['add-contact-link','add-entry','remove-entry','add-bullet','remove-bullet','move-entry','move-bullet','move-section'].includes(action)) { resumeAnalysis=null; resumeAnalysisOpen=false; }
     if(action==='analyze') {
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
-      resumeAnalyzing=true; resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage=''; resumeMessage=''; renderResumeView();
+      resumeAnalyzing=true; resumeMessage=''; renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
@@ -229,20 +222,6 @@
       return;
     }
     if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
-    if(action==='ask-suggestions') {
-      if(!currentResume || !resumeAnalysis || resumeSuggesting) return;
-      const resumeText=resumeAnalysisText(currentResume);
-      if(resumeText.replace(/\\s/g,'').length<80) { resumeSuggestionMessage='Add more resume details before requesting examples.'; renderResumeView(); return; }
-      resumeSuggesting=true; resumeSuggestions=null; resumeSuggestionMessage=''; resumeAnalysisOpen=true; renderResumeView();
-      try {
-        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
-        const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-resume-examples',master_resume_text:resumeText,analysis:resumeAnalysis})});
-        resumeSuggestions=result.suggestions&&typeof result.suggestions==='object'?result.suggestions:null;
-        if(!resumeSuggestions || !Array.isArray(resumeSuggestions.examples) || !resumeSuggestions.examples.length) { resumeSuggestions=null; resumeSuggestionMessage='The AI did not return usable examples. Please try again.'; }
-      } catch(error) { resumeSuggestionMessage='Could not generate examples: '+(error.message||'Please try again.'); }
-      finally { resumeSuggesting=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
-      return;
-    }
     if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; renderResumeView(); return; }
     if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; renderResumeView(); return; }
     if(action==='new') return createResume();
@@ -273,17 +252,16 @@
       if (window[globalName]) resolve(window[globalName]);
     });
   }
-  async function extractResumeText(file, timing = {}) {
+  async function extractResumeText(file) {
     if (!file) throw new Error('Choose a PDF or DOCX file first.');
     if (file.size > 15 * 1024 * 1024) throw new Error('Choose a file smaller than 15 MB.');
     const name = String(file.name || '').toLowerCase();
     if (name.endsWith('.pdf') || file.type === 'application/pdf') {
       // Download the parser and read the selected file at the same time so the
       // user does not pay these two independent costs sequentially.
-      const fileReadStart = performance.now();
       const [pdfjs, fileBuffer] = await Promise.all([
         loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib'),
-        file.arrayBuffer().then(buffer => { timing.fileReadMs = Math.round(performance.now() - fileReadStart); return buffer; })
+        file.arrayBuffer()
       ]);
       pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       const pdf = await pdfjs.getDocument({ data: fileBuffer }).promise;
@@ -291,27 +269,14 @@
       const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
         const page = await pdf.getPage(index + 1);
         const content = await page.getTextContent();
-        const items = content.items
-          .filter(item => String(item.str || '').trim())
-          .map(item => ({ text:String(item.str || '').trim(), x:Number(item.transform?.[4] || 0), y:Number(item.transform?.[5] || 0), width:Number(item.width || 0) }));
-        // PDF.js returns positioned fragments, not semantic lines. Rebuild visual
-        // lines before parsing so headings, job entries and bullets remain distinct.
-        const rows = [];
-        for (const item of items) {
-          let row = rows.find(candidate => Math.abs(candidate.y - item.y) <= 2.5);
-          if (!row) { row = { y:item.y, items:[] }; rows.push(row); }
-          row.items.push(item);
-        }
-        rows.sort((a,b) => b.y-a.y);
-        return rows.map(row => row.items.sort((a,b) => a.x-b.x).map(item => item.text).join(' ').replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+        return content.items.map(item => item.str || '').join(' ');
       }));
       return pages.join('\n').trim();
     }
     if (name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      const fileReadStart = performance.now();
       const [mammoth, fileBuffer] = await Promise.all([
         loadImportScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js', 'mammoth'),
-        file.arrayBuffer().then(buffer => { timing.fileReadMs = Math.round(performance.now() - fileReadStart); return buffer; })
+        file.arrayBuffer()
       ]);
       const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
       return String(result.value || '').trim();
@@ -320,205 +285,22 @@
   }
   function renderImportProgress() {
     if (!importBusy) return '';
-    const steps = importProgressSteps.length ? importProgressSteps : [{label:importStage,status:'active'}];
-    const contact = importContactPreview || importReview?.profile?.contact;
-    const contactHtml = contact ? '<div class="rs-import-live-contact"><strong>Contact details found</strong><div>' +
-      (contact.fullName ? '<span>' + escHtml(contact.fullName) + '</span>' : '') +
-      (contact.email ? '<span>' + escHtml(contact.email) + '</span>' : '') +
-      (contact.phone ? '<span>' + escHtml(contact.phone) + '</span>' : '') +
-      (contact.location ? '<span>' + escHtml(contact.location) + '</span>' : '') +
-      '</div></div>' : '';
-    return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><ol>' +
-      steps.map((step,i) => '<li class="' + (step.status === 'done' ? 'is-done' : step.status === 'active' ? 'is-active' : '') + '"><span>' + (step.status === 'done' ? '✓' : String(i+1)) + '</span>' + escHtml(step.label) + '</li>').join('') +
-      '</ol>' + contactHtml + '<div class="rs-import-progress-actions"><small>Steps complete when their work finishes. Your resume text is not logged.</small><button type="button" class="secondary" data-import-action="clear-cache">Clear import cache</button></div></section></div>';
-  }
-  let importProgressSteps = [];
-  let importTiming = {};
-  let importContactPreview = null;
-  const IMPORT_CACHE_DB = 'resume-studio-import-cache-v2';
-  const IMPORT_CACHE_STORE = 'drafts';
-  function importDb() {
-    return new Promise((resolve, reject) => {
-      if (!window.indexedDB) return reject(new Error('IndexedDB unavailable'));
-      const request = indexedDB.open(IMPORT_CACHE_DB, 1);
-      request.onupgradeneeded = () => request.result.createObjectStore(IMPORT_CACHE_STORE, { keyPath: 'hash' });
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('Could not open import cache'));
-    });
-  }
-  async function importCacheGet(hash) {
-    const db = await importDb();
-    return new Promise((resolve, reject) => {
-      const req = db.transaction(IMPORT_CACHE_STORE, 'readonly').objectStore(IMPORT_CACHE_STORE).get(hash);
-      req.onsuccess = () => { db.close(); resolve(req.result || null); };
-      req.onerror = () => { db.close(); reject(req.error); };
-    });
-  }
-  async function importCachePut(value) {
-    const db = await importDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(IMPORT_CACHE_STORE, 'readwrite');
-      tx.objectStore(IMPORT_CACHE_STORE).put(value);
-      tx.oncomplete = () => { db.close(); resolve(true); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    });
-  }
-  async function clearImportCache() {
-    try {
-      const db = await importDb();
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction(IMPORT_CACHE_STORE, 'readwrite');
-        tx.objectStore(IMPORT_CACHE_STORE).clear();
-        tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-      });
-      db.close();
-      if (importReview) importReview.cacheCleared = true;
-      render();
-    } catch (_) { alert('The browser import cache could not be cleared. You can clear this site’s stored data in your browser settings.'); }
-  }
-  async function hashImportText(text) {
-    if (!crypto.subtle) return 'text-' + text.length + '-' + text.slice(0,80);
-    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(bytes)).map(x => x.toString(16).padStart(2,'0')).join('');
-  }
-  function importNeedsSemanticMapping(result, sourceText) {
-    const p = result?.profile || {};
-    const contact = p.contact || {};
-    const headings = /\b(?:work experience|professional experience|employment history|experience|skills|competencies|education|academic background|certifications|professional summary|career summary)\b/i.test(String(sourceText || ''));
-    const incompleteRoles = (p.experience || []).some(item => !String(item.title || '').trim() || !String(item.company || '').trim());
-    const badLocation = String(contact.location || '').length > 70 || /summary|detail-oriented|professional profile/i.test(String(contact.location || ''));
-    const degreeTerms = /\b(?:bachelor|b\.?sc\.?|bsc|master|m\.?sc\.?|msc|phd|diploma|hnd|ond|national diploma)\b/i;
-    const malformedEducation = (p.education || []).some(item => !String(item.institution || '').trim() || (degreeTerms.test(item.institution) && !!String(item.degree || '').trim()));
-    const ambiguousCertification = (p.certifications || []).some(item => !String(item.issuer || '').trim() && /[,|]|\b(?:19|20)\d{2}\b/.test(String(item.name || '')));
-    return !String(contact.fullName || '').trim()
-      || !(p.experience || []).length
-      || incompleteRoles
-      || badLocation
-      || malformedEducation
-      || ambiguousCertification
-      || (headings && /\bskills\b/i.test(sourceText) && !(p.skills || []).length)
-      || (headings && /\beducation\b/i.test(sourceText) && !(p.education || []).length);
-  }
-  function countImportedEntries(profile) {
-    return ['experience','projects','skills','education','certifications'].reduce((sum,key) => sum + (Array.isArray(profile?.[key]) ? profile[key].length : 0), 0);
-  }
-  async function importProfileWithAI(sourceText, timing) {
-    const started = performance.now();
-    importStage = 'Organizing CV details into the correct fields';
-    importProgressSteps.push({label:'Mapping details to the correct fields',status:'active'});
-    render();
-    try {
-      if (typeof api !== 'function') throw new Error('The secure Resume Studio API client is unavailable.');
-      const endpoint = location.hostname.endsWith('.hatchable.site')
-        ? 'https://alanodogwuideh.com/api/admin-resume-studio'
-        : '/api/admin-resume-studio';
-      const response = await api(endpoint, {
-        method:'POST',
-        body:JSON.stringify({action:'import-profile',master_resume_text:String(sourceText || '').slice(0,40000)})
-      });
-      const profile = response?.profile;
-      if (!profile || !profile.contact || !Array.isArray(profile.experience) || !Array.isArray(profile.skills) || !Array.isArray(profile.education)) {
-        throw new Error('The CV organizer returned an incomplete profile structure.');
-      }
-      timing.aiCalls.push({action:'import-profile',durationMs:Math.round(performance.now()-started),ok:true});
-      return {profile,warnings:Array.isArray(response.warnings)?response.warnings:[]};
-    } catch (error) {
-      timing.aiCalls.push({action:'import-profile',durationMs:Math.round(performance.now()-started),ok:false});
-      throw error;
-    }
+    const steps = ['Reading your document', 'Organizing details with AI', 'Preparing your review'];
+    const active = importStage.includes('Reading') ? 0 : importStage.includes('Organizing') ? 1 : 2;
+    return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><div class="rs-import-progress-track"><span></span></div><ol>' + steps.map((label, i) => '<li class="' + (i < active ? 'is-done' : i === active ? 'is-active' : '') + '"><span>' + (i < active ? '✓' : String(i + 1)) + '</span>' + label + '</li>').join('') + '</ol><small>This may take a moment. Keep this window open while we organize your information.</small></section></div>';
   }
   async function startResumeImport(file) {
-    if (file) importSelectedFile = file;
-    file = file || importSelectedFile;
-    const timing = { fileReadMs:0, textExtractionMs:0, codeExtractionMs:0, aiCalls:[], assemblyMs:0, cacheHits:0 };
-    importBusy = true; importStage = 'Reading your document'; importError = ''; importReview = null; importContactPreview = null; importTiming = timing;
-    importProgressSteps = [{label:'Reading your document',status:'active'}]; render();
+    importBusy = true; importStage = 'Reading your document…'; importError = ''; importReview = null; render();
     try {
-      const fileKey = 'file:v2:' + await hashImportText([file.name || '',file.size || 0,file.lastModified || 0,file.type || ''].join('|'));
-      let fileCached = null;
-      try { fileCached = await importCacheGet(fileKey); } catch (_) {}
-      if (fileCached?.draft) {
-        timing.cacheHits = 1;
-        importReview = { ...fileCached.draft, fileName:file.name, sourceText:'', timings:{...timing}, cacheHit:true };
-        importContactPreview = importReview.profile?.contact || null;
-        importProgressSteps = [{label:'Reading your document',status:'done'},{label:'Finding contact details',status:'done'},{label:'Finding sections and entries',status:'done'},{label:'Checking completeness',status:'done'},{label:'Preparing your review',status:'done'}];
-        importStage = 'Cached draft ready'; importError = '';
-        return;
-      }
-      const parser = await loadImportScript('/admin/resume-import.js', 'ResumeImport');
-      const textStart = performance.now();
-      const text = await extractResumeText(file, timing);
-      timing.textExtractionMs = Math.max(0, Math.round(performance.now() - textStart - timing.fileReadMs));
-      if (text.replace(/\s/g, '').length < 80) {
-        if (/\.pdf$/i.test(file.name || '') && text.replace(/\s/g,'').length < 40) throw new Error('This PDF looks scanned or contains almost no selectable text. Upload a DOCX/text version, or choose OCR separately (OCR will be slower).');
-        throw new Error('Very little selectable text was found. Upload a text-based PDF or DOCX.');
-      }
+      const text = await extractResumeText(file);
+      if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
-      const normalizedText = parser.normalize(text).map(x => x.text).join('\n');
-      const hash = await hashImportText(normalizedText);
-      let cached = null;
-      try { cached = await importCacheGet(hash); } catch (_) {}
-      if (cached?.draft) {
-        timing.cacheHits = 1;
-        importReview = { ...cached.draft, fileName:file.name, sourceText:text, timings:{...timing}, cacheHit:true };
-        importContactPreview = importReview.profile?.contact || null;
-        importProgressSteps = [{label:'Reading your document',status:'done'},{label:'Finding contact details',status:'done'},{label:'Finding sections and entries',status:'done'},{label:'Checking completeness',status:'done'},{label:'Preparing your review',status:'done'}];
-        importStage = 'Cached draft ready'; importError = '';
-        return;
-      }
-      importProgressSteps[0].status = 'done';
-      importProgressSteps.push({label:'Finding contact details',status:'active'}); importStage = 'Finding contact details'; render();
-      const codeStart = performance.now();
-      let result = parser.extract(text);
-      timing.codeExtractionMs = Math.round(performance.now() - codeStart);
-      if (importNeedsSemanticMapping(result, text)) {
-        try {
-          const aiResult = await importProfileWithAI(text, timing);
-          const aiProfile = aiResult.profile;
-          result = {
-            ...result,
-            profile:aiProfile,
-            warnings:[...(aiResult.warnings || [])],
-            unplaced:[],
-            lowConfidence:[],
-            contactConfidence:{
-              fullName:aiProfile.contact?.fullName?'high':'low',
-              email:aiProfile.contact?.email?'high':'low',
-              phone:aiProfile.contact?.phone?'high':'low',
-              location:aiProfile.contact?.location?'high':'low',
-              links:Array.isArray(aiProfile.contact?.links)&&aiProfile.contact.links.length?'high':'low'
-            },
-            stats:{
-              ...result.stats,
-              aiEntries:countImportedEntries(aiProfile),
-              extractedBullets:[...(aiProfile.experience||[]),...(aiProfile.projects||[])].reduce((n,e)=>n+(Array.isArray(e.bullets)?e.bullets.length:0),0)
-            }
-          };
-          const mappingStep = importProgressSteps.find(step => step.label === 'Mapping details to the correct fields');
-          if (mappingStep) mappingStep.status = 'done';
-        } catch (aiError) {
-          const hasUsableCodeResult = !!result.profile.contact?.fullName && result.profile.experience.length > 0
-            && result.profile.experience.every(item => item.title && item.company);
-          if (!hasUsableCodeResult) throw new Error('The CV text was read, but its sections could not be mapped reliably. AI-assisted mapping failed: ' + (aiError.message || 'Please retry the import.'));
-          result.warnings.push('AI-assisted mapping was unavailable, so the fast extraction was kept. Review every field before applying.');
-        }
-      }
-      importContactPreview = result.profile.contact;
-      importReview = { profile:result.profile, warnings:result.warnings, fileName:file.name, sourceText:text, lines:result.lines, unplaced:result.unplaced, lowConfidence:result.lowConfidence, contactConfidence:result.contactConfidence, stats:result.stats, timings:timing, cacheHit:false };
-      importProgressSteps[1].status = 'done';
-      importProgressSteps.push({label:'Finding sections and entries',status:'done'},{label:'Checking completeness',status:'active'});
-      importStage = 'Checking completeness'; render();
-      const assemblyStart = performance.now();
-      importReview.stats = result.stats;
-      importReview.warnings = result.warnings;
-      importReview.lowConfidence = result.lowConfidence;
-      importReview.unplaced = result.unplaced;
-      timing.assemblyMs = Math.round(performance.now() - assemblyStart);
-      importProgressSteps[importProgressSteps.length-1].status = 'done';
-      importProgressSteps.push({label:'Preparing your review',status:'done'});
-      importStage = 'Preparing your review';
-      const cachedDraft = {profile:result.profile,warnings:result.warnings,lines:result.lines,unplaced:result.unplaced,lowConfidence:result.lowConfidence,contactConfidence:result.contactConfidence,stats:result.stats,timings:{...timing},cacheHit:false};
-      try { await Promise.all([importCachePut({hash,draft:cachedDraft,createdAt:Date.now()}),importCachePut({hash:fileKey,draft:cachedDraft,createdAt:Date.now()})]); } catch (_) {}
+      importStage = 'Organizing details with AI…'; render();
+      const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
+      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
+      if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
+      importStage = 'Preparing your review…'; render();
+      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name, sourceText: text };
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';
@@ -552,14 +334,12 @@
     const contact = p.contact || {};
     const contactHtml = '<section class="rs-import-section"><h4>Contact details</h4><div class="rs-form-grid">'+input('Full name','contact.fullName',contact.fullName)+input('Email','contact.email',contact.email)+input('Phone','contact.phone',contact.phone)+input('Location','contact.location',contact.location)+(contact.links||[]).map((x,i)=>input('Link '+(i+1)+' label','contact.links.'+i+'.label',x.label)+input('Link '+(i+1)+' URL','contact.links.'+i+'.url',x.url)).join('')+'</div></section>';
     const summariesHtml = (p.summaries||[]).length ? '<section class="rs-import-section"><h4>Professional summary</h4>'+(p.summaries||[]).map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Summary label','summaries.'+i+'.label',x.label)+area('Summary text','summaries.'+i+'.text',x.text)+'</div></div>').join('')+'</section>' : '';
-    const experienceHtml = '<section class="rs-import-section"><h4>Work experience</h4>'+((p.experience||[]).length ? p.experience.map((x,i)=>'<article class="rs-import-card"><strong>'+(escHtml(x.title||'Role '+(i+1)))+'</strong>'+(x._confidence==='low'?'<small class="rs-import-confidence">Needs review</small>':'')+'<div class="rs-form-grid">'+input('Job title','experience.'+i+'.title',x.title)+input('Company','experience.'+i+'.company',x.company)+input('Location','experience.'+i+'.location',x.location)+input('Start date','experience.'+i+'.startDate',x.startDate)+input('End date','experience.'+i+'.endDate',x.endDate)+area('Achievements / responsibilities (one per line)','experience.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No work experience was detected.</p>')+'</section>';
-    const projectsHtml = '<section class="rs-import-section"><h4>Projects</h4>'+((p.projects||[]).length ? p.projects.map((x,i)=>'<article class="rs-import-card">'+(x._confidence==='low'?'<small class="rs-import-confidence">Needs review</small>':'')+'<div class="rs-form-grid">'+input('Project name','projects.'+i+'.name',x.name)+input('Project URL','projects.'+i+'.url',x.url)+area('Description','projects.'+i+'.description',x.description)+area('Project achievements (one per line)','projects.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No projects were detected.</p>')+'</section>';
+    const experienceHtml = '<section class="rs-import-section"><h4>Work experience</h4>'+((p.experience||[]).length ? p.experience.map((x,i)=>'<article class="rs-import-card"><strong>'+(escHtml(x.title||'Role '+(i+1)))+'</strong><div class="rs-form-grid">'+input('Job title','experience.'+i+'.title',x.title)+input('Company','experience.'+i+'.company',x.company)+input('Location','experience.'+i+'.location',x.location)+input('Start date','experience.'+i+'.startDate',x.startDate)+input('End date','experience.'+i+'.endDate',x.endDate)+area('Achievements / responsibilities (one per line)','experience.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No work experience was detected.</p>')+'</section>';
+    const projectsHtml = '<section class="rs-import-section"><h4>Projects</h4>'+((p.projects||[]).length ? p.projects.map((x,i)=>'<article class="rs-import-card"><div class="rs-form-grid">'+input('Project name','projects.'+i+'.name',x.name)+input('Project URL','projects.'+i+'.url',x.url)+area('Description','projects.'+i+'.description',x.description)+area('Project achievements (one per line)','projects.'+i+'._bullets',(x.bullets||[]).map(b=>b.text||'').join('\n'))+'</div></article>').join('') : '<p class="rs-import-empty">No projects were detected.</p>')+'</section>';
     const skillsHtml = '<section class="rs-import-section"><h4>Skills</h4>'+((p.skills||[]).length ? p.skills.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Skill group','skills.'+i+'.category',x.category)+area('Skills (comma-separated)','skills.'+i+'._items',Array.isArray(x.items)?x.items.join(', '):x.items)+'</div></div>').join('') : '<p class="rs-import-empty">No skill groups were detected.</p>')+'</section>';
     const educationHtml = '<section class="rs-import-section"><h4>Education</h4>'+((p.education||[]).length ? p.education.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Institution','education.'+i+'.institution',x.institution)+input('Qualification','education.'+i+'.degree',x.degree)+input('Field of study','education.'+i+'.field',x.field)+input('Start date','education.'+i+'.startDate',x.startDate)+input('End date','education.'+i+'.endDate',x.endDate)+area('Notes','education.'+i+'.notes',x.notes)+'</div></div>').join('') : '<p class="rs-import-empty">No education details were detected.</p>')+'</section>';
     const certHtml = '<section class="rs-import-section"><h4>Certifications</h4>'+((p.certifications||[]).length ? p.certifications.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Certification','certifications.'+i+'.name',x.name)+input('Issuer','certifications.'+i+'.issuer',x.issuer)+input('Date','certifications.'+i+'.date',x.date)+'</div></div>').join('') : '<p class="rs-import-empty">No certifications were detected.</p>')+'</section>';
-    const unplaced = Array.isArray(importReview.unplaced) ? importReview.unplaced : [];
-    const unplacedHtml = '<section class="rs-import-section"><h4>Unplaced lines ('+unplaced.length+')</h4>' + (unplaced.length ? unplaced.map((item,i)=>'<div class="rs-unplaced-row"><p><strong>Line '+escHtml(item.line)+'</strong> '+escHtml(item.text)+'</p><select data-unplaced-section="'+i+'"><option value="">Choose section…</option><option value="summaries">Professional summary</option><option value="experience">Work experience</option><option value="projects">Projects</option><option value="skills">Skills</option><option value="education">Education</option><option value="certifications">Certifications</option></select><button type="button" class="secondary" data-import-action="assign-line" data-line-index="'+i+'">Assign</button></div>').join('') : '<p class="rs-import-ok">No unplaced lines were detected.</p>') + '</section>';
-    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + unplacedHtml + '<details class="rs-import-details"><summary>Import details</summary><div class="rs-import-timing-grid">' + [['File read (ms)',importReview.timings?.fileReadMs],['Text extraction (ms)',importReview.timings?.textExtractionMs],['Code extraction (ms)',importReview.timings?.codeExtractionMs],['AI calls (ms)',(importReview.timings?.aiCalls||[]).reduce((n,x)=>n+(x.durationMs||0),0)],['Assembly (ms)',importReview.timings?.assemblyMs],['Cache hits',importReview.timings?.cacheHits],['Lines',importReview.stats?.lineCount],['Entries found by code',importReview.stats?.entriesByCode],['Entries sent to AI',importReview.stats?.aiEntries||0]].map(([label,value])=>'<div><span>'+escHtml(label)+'</span><strong>'+escHtml(value==null?'—':value)+'</strong></div>').join('')+'</div><button type="button" class="secondary" data-import-action="clear-cache">Clear import cache</button></details><p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
+    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
   }
   function render() {
     if (activeView === 'resumes') { renderResumeView(); return; }
@@ -569,7 +349,7 @@
     root.innerHTML = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2 id="resumeStudioHeading">Resume Studio</h2><p class="muted">Build one accurate master profile, then reuse it across tailored resumes and cover letters.</p></div><div class="rs-header-status"><span class="rs-status-dot ' + (dirty ? 'is-dirty' : '') + '"></span><span id="rsSaveState">' + (dirty ? 'Unsaved changes' : formatSaved(lastSavedAt)) + '</span></div></div>' +
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab is-active" data-resume-view="profile" role="tab" aria-selected="true">Master Profile</button><button type="button" class="rs-tab" disabled title="Coming soon">Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" data-resume-view="resumes" role="tab" aria-selected="false">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>' +
       '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Future AI features will use this information as their source of truth.</p></div><div class="rs-import-actions"><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div><input id="rsImportFile" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden><button type="button" class="secondary" data-action="import-resume" ' + (importBusy ? 'disabled' : '') + '>' + (importBusy ? 'Importing…' : 'Import existing resume') + '</button></div></div>' +
-      (importError ? '<div class="rs-notice rs-import-error"><p>' + escHtml(importError) + '</p>' + (importSelectedFile ? '<button type="button" class="secondary" data-action="retry-import">Retry import</button>' : '') + '</div>' : '') +
+      (importError ? '<div class="rs-notice rs-import-error"><p>' + escHtml(importError) + '</p></div>' : '') +
       '<div class="rs-notice"><span class="rs-notice-icon" aria-hidden="true">i</span><p>Enter only information you can verify. You can leave fields blank and complete the profile over time. Nothing is published to your public portfolio by saving here.</p></div>' +
       section('contact','Contact details','Name, email, location and professional links', '<div class="rs-form-grid">' + field('contact.fullName','Full name',profile.contact.fullName,{max:160}) + field('contact.email','Email address',profile.contact.email,{kind:'email',max:254}) + field('contact.phone','Phone number',profile.contact.phone,{kind:'tel',max:80}) + field('contact.location','Location',profile.contact.location,{max:160}) + '</div><div class="rs-list-head"><div><strong>Professional links</strong><p>Portfolio, LinkedIn, case studies or other relevant links.</p></div><button type="button" class="rs-small-button" data-action="add-link">+ Add link</button></div>' + (profile.contact.links.length ? profile.contact.links.map((link,i) => '<div class="rs-link-row">' + field('contact.links.'+i+'.label','Link label',link.label,{max:80,placeholder:'LinkedIn'}) + field('contact.links.'+i+'.url','URL',link.url,{kind:'url',max:500,placeholder:'https://...'}) + '<button type="button" class="rs-remove" data-action="remove-link" data-index="'+i+'">Remove</button></div>').join('') : emptyState('No links added yet.')) ,wasOpen.has('contact') || wasOpen.size === 0) +
       section('summaries','Professional summaries','Keep multiple versions for different roles', '<div class="rs-list-head"><div><strong>Summary options</strong><p>Use a short, factual introduction. Label each version for easy selection later.</p></div><button type="button" class="rs-small-button" data-action="add-summary">+ Add summary</button></div>' + (profile.summaries.length ? profile.summaries.map((item,i) => '<article class="rs-item-card"><div class="rs-item-head"><span class="rs-item-index">' + (i+1) + '</span><div class="rs-item-title"><strong>' + escHtml(item.label || 'Untitled summary') + '</strong><small>Summary ' + (i+1) + '</small></div>' + actions('summary',i,profile.summaries.length) + '</div><div class="rs-form-grid">' + field('summaries.'+i+'.label','Summary label',item.label,{max:120,placeholder:'Product design roles'}) + field('summaries.'+i+'.text','Summary text',item.text,{kind:'textarea',wide:true,max:2500,rows:4,placeholder:'A concise summary of your experience, strengths, and relevant focus.'}) + '</div></article>').join('') : emptyState('Add your first summary when you are ready.')) ,wasOpen.has('summaries')) +
@@ -677,7 +457,6 @@
   root.addEventListener('input', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type !== 'checkbox' && currentResume) {
-      resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage='';
       const path = target.dataset.resumePath;
       const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
       if (path === 'title') currentResume.title = value; else { if (path.startsWith('content.contact.links.0.') && !currentResume.content.contact.links.length) currentResume.content.contact.links.push({label:'Portfolio',url:'',hidden:false}); rpathSet(currentResume, path, value); }
@@ -700,7 +479,6 @@
   root.addEventListener('change', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type === 'checkbox' && currentResume) {
-      resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage='';
       const path=target.dataset.resumePath;
       if (path.startsWith('content.hiddenSections.')) { const section=path.split('.').pop(); const list=currentResume.content.hiddenSections||[]; currentResume.content.hiddenSections=target.checked?[...new Set([...list,section])]:list.filter(x=>x!==section); }
       else rpathSet(currentResume,path,target.checked);
@@ -718,29 +496,6 @@
       // Ignore bubbled clicks from inside the dialog, otherwise a second click
       // on a field or the modal body accidentally closes the review.
       if (importControl.classList.contains('rs-import-backdrop') && event.target !== importControl) return;
-      if (importControl.dataset.importAction === 'clear-cache') { await clearImportCache(); return; }
-      if (importControl.dataset.importAction === 'assign-line') {
-        const i = Number(importControl.dataset.lineIndex);
-        const item = importReview?.unplaced?.[i];
-        const section = root.querySelector('[data-unplaced-section="' + i + '"]')?.value;
-        if (!item || !section) { alert('Choose a section before assigning this line.'); return; }
-        const p = importReview.profile;
-        if (section === 'summaries') {
-          if (!p.summaries.length) p.summaries.push({label:'Professional summary',text:item.text});
-          else p.summaries[0].text = [p.summaries[0].text,item.text].filter(Boolean).join('\n');
-        } else if (section === 'experience') {
-          if (!p.experience.length) p.experience.push({company:'',title:'Needs review',location:'',startDate:'',endDate:'',current:false,bullets:[]});
-          p.experience[p.experience.length-1].bullets.push({text:item.text});
-        } else if (section === 'projects') {
-          if (!p.projects.length) p.projects.push({name:'Needs review',url:'',description:'',bullets:[]});
-          p.projects[p.projects.length-1].bullets.push({text:item.text});
-        } else if (section === 'skills') p.skills.push({category:'Needs review',items:[item.text]});
-        else if (section === 'education') p.education.push({institution:item.text,degree:'',field:'',startDate:'',endDate:'',notes:''});
-        else if (section === 'certifications') p.certifications.push({name:item.text,issuer:'',date:''});
-        importReview.unplaced.splice(i,1);
-        importReview.warnings = [...new Set([...(importReview.warnings||[]),'Review assigned lines before applying the profile.'])];
-        render(); return;
-      }
       if (importControl.dataset.importAction === 'dismiss') { importReview = null; render(); return; }
       if (importControl.dataset.importAction === 'apply') {
         const imported = JSON.parse(JSON.stringify(importReview?.profile || {}));
@@ -787,7 +542,6 @@
     if (save) { await saveProfile(); return; }
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
-    if (button.dataset.action === 'retry-import') { void startResumeImport(importSelectedFile); return; }
     const action = button.dataset.action;
     if (action === 'import-resume') { root.querySelector('#rsImportFile')?.click(); return; }
     const index = Number(button.dataset.index);
