@@ -1306,7 +1306,12 @@ function resumeStudioCors(response, request) {
 
 export async function handleCloudflareApi(request, env) {
   const url = new URL(request.url);
-  const route = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
+  // Normalize API paths defensively: Pages rewrites and preview aliases can
+  // occasionally preserve an extra /api prefix or a trailing slash. Resolve
+  // those variants to the same canonical route before dispatch.
+  const pathname = url.pathname.replace(/\/+$/, '') || '/';
+  const normalizedPath = pathname.replace(/^(?:\/api)+(?=\/)/, '/');
+  const route = normalizedPath.replace(/^\//, '');
   const method = request.method.toUpperCase();
 
   if (route === 'admin-resume-studio' && method === 'OPTIONS') {
