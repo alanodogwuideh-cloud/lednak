@@ -387,10 +387,15 @@
     const headings = /\b(?:work experience|professional experience|employment history|experience|skills|competencies|education|academic background|certifications|professional summary|career summary)\b/i.test(String(sourceText || ''));
     const incompleteRoles = (p.experience || []).some(item => !String(item.title || '').trim() || !String(item.company || '').trim());
     const badLocation = String(contact.location || '').length > 70 || /summary|detail-oriented|professional profile/i.test(String(contact.location || ''));
+    const degreeTerms = /\b(?:bachelor|b\.?sc\.?|bsc|master|m\.?sc\.?|msc|phd|diploma|hnd|ond|national diploma)\b/i;
+    const malformedEducation = (p.education || []).some(item => !String(item.institution || '').trim() || (degreeTerms.test(item.institution) && !!String(item.degree || '').trim()));
+    const ambiguousCertification = (p.certifications || []).some(item => !String(item.issuer || '').trim() && /[,|]|\b(?:19|20)\d{2}\b/.test(String(item.name || '')));
     return !String(contact.fullName || '').trim()
       || !(p.experience || []).length
       || incompleteRoles
       || badLocation
+      || malformedEducation
+      || ambiguousCertification
       || (headings && /\bskills\b/i.test(sourceText) && !(p.skills || []).length)
       || (headings && /\beducation\b/i.test(sourceText) && !(p.education || []).length);
   }
