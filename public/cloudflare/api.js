@@ -1015,10 +1015,11 @@ async function adminResumeStudio(request, env) {
     const master = String(body.master_resume_text || record.master_resume_text || '').trim();
     const job = String(body.job_description || '').trim();
     const isAnalysis = action === 'analyze-resume';
+    const isSuggestion = action === 'suggest-resume-fixes';
     const isProfileImport = action === 'import-profile';
     if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
     if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
-    if (!isAnalysis && !isProfileImport && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    if (!isAnalysis && !isSuggestion && !isProfileImport && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
@@ -1030,6 +1031,9 @@ async function adminResumeStudio(request, env) {
       prompt = 'Convert the resume into the exact JSON schema below. Do not explain your work or repeat the source text outside the fields. Completeness is more important than brevity: preserve every distinct employment role, project, achievement bullet, skill, skill category, education item, certification, date, contact detail and link from the source. Keep roles in source order. Do not merge separate bullets, summarize multiple achievements into one, discard older roles, or reduce a skill list to a generic label. Transfer every substantive source bullet as its own concise factual bullet, retaining all supported numbers and named tools. Before returning JSON, internally compare each source section against the output and ensure no entries or bullets were dropped. Remove only exact duplicates. Never infer missing facts. Use empty arrays for genuinely absent sections and empty strings for unknown values. No IDs or tags. Add warnings only for genuinely ambiguous or unreadable details. Schema: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"label":"Professional summary","text":""}],"experience":[{"company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"text":""}]}],"projects":[{"name":"","url":"","description":"","bullets":[{"text":""}]}],"skills":[{"category":"","items":[]}],"education":[{"institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"name":"","issuer":"","date":""}]},"warnings":[]}. Return valid JSON only. RESUME TEXT:\\n' + master;
     } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
+    } else if (isSuggestion) {
+      const analysis = object(body.analysis);
+      prompt = 'Create 3 to 6 editable resume improvement examples grounded in the resume and the supplied analysis. Return JSON only with a suggestions array; each item must have title, reason, and text string fields. Prioritize issues identified in the analysis. Reuse only verified details from the resume. Where a stronger example needs information that was not supplied, use clear placeholders such as [add verified percentage], [number of customers], [time saved], [tool actually used], or [specific outcome]. Never invent metrics, employers, dates, qualifications, tools, scope, or outcomes. Make the text a practical example the candidate can edit, not a claim that the placeholder is true. Keep each text concise and ready to paste after personalization. ANALYSIS:\\n' + JSON.stringify(analysis).slice(0,12000) + '\\nRESUME:\\n' + master;
     } else if (action === 'cover-only') {
       const tailored = String(body.tailored_resume || '').trim();
       if (!tailored || tailored.length > 40000) return json({ error: 'A tailored resume is required to regenerate the cover letter.' }, 400);
@@ -1039,7 +1043,7 @@ async function adminResumeStudio(request, env) {
     }
     let modelResult;
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
+    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : isSuggestion ? 3000 : 6500;
     try {
       // Let the model complete naturally; a client-facing timeout must not truncate
       // valid extraction. A transient invocation failure gets one same-model retry.
@@ -1084,6 +1088,7 @@ async function adminResumeStudio(request, env) {
       return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
     }
     if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
+    if (isSuggestion) return json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0,8).map(item => ({ title:String(item?.title||'Resume improvement').slice(0,160), reason:String(item?.reason||'').slice(0,800), text:String(item?.text||'').slice(0,4000) })).filter(item => item.text.trim()) : [], usage: nextUsage });
     if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
     return json({
       analysis: object(parsed.analysis),

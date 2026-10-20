@@ -229,3 +229,26 @@
 @keyframes rsImportTravel{from{transform:translateX(0)}to{transform:translateX(165%)}}
 @media(prefers-reduced-motion:reduce){#resumeTab .rs-import-progress-mark span,#resumeTab .rs-import-progress-track span{animation:none}}
 @media(max-width:600px){#resumeTab .rs-import-card{padding:11px}#resumeTab .rs-import-section{padding:12px 0}#resumeTab .rs-import-section .rs-form-grid{grid-template-columns:minmax(0,1fr)}}
+#resumeTab .rs-analysis-tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid #ecece7;background:#fff}
+#resumeTab .rs-analysis-tab{padding:12px 15px;border:0;border-bottom:2px solid transparent;background:transparent;color:#777a73;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+#resumeTab .rs-analysis-tab.is-active{border-bottom-color:#F8831D;color:#24251f}
+#resumeTab .rs-analysis-generate{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;padding:16px;border:1px solid #f0d5b7;border-radius:12px;background:#fff9f2}
+#resumeTab .rs-analysis-generate strong{font-size:12px;color:#282923}
+#resumeTab .rs-analysis-generate p,#resumeTab .rs-suggestions-intro p{margin:5px 0 0;color:#777a73;font-size:11px;line-height:1.6}
+#resumeTab .rs-suggestions-intro{margin-bottom:18px}
+#resumeTab .rs-suggestions-intro h4{margin:6px 0 0;font-size:18px;color:#282923}
+#resumeTab .rs-suggestion-kicker{font-size:9px;font-weight:800;letter-spacing:.08em;color:#a45a1b}
+#resumeTab .rs-suggestions-empty,#resumeTab .rs-suggestions-state{padding:24px;border:1px dashed #d9dad5;border-radius:12px;background:#fcfcfa;text-align:center}
+#resumeTab .rs-suggestions-empty h4{margin:0 0 8px;font-size:14px;color:#282923}
+#resumeTab .rs-suggestions-empty p,#resumeTab .rs-suggestions-state p{max-width:500px;margin:0 auto 16px;color:#777a73;font-size:12px;line-height:1.6}
+#resumeTab .rs-suggestion-card{display:grid;gap:12px;margin:14px 0;padding:16px;border:1px solid #e4e5df;border-radius:12px;background:#fff}
+#resumeTab .rs-suggestion-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#resumeTab .rs-suggestion-card-head h4{margin:4px 0 0;font-size:13px;color:#282923}
+#resumeTab .rs-suggestion-card>p{margin:0;color:#6f736b;font-size:11px;line-height:1.6}
+#resumeTab .rs-suggestion-editor{display:grid;gap:7px;color:#62665f;font-size:11px;font-weight:700}
+#resumeTab .rs-suggestion-editor textarea{width:100%;min-height:110px;padding:12px;border:1px solid #d9dad5;border-radius:9px;background:#fff;color:#20211e;font:500 13px/1.6 'DM Sans',sans-serif;resize:vertical;outline:none}
+#resumeTab .rs-suggestion-editor textarea:focus{border-color:#F8831D;box-shadow:0 0 0 3px #F8831D20}
+#resumeTab .rs-suggestion-card>small{color:#8a6a4c;font-size:10px;line-height:1.5}
+#resumeTab .rs-suggestion-copy{padding:8px 11px;border:1px solid #e7b98d;border-radius:8px;background:#fff8f1;color:#8a470c;font:700 11px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
+#resumeTab .rs-suggestion-copy:hover{background:#ffefdf}
+@media(max-width:600px){#resumeTab .rs-analysis-tabs{padding:0 18px}#resumeTab .rs-analysis-generate{align-items:stretch;flex-direction:column}#resumeTab .rs-analysis-generate button{width:100%}#resumeTab .rs-suggestion-card{padding:12px}#resumeTab .rs-suggestion-card-head{align-items:flex-start}}
