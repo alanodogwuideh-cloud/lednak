@@ -1019,7 +1019,9 @@ async function adminResumeStudio(request, env) {
     const isProfileImport = action === 'import-profile';
     if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
     if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
-    if (!isAnalysis && !isSuggestion && !isProfileImport && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
+    // Milestone 3 resume-fix suggestions are based only on the resume and its analysis; they must never require job details.
+    const requiresJobDescription = !isAnalysis && !isSuggestion && !isProfileImport;
+    if (requiresJobDescription && (!job || job.length > 20000)) return json({ error: 'A job description is required (maximum 20,000 characters).' }, 400);
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
