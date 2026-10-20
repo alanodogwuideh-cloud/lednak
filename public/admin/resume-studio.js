@@ -104,6 +104,31 @@
     }
     return lines.filter(Boolean).join('\n').slice(0,40000);
   }
+  function normalizeResumeAnalysis(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('The analysis service returned an invalid result. Please try again.');
+    }
+    const list = key => Array.isArray(value[key])
+      ? value[key].map(item => String(item ?? '').trim()).filter(Boolean).slice(0, 20)
+      : [];
+    const normalized = {
+      overall_assessment: String(value.overall_assessment ?? '').trim().slice(0, 3000),
+      strengths: list('strengths'),
+      issues: list('issues'),
+      missing_information: list('missing_information'),
+      structure_recommendations: list('structure_recommendations'),
+      evidence_warnings: list('evidence_warnings'),
+      next_steps: list('next_steps')
+    };
+    const hasContent = normalized.overall_assessment || [
+      normalized.strengths, normalized.issues, normalized.missing_information,
+      normalized.structure_recommendations, normalized.evidence_warnings, normalized.next_steps
+    ].some(items => items.length);
+    if (!hasContent) {
+      throw new Error('The analysis returned no usable findings. Please try again.');
+    }
+    return normalized;
+  }
   function resumeAnalysisHtml() {
     if (!resumeAnalysis) return '';
     const a = resumeAnalysis;
@@ -210,14 +235,14 @@
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
-      resumeAnalyzing=true; resumeMessage=''; renderResumeView();
+      resumeAnalyzing=true; resumeMessage=''; resumeAnalysis=null; resumeAnalysisOpen=false; renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
-        resumeAnalysis=result.analysis||null;
-        resumeAnalysisOpen=!!resumeAnalysis;
-        resumeMessage=resumeAnalysis?'Analysis complete. No resume content was changed.':'The analysis returned no results.';
-      } catch(error) { resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
+        resumeAnalysis=normalizeResumeAnalysis(result?.analysis);
+        resumeAnalysisOpen=true;
+        resumeMessage='Analysis complete. No resume content was changed.';
+      } catch(error) { resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage='Analysis failed: '+(error.message||'Please try again.'); }
       finally { resumeAnalyzing=false; renderResumeView(); }
       return;
     }
