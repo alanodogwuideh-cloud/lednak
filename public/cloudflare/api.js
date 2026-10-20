@@ -1039,7 +1039,7 @@ async function adminResumeStudio(request, env) {
     }
     let modelResult;
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
+    const requestedTokens = isProfileImport ? 1500 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
       // Let the model complete naturally; a client-facing timeout must not truncate
       // valid extraction. A transient invocation failure gets one same-model retry.
