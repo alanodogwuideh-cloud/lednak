@@ -265,7 +265,17 @@
         if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No usable suggestions were returned. Please try again.');
         resumeSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Resume improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
         if(!resumeSuggestions.length) throw new Error('No editable examples were returned. Please try again.');
-      } catch(error) { resumeMessage='Suggestion generation failed: '+(error.message||'Please try again.'); resumeAnalysisTab='analysis'; }
+      } catch(error) {
+        resumeMessage='Suggestion generation failed: '+(error.message||'Please try again.');
+        const transientMessage=resumeMessage;
+        resumeAnalysisTab='analysis';
+        setTimeout(() => {
+          if(resumeMessage===transientMessage) {
+            resumeMessage='';
+            if(currentResume) renderResumeView();
+          }
+        }, 45000);
+      }
       finally { resumeSuggestionsLoading=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
       return;
     }
