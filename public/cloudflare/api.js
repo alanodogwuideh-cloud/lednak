@@ -931,29 +931,34 @@ function resumeStudioFastProfile(text) {
   };
 }
 async function adminResumeStudio(request, env) {
-  const record = await getResumeStudioRecord(env);
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
-  if (method === 'GET') {
-    if (url.searchParams.get('view') === 'ai-check') {
-      if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
-      const model = '@cf/zai-org/glm-4.7-flash';
-      try {
-        // Test the exact model used for resume import. A Llama-only health check
-        // can pass even when GLM is unavailable or failing in this deployment.
-        const result = await env.AI.run(model, { messages: [
-          { role: 'system', content: 'You are testing the Resume Studio model connection.' },
-          { role: 'user', content: 'Reply with exactly: GLM Resume Studio connection successful.' }
-        ], max_tokens: 48 });
-        const output = typeof result === 'string' ? result : String(result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? '');
-        if (!output.trim()) return json({ ok: false, stage: 'model-response', model, error: 'GLM-4.7-Flash was invoked but returned an empty or unrecognized response.', response_keys: result && typeof result === 'object' ? Object.keys(result).slice(0, 20) : [] }, 502);
-        return json({ ok: true, stage: 'complete', model, message: output.trim().slice(0, 160) });
-      } catch (error) {
-        const detail = String(error?.message || 'Workers AI invocation failed.').slice(0, 500);
-        console.error('Resume Studio GLM-4.7-Flash connection check failed:', detail, error?.stack || '');
-        return json({ ok: false, stage: 'model-invocation', model, error: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
-      }
+
+  // Keep the GLM diagnostic independent from Turso/R2 resume storage. This
+  // lets us distinguish a Workers AI binding/model failure from a database
+  // failure instead of masking either one behind a generic 502.
+  if (method === 'GET' && url.searchParams.get('view') === 'ai-check') {
+    const model = '@cf/zai-org/glm-4.7-flash';
+    if (!env.AI || typeof env.AI.run !== 'function') {
+      return json({ ok: false, stage: 'binding', model, error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
     }
+    try {
+      const result = await env.AI.run(model, { messages: [
+        { role: 'system', content: 'You are testing the Resume Studio model connection.' },
+        { role: 'user', content: 'Reply with exactly: GLM Resume Studio connection successful.' }
+      ], max_tokens: 48 });
+      const output = typeof result === 'string' ? result : String(result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? '');
+      if (!output.trim()) return json({ ok: false, stage: 'model-response', model, error: 'GLM-4.7-Flash was invoked but returned an empty or unrecognized response.', response_keys: result && typeof result === 'object' ? Object.keys(result).slice(0, 20) : [] }, 502);
+      return json({ ok: true, stage: 'complete', model, message: output.trim().slice(0, 160) });
+    } catch (error) {
+      const detail = String(error?.message || 'Workers AI invocation failed.').slice(0, 500);
+      console.error('Resume Studio GLM-4.7-Flash connection check failed:', detail, error?.stack || '');
+      return json({ ok: false, stage: 'model-invocation', model, error: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
+    }
+  }
+
+  const record = await getResumeStudioRecord(env);
+  if (method === 'GET') {
     const usage = await resumeStudioUsage(env, record);
     if (url.searchParams.get('view') === 'usage') return json(usage);
     if (url.searchParams.get('view') === 'documents') return json({ documents: await listSavedDocuments(env) });
@@ -1372,9 +1377,18 @@ export async function handleCloudflareApi(request, env) {
     }
     return json({ error: 'API route not found.' }, 404);
   } catch (error) {
-    const message = String(error?.message || 'Unknown error');
+    const message = String(error?.message || 'Unknown error').slice(0, 500);
     console.error('Cloudflare route error:', route, message, error?.stack || '');
-    // Resume Studio-specific error handling removed.
+    if (route === 'admin-resume-studio') {
+      // Return actionable JSON for Resume Studio failures rather than hiding
+      // database, R2, or runtime errors behind the generic portfolio 502.
+      return resumeStudioCors(json({
+        error: 'Resume Studio request failed before it could complete.',
+        stage: 'request-processing',
+        diagnostic: message,
+        error_name: String(error?.name || 'Error').slice(0, 80)
+      }, 502), request);
+    }
     return json({ error: 'Portfolio data is temporarily unavailable.' }, 502);
   }
 }
