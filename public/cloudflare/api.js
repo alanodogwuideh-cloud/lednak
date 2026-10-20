@@ -1050,22 +1050,37 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    // GLM-4.7-Flash is being evaluated only for resume import. Keep Llama 4 Scout
-    // for analysis, tailoring, and cover-letter generation until import is benchmarked.
-    const model = isProfileImport ? '@cf/zai-org/glm-4.7-flash' : '@cf/meta/llama-4-scout-17b-16e-instruct';
+    // GLM is the preferred model for profile import. If the GLM invocation or
+    // its structured JSON fails, fall back to the already-supported Llama model
+    // so a temporary GLM outage does not block the user's resume workflow.
+    let model = isProfileImport ? '@cf/zai-org/glm-4.7-flash' : '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const primaryModel = model;
+    const fallbackModel = '@cf/meta/llama-4-scout-17b-16e-instruct';
     const requestedTokens = isProfileImport ? Math.min(6000, Math.max(1800, Math.ceil(master.length / 5))) : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     const aiStartedAt = Date.now();
+    const runModel = selectedModel => env.AI.run(selectedModel, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
     try {
-      // Preserve the import output ceiling and log timing without logging resume content.
-      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      modelResult = await runModel(model);
       console.log('Resume Studio AI completed', JSON.stringify({ action, model, input_chars: master.length, max_tokens: requestedTokens, duration_ms: Date.now() - aiStartedAt }));
     } catch (firstError) {
       try {
-        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+        modelResult = await runModel(model);
       } catch (retryError) {
-        const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-        console.error('Resume Studio model invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-        return json({ error: 'The selected Resume Studio model failed during invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
+        if (isProfileImport && primaryModel !== fallbackModel) {
+          try {
+            model = fallbackModel;
+            modelResult = await runModel(model);
+            console.warn('Resume Studio GLM invocation failed; Llama fallback succeeded.', JSON.stringify({ primary_model: primaryModel, fallback_model: model, input_chars: master.length, max_tokens: requestedTokens }));
+          } catch (fallbackError) {
+            const detail = String(fallbackError?.message || retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+            console.error('Resume Studio primary and fallback model invocation failed:', detail, fallbackError?.name || 'Error');
+            return json({ error: 'Resume import failed on both GLM-4.7-Flash and the Llama fallback.', diagnostic: detail, error_name: String(fallbackError?.name || 'Error').slice(0, 80), primary_model: primaryModel, fallback_model: fallbackModel, max_tokens: requestedTokens }, 502);
+          }
+        } else {
+          const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+          console.error('Resume Studio model invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+          return json({ error: 'The selected Resume Studio model failed during invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
+        }
       }
     }
     const extractModelOutput = result => { const value = typeof result === 'string' ? result : (result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? ''); return typeof value === 'string' ? value : JSON.stringify(value); };
@@ -1074,10 +1089,24 @@ async function adminResumeStudio(request, env) {
     try {
       parsed = resumeStudioJson(output);
     } catch (firstParseError) {
-      if (isProfileImport) {
+      if (isProfileImport && model === primaryModel) {
         const detail = String(firstParseError?.message || 'The model returned invalid JSON.').slice(0, 240);
-        console.error('Resume Studio resume import JSON response failed validation:', detail);
-        return json({ error: 'The selected model returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+        console.warn('Resume Studio GLM returned invalid profile JSON; trying Llama fallback.', detail);
+        try {
+          model = fallbackModel;
+          modelResult = await runModel(model);
+          output = extractModelOutput(modelResult);
+          parsed = resumeStudioJson(output);
+          console.log('Resume Studio profile import recovered with fallback model.', JSON.stringify({ primary_model: primaryModel, fallback_model: model, input_chars: master.length, max_tokens: requestedTokens }));
+        } catch (fallbackParseError) {
+          const fallbackDetail = String(fallbackParseError?.message || detail).slice(0, 240);
+          console.error('Resume Studio primary and fallback profile parsing failed:', fallbackDetail);
+          return json({ error: 'Both GLM-4.7-Flash and the Llama fallback failed to return a valid structured profile.', diagnostic: fallbackDetail, primary_model: primaryModel, fallback_model: fallbackModel, max_tokens: requestedTokens }, 502);
+        }
+      } else if (isProfileImport) {
+        const detail = String(firstParseError?.message || 'The fallback model returned invalid JSON.').slice(0, 240);
+        console.error('Resume Studio fallback profile JSON failed validation:', detail);
+        return json({ error: 'The fallback model returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
       } else {
         // Other Resume Studio tasks retain the full-budget JSON repair retry.
         try {
