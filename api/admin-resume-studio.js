@@ -26,7 +26,10 @@ export default async function (req, res) {
     });
     const raw = await upstream.text();
     let data;
-    try { data = JSON.parse(raw); } catch { data = { error: 'The Resume Studio service returned an invalid response.' }; }
+    try { data = JSON.parse(raw); } catch {
+      console.error('Resume Studio upstream returned non-JSON:', upstream.status, upstream.headers.get('content-type') || 'unknown content type', raw.slice(0, 500));
+      return res.status(502).json({ error: 'The Cloudflare Resume Studio API did not return JSON. Check that /api/admin-resume-studio is deployed in the Cloudflare Pages production worker.', upstream_status: upstream.status, upstream_content_type: upstream.headers.get('content-type') || 'unknown' });
+    }
     return res.status(upstream.status).json(data);
   } catch (error) {
     console.error('Resume Studio Cloudflare bridge failed:', String(error?.message || 'Unknown error'));
