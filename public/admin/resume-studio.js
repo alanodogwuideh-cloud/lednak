@@ -291,7 +291,19 @@
       const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
         const page = await pdf.getPage(index + 1);
         const content = await page.getTextContent();
-        return content.items.map(item => item.str || '').join(' ');
+        const items = content.items
+          .filter(item => String(item.str || '').trim())
+          .map(item => ({ text:String(item.str || '').trim(), x:Number(item.transform?.[4] || 0), y:Number(item.transform?.[5] || 0), width:Number(item.width || 0) }));
+        // PDF.js returns positioned fragments, not semantic lines. Rebuild visual
+        // lines before parsing so headings, job entries and bullets remain distinct.
+        const rows = [];
+        for (const item of items) {
+          let row = rows.find(candidate => Math.abs(candidate.y - item.y) <= 2.5);
+          if (!row) { row = { y:item.y, items:[] }; rows.push(row); }
+          row.items.push(item);
+        }
+        rows.sort((a,b) => b.y-a.y);
+        return rows.map(row => row.items.sort((a,b) => a.x-b.x).map(item => item.text).join(' ').replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
       }));
       return pages.join('\n').trim();
     }
@@ -323,7 +335,7 @@
   let importProgressSteps = [];
   let importTiming = {};
   let importContactPreview = null;
-  const IMPORT_CACHE_DB = 'resume-studio-import-cache-v1';
+  const IMPORT_CACHE_DB = 'resume-studio-import-cache-v2';
   const IMPORT_CACHE_STORE = 'drafts';
   function importDb() {
     return new Promise((resolve, reject) => {
@@ -369,6 +381,47 @@
     const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return Array.from(new Uint8Array(bytes)).map(x => x.toString(16).padStart(2,'0')).join('');
   }
+  function importNeedsSemanticMapping(result, sourceText) {
+    const p = result?.profile || {};
+    const contact = p.contact || {};
+    const headings = /\b(?:work experience|professional experience|employment history|experience|skills|competencies|education|academic background|certifications|professional summary|career summary)\b/i.test(String(sourceText || ''));
+    const incompleteRoles = (p.experience || []).some(item => !String(item.title || '').trim() || !String(item.company || '').trim());
+    const badLocation = String(contact.location || '').length > 70 || /summary|detail-oriented|professional profile/i.test(String(contact.location || ''));
+    return !String(contact.fullName || '').trim()
+      || !(p.experience || []).length
+      || incompleteRoles
+      || badLocation
+      || (headings && /\bskills\b/i.test(sourceText) && !(p.skills || []).length)
+      || (headings && /\beducation\b/i.test(sourceText) && !(p.education || []).length);
+  }
+  function countImportedEntries(profile) {
+    return ['experience','projects','skills','education','certifications'].reduce((sum,key) => sum + (Array.isArray(profile?.[key]) ? profile[key].length : 0), 0);
+  }
+  async function importProfileWithAI(sourceText, timing) {
+    const started = performance.now();
+    importStage = 'Organizing CV details into the correct fields';
+    importProgressSteps.push({label:'Mapping details to the correct fields',status:'active'});
+    render();
+    try {
+      if (typeof api !== 'function') throw new Error('The secure Resume Studio API client is unavailable.');
+      const endpoint = location.hostname.endsWith('.hatchable.site')
+        ? 'https://alanodogwuideh.com/api/admin-resume-studio'
+        : '/api/admin-resume-studio';
+      const response = await api(endpoint, {
+        method:'POST',
+        body:JSON.stringify({action:'import-profile',master_resume_text:String(sourceText || '').slice(0,40000)})
+      });
+      const profile = response?.profile;
+      if (!profile || !profile.contact || !Array.isArray(profile.experience) || !Array.isArray(profile.skills) || !Array.isArray(profile.education)) {
+        throw new Error('The CV organizer returned an incomplete profile structure.');
+      }
+      timing.aiCalls.push({action:'import-profile',durationMs:Math.round(performance.now()-started),ok:true});
+      return {profile,warnings:Array.isArray(response.warnings)?response.warnings:[]};
+    } catch (error) {
+      timing.aiCalls.push({action:'import-profile',durationMs:Math.round(performance.now()-started),ok:false});
+      throw error;
+    }
+  }
   async function startResumeImport(file) {
     if (file) importSelectedFile = file;
     file = file || importSelectedFile;
@@ -376,7 +429,7 @@
     importBusy = true; importStage = 'Reading your document'; importError = ''; importReview = null; importContactPreview = null; importTiming = timing;
     importProgressSteps = [{label:'Reading your document',status:'active'}]; render();
     try {
-      const fileKey = 'file:' + await hashImportText([file.name || '',file.size || 0,file.lastModified || 0,file.type || ''].join('|'));
+      const fileKey = 'file:v2:' + await hashImportText([file.name || '',file.size || 0,file.lastModified || 0,file.type || ''].join('|'));
       let fileCached = null;
       try { fileCached = await importCacheGet(fileKey); } catch (_) {}
       if (fileCached?.draft) {
@@ -411,8 +464,40 @@
       importProgressSteps[0].status = 'done';
       importProgressSteps.push({label:'Finding contact details',status:'active'}); importStage = 'Finding contact details'; render();
       const codeStart = performance.now();
-      const result = parser.extract(text);
+      let result = parser.extract(text);
       timing.codeExtractionMs = Math.round(performance.now() - codeStart);
+      if (importNeedsSemanticMapping(result, text)) {
+        try {
+          const aiResult = await importProfileWithAI(text, timing);
+          const aiProfile = aiResult.profile;
+          result = {
+            ...result,
+            profile:aiProfile,
+            warnings:[...(aiResult.warnings || [])],
+            unplaced:[],
+            lowConfidence:[],
+            contactConfidence:{
+              fullName:aiProfile.contact?.fullName?'high':'low',
+              email:aiProfile.contact?.email?'high':'low',
+              phone:aiProfile.contact?.phone?'high':'low',
+              location:aiProfile.contact?.location?'high':'low',
+              links:Array.isArray(aiProfile.contact?.links)&&aiProfile.contact.links.length?'high':'low'
+            },
+            stats:{
+              ...result.stats,
+              aiEntries:countImportedEntries(aiProfile),
+              extractedBullets:[...(aiProfile.experience||[]),...(aiProfile.projects||[])].reduce((n,e)=>n+(Array.isArray(e.bullets)?e.bullets.length:0),0)
+            }
+          };
+          const mappingStep = importProgressSteps.find(step => step.label === 'Mapping details to the correct fields');
+          if (mappingStep) mappingStep.status = 'done';
+        } catch (aiError) {
+          const hasUsableCodeResult = !!result.profile.contact?.fullName && result.profile.experience.length > 0
+            && result.profile.experience.every(item => item.title && item.company);
+          if (!hasUsableCodeResult) throw new Error('The CV text was read, but its sections could not be mapped reliably. AI-assisted mapping failed: ' + (aiError.message || 'Please retry the import.'));
+          result.warnings.push('AI-assisted mapping was unavailable, so the fast extraction was kept. Review every field before applying.');
+        }
+      }
       importContactPreview = result.profile.contact;
       importReview = { profile:result.profile, warnings:result.warnings, fileName:file.name, sourceText:text, lines:result.lines, unplaced:result.unplaced, lowConfidence:result.lowConfidence, contactConfidence:result.contactConfidence, stats:result.stats, timings:timing, cacheHit:false };
       importProgressSteps[1].status = 'done';
