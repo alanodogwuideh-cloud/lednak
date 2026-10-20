@@ -1068,8 +1068,8 @@ async function adminResumeStudio(request, env) {
         modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       } catch (retryError) {
         const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-        return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
+        console.error('Resume Studio model invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+        return json({ error: 'Resume Studio could not complete the AI request.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens, action }, 502);
       }
     }
     const extractModelOutput = result => { const value = typeof result === 'string' ? result : (result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? ''); return typeof value === 'string' ? value : JSON.stringify(value); };
@@ -1080,8 +1080,8 @@ async function adminResumeStudio(request, env) {
     } catch (firstParseError) {
       if (isProfileImport) {
         const detail = String(firstParseError?.message || 'The model returned invalid JSON.').slice(0, 240);
-        console.error('Resume Studio Llama 4 Scout import JSON response failed validation:', detail);
-        return json({ error: 'Llama 4 Scout returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+        console.error('Resume Studio import JSON response failed validation:', detail);
+        return json({ error: 'Resume Studio received an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens, action }, 502);
       } else {
         // Other Resume Studio tasks retain the full-budget JSON repair retry.
         try {
@@ -1091,8 +1091,8 @@ async function adminResumeStudio(request, env) {
           parsed = resumeStudioJson(output);
         } catch (repairError) {
           const detail = String(repairError?.message || firstParseError?.message || 'The model returned invalid JSON.').slice(0, 300);
-          console.error('Resume Studio Llama 4 Scout JSON response failed validation:', detail);
-          return json({ error: 'Llama 4 Scout returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+          console.error('Resume Studio JSON response failed validation:', detail);
+          return json({ error: 'Resume Studio received an incomplete or invalid JSON response after one repair attempt.', diagnostic: detail, model, max_tokens: requestedTokens, action }, 502);
         }
       }
     }
@@ -1375,7 +1375,12 @@ export async function handleCloudflareApi(request, env) {
   } catch (error) {
     const message = String(error?.message || 'Unknown error');
     console.error('Cloudflare route error:', route, message, error?.stack || '');
-    // Resume Studio-specific error handling removed.
+    // Resume Studio runs authenticated and has no user-supplied secrets in its
+    // errors; return a bounded diagnostic so failures can be fixed instead of
+    // masking every database, binding, or storage issue as the same 502.
+    if (route === 'admin-resume-studio') {
+      return resumeStudioCors(json({ error: 'Resume Studio request failed before it could complete.', diagnostic: message.slice(0, 300), route, method }, 502), request);
+    }
     return json({ error: 'Portfolio data is temporarily unavailable.' }, 502);
   }
 }
