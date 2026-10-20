@@ -79,6 +79,9 @@
   let resumeAnalysis = null;
   let resumeAnalysisOpen = false;
   let resumeAnalyzing = false;
+  let resumeSuggestions = null;
+  let resumeSuggesting = false;
+  let resumeSuggestionMessage = '';
   const resumeIsDirty = () => !!currentResume && (JSON.stringify(currentResume.content)!==resumeSavedJson || currentResume.title!==resumeSavedTitle);
   function resumeAnalysisText(resume) {
     const c = resume?.content || {};
@@ -109,7 +112,8 @@
     const a = resumeAnalysis;
     const group = (title,items) => Array.isArray(items) && items.length ? '<section class="rs-analysis-group"><h4>'+escHtml(title)+'</h4><ul>'+items.map(x=>'<li>'+escHtml(x)+'</li>').join('')+'</ul></section>' : '';
     const hasFindings = !!a.overall_assessment || ['strengths','issues','missing_information','structure_recommendations','evidence_warnings','next_steps'].some(key=>Array.isArray(a[key])&&a[key].length);
-    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+(!hasFindings?'<p class="rs-analysis-note">No actionable findings were returned. You can retry the analysis or review the resume manually.</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Verify all details before using this document.</p></div><footer class="rs-analysis-modal-footer"><span>Review the suggestions before editing your resume.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
+    const suggestionCards = resumeSuggestions && Array.isArray(resumeSuggestions.examples) ? resumeSuggestions.examples.map((item,index)=>'<section class="rs-analysis-example"><h4>Example '+(index+1)+': '+escHtml(item.focus||'Improvement opportunity')+'</h4>'+(item.current_text?'<div><strong>Current wording</strong><p>'+escHtml(item.current_text)+'</p></div>':'')+(item.example_rewrite?'<div><strong>Example wording — adapt with your real evidence</strong><p>'+escHtml(item.example_rewrite)+'</p></div>':'')+(item.evidence_to_add?'<div><strong>Evidence to supply</strong><p>'+escHtml(item.evidence_to_add)+'</p></div>':'')+(item.why_it_helps?'<div><strong>Why this helps</strong><p>'+escHtml(item.why_it_helps)+'</p></div>':'')+'</section>').join('') : '';
+    return '<div class="rs-analysis-backdrop" data-resume-action="close-analysis" data-overlay-backdrop="true"><section class="rs-analysis-modal" role="dialog" aria-modal="true" aria-labelledby="rsAnalysisTitle" aria-describedby="rsAnalysisDescription" tabindex="-1"><header class="rs-analysis-modal-header"><div><span class="eyebrow">RESUME REVIEW</span><h3 id="rsAnalysisTitle">Resume analysis</h3><p id="rsAnalysisDescription">A structured review of your resume content and presentation.</p></div><button type="button" class="rs-analysis-close" data-resume-action="close-analysis" aria-label="Close resume analysis">×</button></header><div class="rs-analysis-modal-body">'+(a.overall_assessment?'<p class="rs-analysis-assessment">'+escHtml(a.overall_assessment)+'</p>':'')+(!hasFindings?'<p class="rs-analysis-note">No actionable findings were returned. You can retry the analysis or review the resume manually.</p>':'')+group('Strengths',a.strengths)+group('Issues to address',a.issues)+group('Missing information to verify',a.missing_information)+group('Structure recommendations',a.structure_recommendations)+group('Evidence warnings',a.evidence_warnings)+group('Recommended next steps',a.next_steps)+'<section class="rs-analysis-suggestions"><div class="rs-analysis-suggestions-head"><div><h4>Improvement examples</h4><p>Ask AI for sample wording and the real evidence you should add yourself.</p></div><button type="button" class="secondary" data-resume-action="ask-suggestions" '+(resumeSuggesting?'disabled':'')+'>'+(resumeSuggesting?'Generating examples…':resumeSuggestions?'Regenerate examples':'Ask AI for suggestions')+'</button></div>'+(resumeSuggesting?'<p class="rs-analysis-note" role="status">Creating examples from your current resume. Your resume will not be edited.</p>':'')+(resumeSuggestionMessage?'<p class="rs-analysis-note" role="alert">'+escHtml(resumeSuggestionMessage)+'</p>':'')+(resumeSuggestions?(resumeSuggestions.guidance?'<p class="rs-analysis-note">'+escHtml(resumeSuggestions.guidance)+'</p>':'')+(suggestionCards||'<p class="rs-analysis-note">No examples were returned. You can try again.</p>'):'')+'</section><p class="rs-analysis-note">Suggestions only. Nothing in your resume was changed. Do not use placeholder metrics or claims unless you can verify them with your own evidence.</p></div><footer class="rs-analysis-modal-footer"><span>Use the examples as a guide, then rewrite with your own verified experience.</span><button type="button" class="primary" data-resume-action="close-analysis">Close review</button></footer></section></div>';
   }
   const resumeSections = ['summary','experience','projects','skills','education','certifications'];
   const resumeSectionNames = {summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'};
@@ -212,7 +216,7 @@
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
-      resumeAnalyzing=true; resumeAnalysis=null; resumeAnalysisOpen=false; resumeMessage=''; renderResumeView();
+      resumeAnalyzing=true; resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage=''; resumeMessage=''; renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
@@ -224,6 +228,20 @@
       return;
     }
     if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
+    if(action==='ask-suggestions') {
+      if(!currentResume || !resumeAnalysis || resumeSuggesting) return;
+      const resumeText=resumeAnalysisText(currentResume);
+      if(resumeText.replace(/\\s/g,'').length<80) { resumeSuggestionMessage='Add more resume details before requesting examples.'; renderResumeView(); return; }
+      resumeSuggesting=true; resumeSuggestions=null; resumeSuggestionMessage=''; resumeAnalysisOpen=true; renderResumeView();
+      try {
+        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
+        const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-resume-examples',master_resume_text:resumeText,analysis:resumeAnalysis})});
+        resumeSuggestions=result.suggestions&&typeof result.suggestions==='object'?result.suggestions:null;
+        if(!resumeSuggestions || !Array.isArray(resumeSuggestions.examples) || !resumeSuggestions.examples.length) { resumeSuggestions=null; resumeSuggestionMessage='The AI did not return usable examples. Please try again.'; }
+      } catch(error) { resumeSuggestionMessage='Could not generate examples: '+(error.message||'Please try again.'); }
+      finally { resumeSuggesting=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
+      return;
+    }
     if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; renderResumeView(); return; }
     if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; renderResumeView(); return; }
     if(action==='new') return createResume();
@@ -459,7 +477,7 @@
   root.addEventListener('input', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type !== 'checkbox' && currentResume) {
-      resumeAnalysis=null; resumeAnalysisOpen=false;
+      resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage='';
       const path = target.dataset.resumePath;
       const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
       if (path === 'title') currentResume.title = value; else { if (path.startsWith('content.contact.links.0.') && !currentResume.content.contact.links.length) currentResume.content.contact.links.push({label:'Portfolio',url:'',hidden:false}); rpathSet(currentResume, path, value); }
@@ -482,7 +500,7 @@
   root.addEventListener('change', event => {
     const target = event.target;
     if (target.matches('[data-resume-path]') && target.type === 'checkbox' && currentResume) {
-      resumeAnalysis=null; resumeAnalysisOpen=false;
+      resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=null; resumeSuggestionMessage='';
       const path=target.dataset.resumePath;
       if (path.startsWith('content.hiddenSections.')) { const section=path.split('.').pop(); const list=currentResume.content.hiddenSections||[]; currentResume.content.hiddenSections=target.checked?[...new Set([...list,section])]:list.filter(x=>x!==section); }
       else rpathSet(currentResume,path,target.checked);
