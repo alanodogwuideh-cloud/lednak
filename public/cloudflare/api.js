@@ -1038,12 +1038,13 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
+    // GLM-4.7-Flash is being evaluated only for resume import. Keep Llama 4 Scout
+    // for analysis, tailoring, and cover-letter generation until import is benchmarked.
+    const model = isProfileImport ? '@cf/zai-org/glm-4.7-flash' : '@cf/meta/llama-4-scout-17b-16e-instruct';
     const requestedTokens = isProfileImport ? Math.min(6000, Math.max(1800, Math.ceil(master.length / 5))) : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     const aiStartedAt = Date.now();
     try {
-      // Keep the same Cloudflare model. Size import output to the source while retaining
-      // the existing 6000-token ceiling, and log duration without logging resume content.
+      // Preserve the import output ceiling and log timing without logging resume content.
       modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       console.log('Resume Studio AI completed', JSON.stringify({ action, model, input_chars: master.length, max_tokens: requestedTokens, duration_ms: Date.now() - aiStartedAt }));
     } catch (firstError) {
@@ -1051,8 +1052,8 @@ async function adminResumeStudio(request, env) {
         modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       } catch (retryError) {
         const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-        return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
+        console.error('Resume Studio model invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+        return json({ error: 'The selected Resume Studio model failed during invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
       }
     }
     const extractModelOutput = result => { const value = typeof result === 'string' ? result : (result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? ''); return typeof value === 'string' ? value : JSON.stringify(value); };
@@ -1063,8 +1064,8 @@ async function adminResumeStudio(request, env) {
     } catch (firstParseError) {
       if (isProfileImport) {
         const detail = String(firstParseError?.message || 'The model returned invalid JSON.').slice(0, 240);
-        console.error('Resume Studio Llama 4 Scout import JSON response failed validation:', detail);
-        return json({ error: 'Llama 4 Scout returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+        console.error('Resume Studio resume import JSON response failed validation:', detail);
+        return json({ error: 'The selected model returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
       } else {
         // Other Resume Studio tasks retain the full-budget JSON repair retry.
         try {
@@ -1074,8 +1075,8 @@ async function adminResumeStudio(request, env) {
           parsed = resumeStudioJson(output);
         } catch (repairError) {
           const detail = String(repairError?.message || firstParseError?.message || 'The model returned invalid JSON.').slice(0, 300);
-          console.error('Resume Studio Llama 4 Scout JSON response failed validation:', detail);
-          return json({ error: 'Llama 4 Scout returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+          console.error('Resume Studio JSON response failed validation:', detail);
+          return json({ error: 'The selected model returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
         }
       }
     }
