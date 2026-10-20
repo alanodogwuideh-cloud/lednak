@@ -22,7 +22,7 @@ export default {
         // Resume Studio has its own explicit multi-origin CORS policy in the API
         // handler. Let it answer preflight instead of rejecting valid production
         // origins here at the generic preview-only gate.
-        if (['/api/admin-resume-studio','/api/admin/import-chunk'].includes(url.pathname.replace(/\/$/, ''))) {
+        if (url.pathname.replace(/\/$/, '') === '/api/admin-resume-studio') {
           return await handleCloudflareApi(request, env, ctx);
         }
         if (!isAllowedPreview) return new Response(null, { status: 403 });

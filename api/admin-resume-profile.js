@@ -2,7 +2,7 @@ import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 export const access = 'public';
-export const methods = ['GET', 'PUT', 'POST'];
+export const methods = ['GET', 'PUT'];
 
 const emptyProfile = () => ({
   contact: { fullName: '', email: '', phone: '', location: '', links: [] },
@@ -95,14 +95,6 @@ export default async function (req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
   try {
-    if (req.method === 'POST' && req.body?.action === 'snapshot') {
-      await tursoQuery('CREATE TABLE IF NOT EXISTS master_profile_snapshots (id TEXT PRIMARY KEY, profile_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, reason TEXT NOT NULL)');
-      const { rows } = await tursoQuery('SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');
-      const profileJson = String(rows[0]?.profile_json || JSON.stringify(emptyProfile()));
-      const id = crypto.randomUUID();
-      await tursoQuery('INSERT INTO master_profile_snapshots (id,profile_json,created_at,reason) VALUES ($1,$2,CURRENT_TIMESTAMP,$3)', [id, profileJson, 'replace-before-import']);
-      return res.json({ ok:true, snapshotId:id });
-    }
     if (req.method === 'GET') {
       const { rows } = await tursoQuery('SELECT profile_json, updated_at FROM master_profile WHERE id=1 LIMIT 1');
       let profile = emptyProfile();

@@ -19,8 +19,7 @@
   let importBusy = false;
   let importStage = 'Preparing your resume…';
   let importReview = null;
-  let importChunksWorking = [];
-  let importError = ''
+  let importError = '';
   const draftKey = 'resume-studio-master-profile-draft-v1';
   function persistLocalDraft() {
     try {
@@ -288,188 +287,24 @@
     if (!importBusy) return '';
     const steps = ['Reading your document', 'Organizing details with AI', 'Preparing your review'];
     const active = importStage.includes('Reading') ? 0 : importStage.includes('Organizing') ? 1 : 2;
-    return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><div class="rs-import-progress-track"><span></span></div><ol>' + steps.map((label, i) => '<li class="' + (i < active ? 'is-done' : i === active ? 'is-active' : '') + '"><span>' + (i < active ? '✓' : String(i + 1)) + '</span>' + label + '</li>').join('') + '</ol><small>This may take a moment. Keep this window open while we organize your information.</small>' + (importChunksWorking.length ? '<div class="rs-import-live-status">' + importChunksWorking.map(chunk => '<div><span class="rs-chunk-status is-' + escHtml(chunk.status) + '">' + escHtml(chunk.status) + '</span><span>' + escHtml(chunk.label) + '</span></div>').join('') + '</div>' : '') + '</section></div>';
+    return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><div class="rs-import-progress-track"><span></span></div><ol>' + steps.map((label, i) => '<li class="' + (i < active ? 'is-done' : i === active ? 'is-active' : '') + '"><span>' + (i < active ? '✓' : String(i + 1)) + '</span>' + label + '</li>').join('') + '</ol><small>This may take a moment. Keep this window open while we organize your information.</small></section></div>';
   }
-  const importHeading = /^(?:professional\s+)?(?:experience|work\s+experience|work\s+history|employment|projects?|education|skills?|certifications?|awards?|interests?|references?|summary|profile|objective|contact(?:\s+details?)?)\s*:?\s*$/i;
-  const dateRangeLine = /(?:\b(?:19|20)\d{2}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b).{0,35}(?:-|–|—|to|present|current|now)/i;
-  function normalizeResumeSource(value) {
-    return String(value || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/^\s*[•●▪◦]\s*/gm, '- ').replace(/\r/g, '').split('\n').map(line => line.trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
-  }
-  function importKindForHeading(heading) {
-    const h = heading.toLowerCase();
-    if (/experience|work experience|work history|employment/.test(h)) return 'role';
-    if (/project/.test(h)) return 'projects';
-    if (/education|certification|award/.test(h)) return 'education';
-    if (/skill/.test(h)) return 'skills';
-    if (/summary|profile|objective|contact/.test(h)) return 'contact_summary';
-    return 'other';
-  }
-  function splitImportText(text, kind, label) {
-    const lines = text.split('\n');
-    const groups = [];
-    let current = [];
-    const flush = () => { if (current.join('\n').trim()) groups.push(current.join('\n').trim()); current = []; };
-    if (kind === 'role') {
-      for (const line of lines) {
-        if (dateRangeLine.test(line) && current.length && current.some(x => /^\s*[-•*]/.test(x))) flush();
-        current.push(line);
-        if (current.join('\n').length >= 2500) {
-          flush();
-        }
-      }
-    } else {
-      for (const line of lines) {
-        current.push(line);
-        if (current.join('\n').length >= 2500) {
-          let splitAt = current.lastIndexOf('');
-          if (splitAt < 1) splitAt = current.length - 1;
-          const head = current.slice(0, splitAt).join('\n').trim();
-          const tail = current.slice(splitAt).join('\n').trim();
-          if (head) groups.push(head);
-          current = tail ? tail.split('\n') : [];
-        }
-      }
-    }
-    flush();
-    return groups.map((chunk, i) => ({ id:uid(), kind, label: kind === 'role' ? 'Role ' + (i+1) : label, text:chunk, status:'waiting', attempts:0, data:null, misses:[], error:'' }));
-  }
-  function detectImportSections(text) {
-    const lines = text.split('\n');
-    const headings = [];
-    lines.forEach((line, index) => { if (importHeading.test(line.trim())) headings.push({ index, heading:line.trim().replace(/:$/, '') }); });
-    if (!headings.length) return [];
-    const out = [];
-    if (headings[0].index > 0) out.push({ heading:'Contact and opening details', kind:'contact_summary', text:lines.slice(0,headings[0].index).join('\n').trim() });
-    headings.forEach((item, i) => {
-      const end = headings[i+1]?.index ?? lines.length;
-      const sectionText = lines.slice(item.index+1,end).join('\n').trim();
-      if (sectionText) out.push({ heading:item.heading, kind:importKindForHeading(item.heading), text:sectionText });
-    });
-    return out;
-  }
-  function collectExtractedText(value) {
-    if (value == null) return '';
-    if (typeof value === 'string' || typeof value === 'number') return String(value);
-    if (Array.isArray(value)) return value.map(collectExtractedText).join('\n');
-    return Object.entries(value).map(([key,v]) => key === 'id' || key === 'tags' ? '' : collectExtractedText(v)).filter(Boolean).join('\n');
-  }
-  function completenessMisses(chunk, data) {
-    const source = chunk.text;
-    const output = collectExtractedText(data);
-    const misses = [];
-    const tokens = source.match(/(?:\b(?:19|20)\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}\b|[$£€₦]\s?\d[\d,.]*(?:\s?%|\s?(?:k|m|million|billion))?|\b\d[\d,.]*\s?%|\b\d+(?:[.,]\d+)*\b)/gi) || [];
-    tokens.forEach(token => { if (!output.toLowerCase().includes(token.toLowerCase()) && !misses.includes(token)) misses.push(token); });
-    const sourceBullets = source.split('\n').filter(line => /^\s*(?:[-*•▪◦]|\d+[.)])\s+/.test(line)).length;
-    const outputBullets = (() => {
-      const sections = data?.experience || data?.projects || [];
-      return sections.reduce((n,item) => n + (Array.isArray(item.bullets) ? item.bullets.length : 0), 0);
-    })();
-    if (sourceBullets && outputBullets !== sourceBullets) misses.push('Bullet count: source ' + sourceBullets + ', extracted ' + outputBullets);
-    if (chunk.kind === 'skills') {
-      const skills = source.split(/[\n,|•;]/).map(s => s.trim().replace(/^[-*]\s*/, '')).filter(s => s.length > 1);
-      skills.forEach(skill => { if (!output.toLowerCase().includes(skill.toLowerCase()) && !misses.includes(skill)) misses.push(skill); });
-    }
-    return misses;
-  }
-  function mergeImportData(profileOut, data, kind) {
-    if (kind === 'contact_summary') {
-      if (data.contact) profileOut.contact = { ...profileOut.contact, ...data.contact, links:[...(profileOut.contact.links||[]), ...(data.contact.links||[])] };
-      profileOut.summaries.push(...(data.summaries||[]));
-    } else {
-      for (const key of ['experience','projects','skills','education','certifications','summaries']) if (Array.isArray(data[key])) profileOut[key].push(...data[key]);
-    }
-  }
-  async function callImportChunk(chunk, correction = '', allowSplit = true) {
-    chunk.status = 'waiting'; chunk.error = ''; chunk.attempts++;
-    importStage = 'Reading ' + chunk.label.toLowerCase() + '…'; render();
-    const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin/import-chunk' : '/admin/import-chunk';
-    try {
-      const result = await api(endpoint, { method:'POST', body:JSON.stringify({ kind:chunk.kind, text:chunk.text, chunkId:chunk.id, correction }) });
-      chunk.status = 'done'; chunk.data = result.data; chunk.misses = completenessMisses(chunk, result.data);
-      return [chunk];
-    } catch (error) {
-      if (allowSplit && /TRUNCATED/.test(error.message || '')) {
-        const lines = chunk.text.split('\n');
-        let middle = Math.floor(lines.length / 2);
-        const blank = lines.findIndex((line, i) => i > 0 && i >= middle && !line.trim());
-        if (blank > 0) middle = blank;
-        const leftText = lines.slice(0,middle).join('\n').trim(), rightText = lines.slice(middle).join('\n').trim();
-        if (leftText && rightText) {
-          chunk.status = 'retrying'; render();
-          const children = [leftText,rightText].map((text,i)=>({ ...chunk, id:uid(), label:chunk.label+' (part '+(i+1)+')', text, data:null, misses:[], attempts:0, status:'waiting' }));
-          const results = [];
-          for (const child of children) results.push(...await callImportChunk(child, correction, false));
-          chunk.children = results; chunk.status = results.every(x=>x.status==='done')?'done':'failed';
-          if (chunk.status === 'done') { const combined=emptyProfile(); results.forEach(x=>mergeImportData(combined,x.data,x.kind)); chunk.data=combined; }
-          else chunk.error='This section was split but one part still needs retrying.';
-          return results;
-        }
-      }
-      chunk.status = 'failed'; chunk.error = error.message || 'Section extraction failed.'; return [chunk];
-    }
-  }
-  async function processImportChunks(chunks) {
-    let cursor = 0, completed = 0;
-    const workers = Array.from({length:Math.min(3,chunks.length)}, async () => {
-      while (cursor < chunks.length) {
-        const chunk = chunks[cursor++];
-        const results = await callImportChunk(chunk);
-        completed++;
-        importStage = 'Reading ' + chunk.label.toLowerCase() + ' (' + completed + ' of ' + chunks.length + ')…';
-        render();
-      }
-    });
-    await Promise.all(workers);
-  }
-
   async function startResumeImport(file) {
     importBusy = true; importStage = 'Reading your document…'; importError = ''; importReview = null; render();
     try {
-      const text = normalizeResumeSource(await extractResumeText(file));
+      const text = await extractResumeText(file);
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
-      let sections = detectImportSections(text);
-      if (!sections.length) {
-        importStage = 'Mapping resume sections…'; render();
-        const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin/import-chunk' : '/admin/import-chunk';
-        const lines = text.split('\n');
-        try {
-          const outline = await api(endpoint, { method:'POST', body:JSON.stringify({kind:'other',mode:'outline',text,chunkId:uid()}) });
-          sections = (outline.sections || []).map(section => ({ heading:String(section.section||'Other'), kind:importKindForHeading(String(section.section||'Other')), text:lines.slice(Math.max(0,Number(section.startLine)-1),Math.min(lines.length,Number(section.endLine))).join('\n').trim() })).filter(section=>section.text);
-        } catch (_) {
-          sections = text.split(/\n\s*\n/).filter(part=>part.trim()).map((part,i)=>({heading:'Resume section '+(i+1),kind:'other',text:part.trim()}));
-        }
-        if (!sections.length) sections = [{heading:'Resume',kind:'other',text}];
-      }
-      const chunks = [];
-      for (const section of sections) chunks.push(...splitImportText(section.text, section.kind, section.heading));
-      if (!chunks.length) throw new Error('No readable resume sections were found.');
-      importChunksWorking = chunks;
-      importStage = 'Preparing ' + chunks.length + ' sections…'; render();
-      await processImportChunks(chunks);
-      for (const chunk of chunks.filter(item => item.status === 'done' && item.misses?.length)) {
-        chunk.status = 'retrying'; render();
-        const retry = await callImportChunk(chunk, 'The following source details were missing from the first extraction. Preserve them exactly: ' + chunk.misses.join('; '), false);
-        if (retry.some(item => item.status !== 'done')) chunk.status = 'failed';
-      }
-      const assembled = emptyProfile();
-      const warnings = [];
-      const unsortedLines = [];
-      chunks.forEach(chunk => {
-        if (chunk.status === 'done' && chunk.data) mergeImportData(assembled, chunk.data, chunk.kind);
-        if (chunk.status === 'failed') warnings.push(chunk.label + ': ' + (chunk.error || 'Could not extract this section.'));
-        (chunk.misses || []).forEach(miss => warnings.push(chunk.label + ' possibly missing: ' + miss));
-        const extracted = collectExtractedText(chunk.data || {});
-        chunk.text.split('\n').filter(line=>line.trim()).forEach(line=>{
-          if (!extracted.toLowerCase().includes(line.trim().replace(/^[-•*]\s*/, '').toLowerCase()) && line.trim().length > 2) unsortedLines.push({id:uid(),text:line.trim(),chunkId:chunk.id,section:'other'});
-        });
-      });
-      importStage = 'Preparing review…'; render();
-      importReview = { profile:normalizeImportedProfile(assembled), warnings, fileName:file.name, sourceText:text, chunks, unsortedLines, mode:'merge' };
+      importStage = 'Organizing details with AI…'; render();
+      const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
+      const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
+      if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
+      importStage = 'Preparing your review…'; render();
+      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name, sourceText: text };
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';
-    } finally { importBusy = false; importChunksWorking = []; render(); }
+    } finally { importBusy = false; render(); }
   }
   function normalizeImportedProfile(value) {
     const p = value && typeof value === 'object' ? value : {};
@@ -485,19 +320,6 @@
     normalized.certifications = normalized.certifications.map(x => ({ id: uid(), name: clean(x.name), issuer: clean(x.issuer), date: clean(x.date) }));
     normalized.contact.links = normalized.contact.links.map(x => ({ label: clean(x.label), url: clean(x.url) }));
     return normalized;
-  }
-  function renderImportEvidence() {
-    const chunks = importReview.chunks || [];
-    const statusLabel = status => ({waiting:'Waiting',done:'Done',retrying:'Retrying',failed:'Failed'}[status] || status);
-    const chunkHtml = chunks.map(chunk => {
-      const extracted = collectExtractedText(chunk.data || '');
-      const changed = extracted.split('\n').filter(line=>line.trim() && !chunk.text.toLowerCase().includes(line.trim().toLowerCase()));
-      const misses = chunk.misses || [];
-      const sourceHtml = chunk.text.split('\n').map(line => { const plain=line.trim().replace(/^[-•*]\\s*/, ''); return plain && !extracted.toLowerCase().includes(plain.toLowerCase()) ? '<mark>'+escHtml(line)+'</mark>' : escHtml(line); }).join('\n');
-      return '<article class="rs-import-evidence"><header><strong>'+escHtml(chunk.label)+'</strong><span class="rs-chunk-status is-'+escHtml(chunk.status)+'">'+escHtml(statusLabel(chunk.status))+'</span></header><div class="rs-import-compare"><section><h5>Original text</h5><pre>'+sourceHtml+'</pre></section><section><h5>Extracted fields</h5><pre>'+escHtml(extracted || 'No extracted fields yet')+'</pre>'+(changed.length?'<div class="rs-diff-warning"><strong>Check possible rewording or invention</strong><ul>'+changed.map(line=>'<li>'+escHtml(line)+'</li>').join('')+'</ul></div>':'')+'</section></div>'+(misses.length?'<div class="rs-missing-items"><strong>Possibly missing</strong><ul>'+misses.map(item=>'<li>'+escHtml(item)+'</li>').join('')+'</ul></div>':'')+(chunk.status==='failed'?'<p class="rs-chunk-error">'+escHtml(chunk.error||'This section needs another attempt.')+'</p><button type="button" class="secondary" data-import-action="retry-chunk" data-chunk-id="'+escHtml(chunk.id)+'">Retry this section</button>':'')+'</article>';
-    }).join('');
-    const unsorted = (importReview.unsortedLines||[]).map(line=>'<div class="rs-unsorted-line"><p>'+escHtml(line.text)+'</p><select aria-label="Choose a section" data-unsorted-section="'+escHtml(line.id)+'"><option value="summaries">Summary</option><option value="experience">Experience</option><option value="projects">Projects</option><option value="skills">Skills</option><option value="education">Education</option><option value="certifications">Certifications</option></select><button type="button" class="secondary" data-import-action="add-unsorted" data-line-id="'+escHtml(line.id)+'">Add to section</button></div>').join('');
-    return '<section class="rs-import-evidence-wrap"><h4>Source comparison and extraction status</h4><p>Review original text against the extracted fields. Resume text is processed for this import and is not written to application logs.</p>'+chunkHtml+'</section>'+(unsorted?'<section class="rs-unsorted-wrap"><h4>Unsorted lines</h4><p>These source lines were not matched confidently. Add each line to a section or leave it for manual review.</p>'+unsorted+'</section>':'');
   }
   function renderImportReview() {
     if (!importReview) return '';
@@ -517,7 +339,7 @@
     const skillsHtml = '<section class="rs-import-section"><h4>Skills</h4>'+((p.skills||[]).length ? p.skills.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Skill group','skills.'+i+'.category',x.category)+area('Skills (comma-separated)','skills.'+i+'._items',Array.isArray(x.items)?x.items.join(', '):x.items)+'</div></div>').join('') : '<p class="rs-import-empty">No skill groups were detected.</p>')+'</section>';
     const educationHtml = '<section class="rs-import-section"><h4>Education</h4>'+((p.education||[]).length ? p.education.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Institution','education.'+i+'.institution',x.institution)+input('Qualification','education.'+i+'.degree',x.degree)+input('Field of study','education.'+i+'.field',x.field)+input('Start date','education.'+i+'.startDate',x.startDate)+input('End date','education.'+i+'.endDate',x.endDate)+area('Notes','education.'+i+'.notes',x.notes)+'</div></div>').join('') : '<p class="rs-import-empty">No education details were detected.</p>')+'</section>';
     const certHtml = '<section class="rs-import-section"><h4>Certifications</h4>'+((p.certifications||[]).length ? p.certifications.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Certification','certifications.'+i+'.name',x.name)+input('Issuer','certifications.'+i+'.issuer',x.issuer)+input('Date','certifications.'+i+'.date',x.date)+'</div></div>').join('') : '<p class="rs-import-empty">No certifications were detected.</p>')+'</section>';
-    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + renderImportEvidence() + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<div class="rs-import-save-mode"><label>Save mode <select data-import-mode><option value="merge">Merge — add entries and fill blank contact fields</option><option value="replace">Replace — replace the saved Master Profile</option></select></label><label>Type REPLACE to confirm Replace mode <input data-replace-confirm placeholder="Type REPLACE" autocomplete="off"></label></div><p class="rs-import-note">Approve and save writes the reviewed profile to the Master Profile. Replace mode first creates a server-side snapshot.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Approve and save</button></footer></section></div>';
+    return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
   }
   function render() {
     if (activeView === 'resumes') { renderResumeView(); return; }
@@ -675,41 +497,15 @@
       // on a field or the modal body accidentally closes the review.
       if (importControl.classList.contains('rs-import-backdrop') && event.target !== importControl) return;
       if (importControl.dataset.importAction === 'dismiss') { importReview = null; render(); return; }
-      if (importControl.dataset.importAction === 'retry-chunk') {
-        const chunk = (importReview?.chunks || []).find(item => item.id === importControl.dataset.chunkId);
-        if (!chunk) return;
-        chunk.status = 'retrying'; render();
-        await callImportChunk(chunk, '', true);
-        const rebuilt = emptyProfile();
-        (importReview.chunks || []).forEach(item => { if (item.status === 'done' && item.data) mergeImportData(rebuilt, item.data, item.kind); });
-        importReview.profile = normalizeImportedProfile(rebuilt);
-        importReview.warnings = (importReview.chunks || []).filter(item=>item.status==='failed').map(item=>item.label+': '+(item.error||'Could not extract this section.'));
-        render(); return;
-      }
-      if (importControl.dataset.importAction === 'add-unsorted') {
-        const line = (importReview?.unsortedLines || []).find(item=>item.id===importControl.dataset.lineId);
-        if (!line) return;
-        const section = root.querySelector('[data-unsorted-section="'+line.id+'"]')?.value || 'summaries';
-        const p = importReview.profile;
-        if (section === 'summaries') p.summaries.push({id:uid(),label:'Unsorted source line',text:line.text});
-        else if (section === 'experience') p.experience.push({id:uid(),company:'',title:'Unsorted source line',location:'',startDate:'',endDate:'',current:false,bullets:[{id:uid(),text:line.text,tags:[]}]});
-        else if (section === 'projects') p.projects.push({id:uid(),name:'Unsorted source line',url:'',description:'',bullets:[{id:uid(),text:line.text,tags:[]}]});
-        else if (section === 'skills') p.skills.push({id:uid(),category:'Unsorted',items:[line.text]});
-        else if (section === 'education') p.education.push({id:uid(),institution:'',degree:'',field:'',startDate:'',endDate:'',notes:line.text});
-        else if (section === 'certifications') p.certifications.push({id:uid(),name:line.text,issuer:'',date:''});
-        importReview.unsortedLines = importReview.unsortedLines.filter(item=>item.id!==line.id);
-        render(); return;
-      }
       if (importControl.dataset.importAction === 'apply') {
         const imported = JSON.parse(JSON.stringify(importReview?.profile || {}));
-        if (!imported.contact) { alert('The extracted profile is incomplete. Please retry or cancel this import.'); return; }
+        if (!imported.contact) { alert('The extracted profile is incomplete. Please import the resume again.'); return; }
         const assign = (path,value) => {
           const parts = path.split('.');
           let target = imported;
-          for (let i=0;i<parts.length-1;i++) {
-            const key=parts[i];
-            if (target[key] == null) target[key] = /^\d+$/.test(parts[i+1] || '') ? [] : {};
-            target = target[key];
+          for (const part of parts.slice(0,-1)) {
+            if (target[part] == null) target[part] = /^\d+$/.test(parts[parts.indexOf(part)+1] || '') ? [] : {};
+            target = target[part];
           }
           target[parts[parts.length-1]] = value;
         };
@@ -720,34 +516,15 @@
             const existing = key.split('.').reduce((obj,part)=>obj?.[part], imported) || [];
             const texts = field.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
             assign(key, texts.map((text,i)=>({id:existing[i]?.id||uid(),text,tags:Array.isArray(existing[i]?.tags)?existing[i].tags:[]})));
-          } else if (path.endsWith('._items')) assign(path.slice(0,-7)+'.items', splitTags(field.value));
-          else assign(path, field.value.trim());
+          } else if (path.endsWith('._items')) {
+            assign(path.slice(0,-7)+'.items', splitTags(field.value));
+          } else assign(path, field.value.trim());
         });
-        const mode = root.querySelector('[data-import-mode]')?.value || 'merge';
-        if (mode === 'replace' && root.querySelector('[data-replace-confirm]')?.value.trim() !== 'REPLACE') {
-          alert('Type REPLACE exactly to confirm replacing the Master Profile.'); return;
-        }
-        const incoming = normalizeImportedProfile(imported);
-        try {
-          if (mode === 'replace') await api('/admin-resume-profile', {method:'POST',body:JSON.stringify({action:'snapshot'})});
-          let approved = incoming;
-          if (mode === 'merge') {
-            approved = JSON.parse(JSON.stringify(profile));
-            for (const key of ['fullName','email','phone','location']) if (!approved.contact[key] && incoming.contact[key]) approved.contact[key]=incoming.contact[key];
-            const links = new Set((approved.contact.links||[]).map(x=>String(x.url||'').toLowerCase()));
-            approved.contact.links = [...(approved.contact.links||[]), ...(incoming.contact.links||[]).filter(x=>x.url&&!links.has(String(x.url).toLowerCase()))];
-            for (const key of ['summaries','experience','projects','skills','education','certifications']) approved[key] = [...(approved[key]||[]), ...(incoming[key]||[])];
-          }
-          const saved = await api('/admin-resume-profile', {method:'PUT',body:JSON.stringify({profile:approved})});
-          profile = normalizeImportedProfile(saved.profile || approved);
-          savedJson = JSON.stringify(profile);
-          lastSavedAt = saved.updatedAt || new Date().toISOString();
-          saveError = ''; clearLocalDraft(); importReview = null; importError = ''; openAfterRender = 'contact';
-          render();
-          if (typeof cmsToast === 'function') cmsToast(mode === 'replace' ? 'Master Profile replaced. A snapshot was saved first.' : 'Imported details merged and saved to Master Profile.');
-        } catch (error) {
-          importError = 'The import could not be saved: ' + (error.message || 'Please retry.'); render();
-        }
+        const hasExisting = profile.contact.fullName || profile.contact.email || profile.experience.length || profile.projects.length || profile.skills.length || profile.education.length || profile.certifications.length || profile.summaries.length;
+        if (hasExisting && !confirm('This will replace the current Master Profile fields with the imported information. Your saved server profile will not change until you click Save Master Profile. Continue?')) return;
+        profile = normalizeImportedProfile(imported);
+        importReview = null; importError = ''; openAfterRender = 'contact';
+        markDirty(); render();
         return;
       }
     }
