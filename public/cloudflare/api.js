@@ -931,34 +931,22 @@ function resumeStudioFastProfile(text) {
   };
 }
 async function adminResumeStudio(request, env) {
+  const record = await getResumeStudioRecord(env);
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
-
-  // Keep the GLM diagnostic independent from Turso/R2 resume storage. This
-  // lets us distinguish a Workers AI binding/model failure from a database
-  // failure instead of masking either one behind a generic 502.
-  if (method === 'GET' && url.searchParams.get('view') === 'ai-check') {
-    const model = '@cf/zai-org/glm-4.7-flash';
-    if (!env.AI || typeof env.AI.run !== 'function') {
-      return json({ ok: false, stage: 'binding', model, error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
-    }
-    try {
-      const result = await env.AI.run(model, { messages: [
-        { role: 'system', content: 'You are testing the Resume Studio model connection.' },
-        { role: 'user', content: 'Reply with exactly: GLM Resume Studio connection successful.' }
-      ], max_tokens: 48 });
-      const output = typeof result === 'string' ? result : String(result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? '');
-      if (!output.trim()) return json({ ok: false, stage: 'model-response', model, error: 'GLM-4.7-Flash was invoked but returned an empty or unrecognized response.', response_keys: result && typeof result === 'object' ? Object.keys(result).slice(0, 20) : [] }, 502);
-      return json({ ok: true, stage: 'complete', model, message: output.trim().slice(0, 160) });
-    } catch (error) {
-      const detail = String(error?.message || 'Workers AI invocation failed.').slice(0, 500);
-      console.error('Resume Studio GLM-4.7-Flash connection check failed:', detail, error?.stack || '');
-      return json({ ok: false, stage: 'model-invocation', model, error: detail, error_name: String(error?.name || 'Error').slice(0, 80) }, 502);
-    }
-  }
-
-  const record = await getResumeStudioRecord(env);
   if (method === 'GET') {
+    if (url.searchParams.get('view') === 'ai-check') {
+      if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
+      try {
+        const result = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
+        const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');
+        if (!output.trim()) return json({ ok: false, stage: 'model-response', model: '@cf/meta/llama-4-scout-17b-16e-instruct', error: 'The AI binding ran but returned an empty response.' }, 502);
+        return json({ ok: true, model: '@cf/meta/llama-4-scout-17b-16e-instruct', message: output.trim().slice(0, 160) });
+      } catch (error) {
+        console.error('Resume Studio AI connection check failed:', error?.message || 'unknown', error?.stack || '');
+        return json({ ok: false, stage: 'model-invocation', error: String(error?.message || 'Workers AI invocation failed.').slice(0, 300) }, 502);
+      }
+    }
     const usage = await resumeStudioUsage(env, record);
     if (url.searchParams.get('view') === 'usage') return json(usage);
     if (url.searchParams.get('view') === 'documents') return json({ documents: await listSavedDocuments(env) });
@@ -1039,7 +1027,7 @@ async function adminResumeStudio(request, env) {
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
     if (isProfileImport) {
-      prompt = 'Convert the resume to the exact JSON schema. Preserve every distinct role, project, achievement bullet, skill, education item, certification, date, contact detail and link. Keep source order; never merge bullets, omit older roles, invent facts, or summarize away details. Keep every substantive bullet separate and retain supported numbers and named tools. Remove only exact duplicates. Use empty arrays for absent sections and empty strings for unknown fields. No IDs or tags. Add warnings only for genuinely ambiguous or unreadable details. Schema: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"label":"Professional summary","text":""}],"experience":[{"company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"text":""}]}],"projects":[{"name":"","url":"","description":"","bullets":[{"text":""}]}],"skills":[{"category":"","items":[]}],"education":[{"institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"name":"","issuer":"","date":""}]},"warnings":[]}. Return valid JSON only. RESUME TEXT:\\n' + master;
+      prompt = 'Convert the resume into the exact JSON schema below. Do not explain your work or repeat the source text outside the fields. Completeness is more important than brevity: preserve every distinct employment role, project, achievement bullet, skill, skill category, education item, certification, date, contact detail and link from the source. Keep roles in source order. Do not merge separate bullets, summarize multiple achievements into one, discard older roles, or reduce a skill list to a generic label. Transfer every substantive source bullet as its own concise factual bullet, retaining all supported numbers and named tools. Before returning JSON, internally compare each source section against the output and ensure no entries or bullets were dropped. Remove only exact duplicates. Never infer missing facts. Use empty arrays for genuinely absent sections and empty strings for unknown values. No IDs or tags. Add warnings only for genuinely ambiguous or unreadable details. Schema: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"label":"Professional summary","text":""}],"experience":[{"company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"text":""}]}],"projects":[{"name":"","url":"","description":"","bullets":[{"text":""}]}],"skills":[{"category":"","items":[]}],"education":[{"institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"name":"","issuer":"","date":""}]},"warnings":[]}. Return valid JSON only. RESUME TEXT:\\n' + master;
     } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
     } else if (action === 'cover-only') {
@@ -1050,37 +1038,19 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    // GLM is the preferred model for profile import. If the GLM invocation or
-    // its structured JSON fails, fall back to the already-supported Llama model
-    // so a temporary GLM outage does not block the user's resume workflow.
-    let model = isProfileImport ? '@cf/zai-org/glm-4.7-flash' : '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const primaryModel = model;
-    const fallbackModel = '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? Math.min(6000, Math.max(1800, Math.ceil(master.length / 5))) : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
-    const aiStartedAt = Date.now();
-    const runModel = selectedModel => env.AI.run(selectedModel, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      modelResult = await runModel(model);
-      console.log('Resume Studio AI completed', JSON.stringify({ action, model, input_chars: master.length, max_tokens: requestedTokens, duration_ms: Date.now() - aiStartedAt }));
+      // Let the model complete naturally; a client-facing timeout must not truncate
+      // valid extraction. A transient invocation failure gets one same-model retry.
+      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
     } catch (firstError) {
       try {
-        modelResult = await runModel(model);
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       } catch (retryError) {
-        if (isProfileImport && primaryModel !== fallbackModel) {
-          try {
-            model = fallbackModel;
-            modelResult = await runModel(model);
-            console.warn('Resume Studio GLM invocation failed; Llama fallback succeeded.', JSON.stringify({ primary_model: primaryModel, fallback_model: model, input_chars: master.length, max_tokens: requestedTokens }));
-          } catch (fallbackError) {
-            const detail = String(fallbackError?.message || retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-            console.error('Resume Studio primary and fallback model invocation failed:', detail, fallbackError?.name || 'Error');
-            return json({ error: 'Resume import failed on both GLM-4.7-Flash and the Llama fallback.', diagnostic: detail, error_name: String(fallbackError?.name || 'Error').slice(0, 80), primary_model: primaryModel, fallback_model: fallbackModel, max_tokens: requestedTokens }, 502);
-          }
-        } else {
-          const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
-          console.error('Resume Studio model invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
-          return json({ error: 'The selected Resume Studio model failed during invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
-        }
+        const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
+        console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
+        return json({ error: 'Llama 4 Scout failed during model invocation after one retry at the original output limit.', diagnostic: detail, error_name: String(retryError?.name || firstError?.name || 'Error').slice(0, 80), model, max_tokens: requestedTokens }, 502);
       }
     }
     const extractModelOutput = result => { const value = typeof result === 'string' ? result : (result?.response ?? result?.output_text ?? result?.result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.choices?.[0]?.message?.content ?? ''); return typeof value === 'string' ? value : JSON.stringify(value); };
@@ -1089,24 +1059,10 @@ async function adminResumeStudio(request, env) {
     try {
       parsed = resumeStudioJson(output);
     } catch (firstParseError) {
-      if (isProfileImport && model === primaryModel) {
+      if (isProfileImport) {
         const detail = String(firstParseError?.message || 'The model returned invalid JSON.').slice(0, 240);
-        console.warn('Resume Studio GLM returned invalid profile JSON; trying Llama fallback.', detail);
-        try {
-          model = fallbackModel;
-          modelResult = await runModel(model);
-          output = extractModelOutput(modelResult);
-          parsed = resumeStudioJson(output);
-          console.log('Resume Studio profile import recovered with fallback model.', JSON.stringify({ primary_model: primaryModel, fallback_model: model, input_chars: master.length, max_tokens: requestedTokens }));
-        } catch (fallbackParseError) {
-          const fallbackDetail = String(fallbackParseError?.message || detail).slice(0, 240);
-          console.error('Resume Studio primary and fallback profile parsing failed:', fallbackDetail);
-          return json({ error: 'Both GLM-4.7-Flash and the Llama fallback failed to return a valid structured profile.', diagnostic: fallbackDetail, primary_model: primaryModel, fallback_model: fallbackModel, max_tokens: requestedTokens }, 502);
-        }
-      } else if (isProfileImport) {
-        const detail = String(firstParseError?.message || 'The fallback model returned invalid JSON.').slice(0, 240);
-        console.error('Resume Studio fallback profile JSON failed validation:', detail);
-        return json({ error: 'The fallback model returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+        console.error('Resume Studio Llama 4 Scout import JSON response failed validation:', detail);
+        return json({ error: 'Llama 4 Scout returned an incomplete or invalid profile response. Please retry the import.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
       } else {
         // Other Resume Studio tasks retain the full-budget JSON repair retry.
         try {
@@ -1116,8 +1072,8 @@ async function adminResumeStudio(request, env) {
           parsed = resumeStudioJson(output);
         } catch (repairError) {
           const detail = String(repairError?.message || firstParseError?.message || 'The model returned invalid JSON.').slice(0, 300);
-          console.error('Resume Studio JSON response failed validation:', detail);
-          return json({ error: 'The selected model returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
+          console.error('Resume Studio Llama 4 Scout JSON response failed validation:', detail);
+          return json({ error: 'Llama 4 Scout returned an incomplete or invalid JSON response after one full-budget retry.', diagnostic: detail, model, max_tokens: requestedTokens }, 502);
         }
       }
     }
@@ -1331,15 +1287,7 @@ function resumeStudioCors(response, request) {
 
 export async function handleCloudflareApi(request, env) {
   const url = new URL(request.url);
-  // Normalize the API path defensively. Pages rewrites/proxies can sometimes
-  // preserve a duplicated /api prefix or an extra trailing slash; neither should
-  // turn a registered Resume Studio endpoint into a false 404.
-  const routeSegments = url.pathname.split('/').filter(Boolean).map(segment => segment.toLowerCase());
-  // Strip any leading API prefixes so both /admin-resume-studio and
-  // /api/admin-resume-studio (including accidental /api/api/...) resolve
-  // to the same registered handler.
-  while (routeSegments[0] === 'api') routeSegments.shift();
-  const route = routeSegments.join('/');
+  const route = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
   const method = request.method.toUpperCase();
 
   if (route === 'admin-resume-studio' && method === 'OPTIONS') {
@@ -1406,18 +1354,9 @@ export async function handleCloudflareApi(request, env) {
     }
     return json({ error: 'API route not found.' }, 404);
   } catch (error) {
-    const message = String(error?.message || 'Unknown error').slice(0, 500);
+    const message = String(error?.message || 'Unknown error');
     console.error('Cloudflare route error:', route, message, error?.stack || '');
-    if (route === 'admin-resume-studio') {
-      // Return actionable JSON for Resume Studio failures rather than hiding
-      // database, R2, or runtime errors behind the generic portfolio 502.
-      return resumeStudioCors(json({
-        error: 'Resume Studio request failed before it could complete.',
-        stage: 'request-processing',
-        diagnostic: message,
-        error_name: String(error?.name || 'Error').slice(0, 80)
-      }, 502), request);
-    }
+    // Resume Studio-specific error handling removed.
     return json({ error: 'Portfolio data is temporarily unavailable.' }, 502);
   }
 }
