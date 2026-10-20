@@ -8,7 +8,7 @@
       '08012345678',
       'alan@example.com',
       'Abuja, Nigeria',
-      'Portfolio: https://alanexample.dev',
+      'Portfolio: alanexample.dev',
       'LinkedIn: https://www.linkedin.com/in/alanexample',
       '',
       'PROFESSIONAL SUMMARY',
