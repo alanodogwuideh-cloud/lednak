@@ -1304,7 +1304,6 @@ async function favicon(request, env) {
 
 const RESUME_STUDIO_ALLOWED_ORIGINS = new Set([
   'https://alan-odogwuideh-ux-5at3.hatchable.site',
-  'https://alan-odogwuideh-ux-5at3.hatchable.site',
   'https://alanodogwuideh.com',
   'https://www.alanodogwuideh.com',
   'https://0e09631b.alanodogwuideh.pages.dev'
