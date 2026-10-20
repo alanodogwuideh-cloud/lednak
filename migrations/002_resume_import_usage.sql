@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS resume_import_usage (
+  usage_date TEXT PRIMARY KEY,
+  request_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS master_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reason TEXT NOT NULL
+);
