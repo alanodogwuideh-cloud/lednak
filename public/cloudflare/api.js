@@ -938,10 +938,10 @@ async function adminResumeStudio(request, env) {
     if (url.searchParams.get('view') === 'ai-check') {
       if (!env.AI || typeof env.AI.run !== 'function') return json({ ok: false, stage: 'binding', error: 'The AI binding named AI is not available in this deployed Cloudflare runtime.' }, 503);
       try {
-        const result = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
+        const result = await env.AI.run('@cf/meta/llama-3.2-3b-instruct', { messages: [{ role: 'user', content: 'Reply with exactly: Resume Studio AI connection successful.' }], max_tokens: 40 });
         const output = typeof result === 'string' ? result : String(result?.response || result?.output_text || result?.result?.response || '');
-        if (!output.trim()) return json({ ok: false, stage: 'model-response', model: '@cf/meta/llama-4-scout-17b-16e-instruct', error: 'The AI binding ran but returned an empty response.' }, 502);
-        return json({ ok: true, model: '@cf/meta/llama-4-scout-17b-16e-instruct', message: output.trim().slice(0, 160) });
+        if (!output.trim()) return json({ ok: false, stage: 'model-response', model: '@cf/meta/llama-3.2-3b-instruct', error: 'The AI binding ran but returned an empty response.' }, 502);
+        return json({ ok: true, model: '@cf/meta/llama-3.2-3b-instruct', message: output.trim().slice(0, 160) });
       } catch (error) {
         console.error('Resume Studio AI connection check failed:', error?.message || 'unknown', error?.stack || '');
         return json({ ok: false, stage: 'model-invocation', error: String(error?.message || 'Workers AI invocation failed.').slice(0, 300) }, 502);
@@ -1038,7 +1038,7 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const model = '@cf/meta/llama-3.2-3b-instruct';
     const requestedTokens = isProfileImport ? 1500 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
       // Keep imports responsive: after 7 seconds, return a deterministic text-based
