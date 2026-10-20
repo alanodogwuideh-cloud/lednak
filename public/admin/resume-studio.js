@@ -290,7 +290,7 @@
     const active = importStage.includes('Reading') ? 0 : importStage.includes('Organizing') ? 1 : 2;
     return '<div class="rs-import-progress-backdrop" role="presentation"><section class="rs-import-progress" role="dialog" aria-modal="true" aria-labelledby="rsImportProgressTitle" aria-live="polite"><div class="rs-import-progress-mark"><span></span></div><p class="eyebrow">MASTER PROFILE IMPORT</p><h3 id="rsImportProgressTitle">Making your resume ready</h3><p class="rs-import-progress-copy">' + escHtml(importStage) + '</p><div class="rs-import-progress-track"><span></span></div><ol>' + steps.map((label, i) => '<li class="' + (i < active ? 'is-done' : i === active ? 'is-active' : '') + '"><span>' + (i < active ? '✓' : String(i + 1)) + '</span>' + label + '</li>').join('') + '</ol><small>This may take a moment. Keep this window open while we organize your information.</small>' + (importChunksWorking.length ? '<div class="rs-import-live-status">' + importChunksWorking.map(chunk => '<div><span class="rs-chunk-status is-' + escHtml(chunk.status) + '">' + escHtml(chunk.status) + '</span><span>' + escHtml(chunk.label) + '</span></div>').join('') + '</div>' : '') + '</section></div>';
   }
-  const importHeading = /^(?:professional\s+)?(?:experience|work\s+history|employment|projects?|education|skills?|certifications?|awards?|interests?|references?|summary|profile|objective|contact(?:\s+details?)?)\s*:?\s*$/i;
+  const importHeading = /^(?:professional\s+)?(?:experience|work\s+experience|work\s+history|employment|projects?|education|skills?|certifications?|awards?|interests?|references?|summary|profile|objective|contact(?:\s+details?)?)\s*:?\s*$/i;
   const dateRangeLine = /(?:\b(?:19|20)\d{2}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b).{0,35}(?:-|–|—|to|present|current|now)/i;
   function normalizeResumeSource(value) {
     return String(value || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/^\s*[•●▪◦]\s*/gm, '- ').replace(/\r/g, '').split('\n').map(line => line.trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -366,7 +366,7 @@
     })();
     if (sourceBullets && outputBullets !== sourceBullets) misses.push('Bullet count: source ' + sourceBullets + ', extracted ' + outputBullets);
     if (chunk.kind === 'skills') {
-      const skills = source.split(/[\n,|•;]/).map(s => s.trim()).filter(s => s.length > 1);
+      const skills = source.split(/[\n,|•;]/).map(s => s.trim().replace(/^[-*]\s*/, '')).filter(s => s.length > 1);
       skills.forEach(skill => { if (!output.toLowerCase().includes(skill.toLowerCase()) && !misses.includes(skill)) misses.push(skill); });
     }
     return misses;

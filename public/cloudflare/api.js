@@ -987,9 +987,7 @@ async function runJson(env, { kind, text, chunkId, correction = '' }) {
     let parsed;
     try { parsed = resumeStudioJson(raw); }
     catch {
-      if (/length|max.token|token.limit|truncat/.test(reason) || attempt === 0 && !raw.trim().endsWith('}')) return { response: json({ error:'TRUNCATED', chunkId }, 422) };
-      lastError = 'The response was not valid JSON.';
-      continue;
+      return { response: json({ error:'TRUNCATED', chunkId }, 422) };
     }
     if (/length|max.token|token.limit|truncat/.test(reason)) return { response: json({ error:'TRUNCATED', chunkId }, 422) };
     const problem = validateImportChunk(kind, parsed);
