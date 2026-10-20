@@ -1,6 +1,9 @@
 [project]
 name = "Alan Odogwuideh — UX Design Portfolio"
 
+[ai]
+required = true
+
 [[secret]]
 key = "SUPABASE_URL"
 expose = true
