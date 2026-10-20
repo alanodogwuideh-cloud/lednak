@@ -1,4 +1,4 @@
-import { tursoQuery, ensureResumeStudioSchema } from 'lib/turso';
+import { tursoQuery } from 'lib/turso';
 import { requireSupabaseAdmin } from 'lib/admin-auth';
 
 export const access = 'public';
@@ -71,7 +71,6 @@ export default async function(req,res) {
   const auth = await requireSupabaseAdmin(req);
   if (!auth.ok) return res.status(auth.status).json({error:auth.error});
   try {
-    await ensureResumeStudioSchema();
     const id = text(req.query?.id || req.body?.id,80);
     if (req.method === 'GET') {
       if (id) {

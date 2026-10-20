@@ -212,7 +212,7 @@
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
       resumeAnalyzing=true; resumeMessage=''; renderResumeView();
       try {
-        const analysisEndpoint='/admin-resume-studio';
+        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
         resumeAnalysis=result.analysis||null;
         resumeAnalysisOpen=!!resumeAnalysis;
@@ -296,7 +296,7 @@
       if (text.replace(/\s/g, '').length < 80) throw new Error('Very little selectable text was found. If this is a scanned PDF, use an OCR-readable PDF or DOCX file.');
       if (text.length > 40000) throw new Error('This resume contains more than 40,000 characters. Upload a shorter version.');
       importStage = 'Organizing details with AI…'; render();
-      const endpoint = '/admin-resume-studio';
+      const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/admin-resume-studio';
       const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
       if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
       importStage = 'Preparing your review…'; render();

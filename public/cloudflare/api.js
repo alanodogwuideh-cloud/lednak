@@ -780,14 +780,6 @@ async function adminUpload(request, env) {
 }
 
 async function ensureResumeStudioSchema(env) {
-  const tables = [
-    `CREATE TABLE IF NOT EXISTS master_profile (id INTEGER PRIMARY KEY CHECK (id = 1), profile_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, company TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'saved', analysis_json TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS resumes (id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL, title TEXT NOT NULL, template TEXT NOT NULL DEFAULT 'us', content TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS resume_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, resume_id INTEGER NOT NULL REFERENCES resumes(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS cover_letters (id INTEGER PRIMARY KEY AUTOINCREMENT, resume_id INTEGER NOT NULL UNIQUE REFERENCES resumes(id) ON DELETE CASCADE, content TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`
-  ];
-  for (const sql of tables) await tursoQuery(env, sql);
   const columns = [
     ['master_resume_text','TEXT'],
     ['master_resume_source_key','TEXT'],
@@ -1046,16 +1038,15 @@ async function adminResumeStudio(request, env) {
       prompt = 'Return one JSON object with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), tailored_resume (string), cover_letter (string). Tailor the resume to ' + (jobTitle || 'the role in the job description') + ' at ' + (company || 'the company') + '. Company context: ' + companyDetails + '. The resume should be ATS-readable, use clear headings and evidence-backed bullets, prioritize relevant verified experience, and preserve factual dates/credentials. Do not add unsupported metrics or keywords as claimed skills. Cover-letter tone: ' + tone + '; length: ' + length + '. JOB DESCRIPTION:\n' + job + '\nMASTER RESUME:\n' + master;
     }
     let modelResult;
-    const model = isProfileImport ? '@cf/meta/llama-3.1-8b-instruct' : '@cf/meta/llama-4-scout-17b-16e-instruct';
-    const requestedTokens = isProfileImport ? 4500 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
-    const modelOptions = { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens, ...(isProfileImport ? { temperature: 0, response_format: { type: 'json_object' } } : {}) };
+    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
+    const requestedTokens = isProfileImport ? 6000 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      // Resume import uses the faster 8B model with constrained JSON output; other
-      // career-document tasks retain Scout. Retry only a transient invocation error.
-      modelResult = await env.AI.run(model, modelOptions);
+      // Let the model complete naturally; a client-facing timeout must not truncate
+      // valid extraction. A transient invocation failure gets one same-model retry.
+      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
     } catch (firstError) {
       try {
-        modelResult = await env.AI.run(model, modelOptions);
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
       } catch (retryError) {
         const detail = String(retryError?.message || firstError?.message || 'Unknown Workers AI invocation error').slice(0, 400);
         console.error('Resume Studio Llama 4 Scout invocation failed:', detail, retryError?.name || firstError?.name || 'Error');
@@ -1088,33 +1079,7 @@ async function adminResumeStudio(request, env) {
     }
     const nextUsage = await recordResumeStudioRequest(env, record, usage);
     if (isProfileImport) {
-      // Fast-model responses can place section arrays beside profile instead of inside it.
-      // Normalize both shapes to the stable editor contract without dropping extracted entries.
-      const imported = { ...object(parsed.profile) };
-      for (const key of ['experience', 'projects', 'education', 'certifications']) {
-        if (!Array.isArray(imported[key]) && Array.isArray(parsed[key])) imported[key] = parsed[key];
-      }
-      if (!Array.isArray(imported.summaries) && Array.isArray(parsed.summaries)) imported.summaries = parsed.summaries;
-      if (!Array.isArray(imported.skills) && parsed.skills != null) {
-        const sourceSkills = parsed.skills;
-        imported.skills = Array.isArray(sourceSkills)
-          ? sourceSkills
-          : (typeof sourceSkills === 'string'
-            ? [{ category: 'Skills', items: skillItems(sourceSkills) }]
-            : (Array.isArray(sourceSkills.items)
-              ? [{ category: String(sourceSkills.category || 'Skills'), items: skillItems(sourceSkills.items) }]
-              : []));
-      }
-      imported.contact = object(imported.contact);
-      imported.summaries = Array.isArray(imported.summaries) ? imported.summaries : [];
-      imported.experience = Array.isArray(imported.experience) ? imported.experience : [];
-      imported.projects = Array.isArray(imported.projects) ? imported.projects : [];
-      imported.skills = (Array.isArray(imported.skills) ? imported.skills : []).map(item => {
-        const skill = object(item);
-        return { ...skill, category: String(skill.category || 'Skills'), items: skillItems(skill.items) };
-      });
-      imported.education = Array.isArray(imported.education) ? imported.education : [];
-      imported.certifications = Array.isArray(imported.certifications) ? imported.certifications : [];
+      const imported = object(parsed.profile);
       if (!imported.contact || !Array.isArray(imported.experience) || !Array.isArray(imported.skills) || !Array.isArray(imported.education)) return json({ error: 'The extracted profile did not match the expected structure. Please try again with a clearer PDF or DOCX.' }, 502);
       return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
     }
@@ -1374,8 +1339,8 @@ export async function handleCloudflareApi(request, env) {
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
         if (route === 'admin-settings') return await adminSettings(request, env);
-        if (route === 'admin-resume-profile') { await ensureResumeStudioSchema(env); return await adminResumeProfile(request, env); }
-        if (route === 'admin-resumes') { await ensureResumeStudioSchema(env); return await adminResumes(request, env); }
+        if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
+        if (route === 'admin-resumes') return await adminResumes(request, env);
         if (route === 'admin-resume-studio') return resumeStudioCors(await adminResumeStudio(request, env), request);
         // Other Resume Studio routes will be added in their approved phases.
         if (route === 'admin-trash') return await adminTrash(request, env, auth);
