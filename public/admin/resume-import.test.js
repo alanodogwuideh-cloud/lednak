@@ -41,18 +41,27 @@
       'Senior Product Designer','Example Co','Jan 2021 - Mar 2023',
       '• Led product discovery and prototyping.',
       '• Improved onboarding completion by 24%.',
-      'Product Designer | Another Co | 09/2020 - 11/2022',
+      'Product Designer','Another Co','09/2020 - 11/2022',
       '• Designed payment flows.',
+      'Brand & Visual Designer','Lednak Designs','08/2015 - 11/2023',
+      '• Produced digital and print campaign assets.',
       'EDUCATION',
-      'BSc Computer Science, Example University, 2018'
+      'Bachelor of Science, Computer Science',
+      'Michael Okpara University of Agriculture Umudike',
+      '2009 - 2013'
     ].join('\n'));
-    assert(multiline.profile.experience.length === 2, 'Multi-line roles are separated into two jobs');
-    assert(multiline.profile.experience[0].title === 'Senior Product Designer', 'Multi-line job title stays in title field');
-    assert(multiline.profile.experience[0].company === 'Example Co', 'Date-only line does not overwrite company field');
-    assert(multiline.profile.experience[0].startDate === 'Jan 2021' && multiline.profile.experience[0].endDate === 'Mar 2023', 'Date-only line maps dates correctly');
+    assert(multiline.profile.experience.length === 3, 'Three multi-line roles are separated into three jobs');
+    assert(multiline.profile.experience[0].title === 'Senior Product Designer', 'First job title stays in title field');
+    assert(multiline.profile.experience[0].company === 'Example Co', 'First employer stays in company field');
+    assert(multiline.profile.experience[0].startDate === 'Jan 2021' && multiline.profile.experience[0].endDate === 'Mar 2023', 'First role dates map correctly');
+    assert(multiline.profile.experience[1].title === 'Product Designer' && multiline.profile.experience[1].company === 'Another Co', 'Second role title and employer map separately');
+    assert(multiline.profile.experience[2].title === 'Brand & Visual Designer' && multiline.profile.experience[2].company === 'Lednak Designs', 'Third role title and employer map separately');
+    assert(multiline.profile.experience.every(x => !x.location), 'General contact location is not copied into each job location');
     assert(!multiline.profile.experience[0].bullets.some(b => /Jan 2021/.test(b.text)), 'Date metadata is not imported as a bullet');
-    assert(multiline.profile.education[0].degree.includes('BSc'), 'Education qualification is mapped to degree');
-    assert(multiline.profile.education[0].institution.includes('Example University'), 'Education institution is mapped separately');
+    assert(multiline.profile.education[0].degree.includes('Bachelor of Science'), 'Education qualification is mapped to degree');
+    assert(multiline.profile.education[0].field.includes('Computer Science'), 'Education field of study is extracted');
+    assert(multiline.profile.education[0].institution.includes('Michael Okpara University'), 'Education institution is mapped separately');
+    assert(multiline.profile.education[0].startDate === '2009' && multiline.profile.education[0].endDate === '2013', 'Education dates are mapped separately');
     assert(result.stats.aiEntries === 0, 'Code-only import uses zero AI calls');
     return { ok: failures.length === 0, failures, stats: result.stats, linkLabels: result.profile.contact.links.map(x=>x.label) };
   };

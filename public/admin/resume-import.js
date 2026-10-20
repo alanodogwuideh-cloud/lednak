@@ -35,7 +35,7 @@ function extract(source){
  const sections={summaries:[],experience:[],projects:[],skills:[],education:[],certifications:[],awards:[],languages:[],interests:[],references:[]};const unplaced=[];let current='';
  for(const line of lines){const heading=HEADINGS.find(([,r])=>r.test(cleanHead(line.text)));if(heading){current=heading[0];continue;}if(current&&sections[current])sections[current].push(line);else if(line.n>12&&!/@|https?:\/\/|www\./i.test(line.text)&&!/^\+?[\d\s()./-]{8,}$/.test(line.text))unplaced.push({line:line.n,text:line.text,section:'',reason:'Could not confidently place this line'});}
  if(sections.summaries.length)profile.summaries=[{label:'Professional summary',text:sections.summaries.map(x=>x.text.replace(BULLET,'')).join(' ')}];
- const makeEntries=(items,kind)=>{const entries=[];let e=null;const flush=()=>{if(e)entries.push(e);e=null;};for(const l of items){const raw=l.text,b=BULLET.test(raw),date=parseDateRange(raw),hasDate=!!date.startDate;const newHead=!b&&e&&((kind==='experience'&&hasDate&&(!!e.startDate||e.bullets.length>0))||(kind==='projects'&&(e.bullets.length>0||!!e.description)&&raw.length<120));if(!e||newHead){flush();e=kind==='experience'?{company:'',title:'',location:'',startDate:'',endDate:'',current:false,bullets:[],_confidence:'low',_lines:[]}:{name:'',url:'',description:'',bullets:[],_confidence:'low',_lines:[]};}
+ const makeEntries=(items,kind)=>{const entries=[];let e=null;const flush=()=>{if(e)entries.push(e);e=null;};for(const l of items){const raw=l.text,b=BULLET.test(raw),date=parseDateRange(raw),hasDate=!!date.startDate;const newHead=!b&&e&&((kind==='experience'&&((hasDate&&(!!e.startDate||e.bullets.length>0))||(!!e.startDate&&e.bullets.length>0&&!hasDate)))||(kind==='projects'&&(e.bullets.length>0||!!e.description)&&raw.length<120));if(!e||newHead){flush();e=kind==='experience'?{company:'',title:'',location:'',startDate:'',endDate:'',current:false,bullets:[],_confidence:'low',_lines:[]}:{name:'',url:'',description:'',bullets:[],_confidence:'low',_lines:[]};}
  e._lines.push(l.n);if(b){e.bullets.push({text:raw.replace(BULLET,'').trim(),_line:l.n});continue;}
  if(kind==='experience'){if(hasDate){const stripped=raw.replace(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{1,2}\/\d{4}|(?:19|20)\d{2}|present|current|now/ig,'').replace(/[-,]+$/g,'').trim();const parts=stripped.split(/\s+\|\s+|\s+at\s+|\s+@\s+/i).map(s=>s.trim().replace(/[-,]+$/g,'').trim()).filter(Boolean);if(parts.length>1){e.title=parts[0];e.company=parts.slice(1).join(' ');}else if(stripped&&!e.title)e.title=stripped;else if(stripped&&!e.company)e.company=stripped;e.startDate=date.startDate;e.endDate=date.endDate;e.current=date.current;e._confidence=(e.title&&e.company)?'high':'medium';continue;}else if(!e.title)e.title=raw;else if(!e.company)e.company=raw;else e.bullets.push({text:raw,_line:l.n});}
  else {if(!e.name){e.name=raw;e._confidence='medium';}else if(!e.description){e.description=raw;e._confidence='medium';}else e.bullets.push({text:raw,_line:l.n});}}
@@ -44,16 +44,39 @@ function extract(source){
  profile.projects=makeEntries(sections.projects,'projects');
  profile.projects.forEach(e=>{const link=links.find(x=>e.name.includes(x.url)||e.description.includes(x.url));if(link)e.url=link.url;});
  profile.skills=splitSkills(sections.skills);
- profile.education=sections.education.map(l=>{
+ const educationEntries=[];let edu=null;
+ const eduCreate=()=>({institution:'',degree:'',field:'',startDate:'',endDate:'',notes:'',_confidence:'medium',_lines:[]});
+ const eduFlush=()=>{if(edu&&(edu.institution||edu.degree||edu.field)){edu._confidence=edu.institution&&edu.degree?'high':'medium';educationEntries.push(edu);}edu=null;};
+ const degreePattern=/\b(?:BSc|BA|B\.?S\.?c?\.?|BEng|MSc|MA|MBA|PhD|Bachelor(?:\s+of\s+[A-Za-z]+){0,3}|Master(?:'s)?(?:\s+of\s+[A-Za-z]+){0,3}|Doctor(?:ate)?|HND|OND|ND|Diploma|Associate|Certificate|Higher National|National Diploma)\b/i;
+ const institutionPattern=/\b(?:university|college|polytechnic|institute|school|academy)\b/i;
+ for(const l of sections.education){
   const raw=l.text.replace(BULLET,'').trim(),d=parseDateRange(raw);
-  const clean=raw.replace(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{1,2}\/\d{4}|(?:19|20)\d{2}|present|current|now/ig,'').replace(/[|,–—-]+/g,' ').replace(/\s+/g,' ').trim();
-  const parts=raw.split(/\s+\|\s+|,\s*/).map(x=>x.trim()).filter(Boolean);
-  const degreePattern=/\b(?:BSc|BA|B\.?S\.?c?\.?|BEng|MSc|MA|MBA|PhD|Bachelor|Master|Doctor|HND|OND|ND|Diploma|Associate|Certificate|Higher National|National Diploma)\b/i;
-  let degree='',institution=clean||raw,field='';
-  if(parts.length>1){const di=parts.findIndex(x=>degreePattern.test(x));if(di>=0){degree=parts[di];institution=parts.filter((x,i)=>i!==di&&!/\b(?:19|20)\d{2}\b/.test(x)).join(', ')||institution;field=degree.replace(/\b(?:BSc|BA|BEng|MSc|MA|MBA|PhD|HND|OND|ND|Bachelor(?:'s)?|Master(?:'s)?|Doctor(?:ate)?|Diploma|Associate|Certificate)\b\.?/ig,'').trim();}else institution=parts.filter(x=>!/\b(?:19|20)\d{2}\b/.test(x)).join(', ')||institution;}
-  else {const m=clean.match(/^(.+?)\s+(?:at|from|[-|])\s+(.+)$/i);if(m&&degreePattern.test(m[1])){degree=m[1].trim();institution=m[2].trim();field=degree.replace(degreePattern,'').trim();}else if(degreePattern.test(clean)){degree=clean;field=clean.replace(degreePattern,'').trim();}}
-  return{institution,degree,field,startDate:d.startDate,endDate:d.endDate,notes:'',_confidence:(degree&&institution)?'high':'medium',_lines:[l.n]};
-});
+  const noDates=raw.replace(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{1,2}\/\d{4}|(?:19|20)\d{2}|present|current|now/ig,'').replace(/\s*[-–—|,]\s*/g,' ').replace(/\s+/g,' ').trim();
+  if(!edu)edu=eduCreate();edu._lines.push(l.n);
+  if(d.startDate){if(!edu.startDate)edu.startDate=d.startDate;if(d.endDate)edu.endDate=d.endDate;}
+  const degreeMatch=degreePattern.exec(noDates);
+  const isInstitution=institutionPattern.test(noDates);
+  if(degreeMatch){
+   const before=noDates.slice(0,degreeMatch.index).trim(),after=noDates.slice(degreeMatch.index+degreeMatch[0].length).trim();
+   const rest=[before,after].filter(Boolean).join(' ').trim();
+   if(edu.degree&&edu.institution){eduFlush();edu=eduCreate();edu._lines.push(l.n);if(d.startDate){edu.startDate=d.startDate;edu.endDate=d.endDate;}}
+   edu.degree=degreeMatch[0].trim();
+   const fieldMatch=raw.match(/(?:Bachelor(?:'s)?\s+of\s+Science|B\.?S\.?c?\.?|BSc|MSc|Master(?:'s)?\s+of\s+[A-Za-z]+|BA|MA|BEng|MBA|HND|OND|ND|PhD)\s*[,|:-]\s*([^,|]+)(?:[,|]|$)/i);
+   if(fieldMatch)edu.field=fieldMatch[1].trim();
+   else if(rest&&!institutionPattern.test(rest))edu.field=rest;
+   if(isInstitution){const institution=raw.replace(degreeMatch[0],'').replace(/[,|]/g,' ').replace(/\b(?:19|20)\d{2}\b/g,'').replace(/\s+/g,' ').trim();if(institution)edu.institution=institution;}
+   continue;
+  }
+  if(isInstitution){
+   if(edu.institution&&edu.degree){eduFlush();edu=eduCreate();edu._lines.push(l.n);if(d.startDate){edu.startDate=d.startDate;edu.endDate=d.endDate;}}
+   edu.institution=noDates||raw;continue;
+  }
+  if(d.startDate&&/^(?:19|20)\d{2}(?:\s*(?:-|to)\s*(?:(?:19|20)\d{2}|present|current))?$/i.test(raw))continue;
+  if(noDates&&edu.degree&&!edu.field)edu.field=noDates;
+  else if(noDates&&!edu.institution)edu.institution=noDates;
+  else if(noDates)edu.notes+=(edu.notes?' ':'')+noDates;
+ }
+ eduFlush();profile.education=educationEntries;
  profile.certifications=sections.certifications.map(l=>({name:l.text.replace(BULLET,''),issuer:'',date:parseDateRange(l.text).startDate,_confidence:'medium',_lines:[l.n]}));
  const bulletLines=lines.filter(x=>BULLET.test(x.text)).length, extractedBullets=[...profile.experience,...profile.projects].reduce((n,e)=>n+e.bullets.length,0);
  const warnings=[];if(!email)warnings.push('Email was not detected. Verify the contact details.');if(!phone)warnings.push('Phone number needs review. Check for a local or international format.');if(!profile.contact.location)warnings.push('Location needs review.');if(bulletLines!==extractedBullets)warnings.push('Some bullet lines are not assigned to work or project entries. Check Unplaced lines.');
