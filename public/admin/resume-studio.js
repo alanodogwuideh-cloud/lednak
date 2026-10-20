@@ -85,6 +85,34 @@
   let resumeJobSuggestionsLoading = false;
   let resumeSuggestionMode = 'general';
   let resumeSuggestionsLoading = false;
+  const resumeReviewKey = id => 'resume-studio-review-v1:' + String(id || '');
+  function persistResumeReview() {
+    if (!currentResume?.id) return;
+    try {
+      const state = { analysis:resumeAnalysis, analysisTab:resumeAnalysisTab, suggestions:resumeSuggestions, jobSuggestions:resumeJobSuggestions, jobDescription:resumeJobDescription, suggestionMode:resumeSuggestionMode, savedAt:new Date().toISOString() };
+      const value = JSON.stringify(state);
+      if (value.length <= 100000) localStorage.setItem(resumeReviewKey(currentResume.id), value);
+    } catch (_) { /* Review persistence is best-effort if browser storage is unavailable. */ }
+  }
+  function restoreResumeReview(id) {
+    resumeAnalysis=null; resumeAnalysisOpen=false; resumeAnalysisTab='analysis'; resumeSuggestions=[]; resumeJobSuggestions=[]; resumeJobDescription=''; resumeSuggestionMode='general'; resumeSuggestionsLoading=false; resumeJobSuggestionsLoading=false;
+    try {
+      const raw=localStorage.getItem(resumeReviewKey(id));
+      if (!raw) return;
+      const state=JSON.parse(raw);
+      if (!state || typeof state!=='object') return;
+      resumeAnalysis=state.analysis && typeof state.analysis==='object' ? state.analysis : null;
+      resumeAnalysisTab=state.analysisTab==='suggestions'?'suggestions':'analysis';
+      resumeSuggestions=Array.isArray(state.suggestions)?state.suggestions.slice(0,8):[];
+      resumeJobSuggestions=Array.isArray(state.jobSuggestions)?state.jobSuggestions.slice(0,8):[];
+      resumeJobDescription=String(state.jobDescription||'').slice(0,20000);
+      resumeSuggestionMode=state.suggestionMode==='job'?'job':'general';
+      resumeAnalysisOpen=!!resumeAnalysis;
+    } catch (_) { /* Ignore malformed cached review data. */ }
+  }
+  function clearResumeReview(id) {
+    try { localStorage.removeItem(resumeReviewKey(id)); } catch (_) {}
+  }
   let resumeAnalyzing = false;
   function autoClearResumeMessage(message, delay=12000) {
     setTimeout(() => {
@@ -231,7 +259,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -256,12 +284,13 @@
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before running an analysis.'; renderResumeView(); return; }
-      resumeAnalyzing=true; resumeMessage=''; resumeAnalysis=null; resumeAnalysisOpen=false; resumeAnalysisTab='analysis'; resumeSuggestions=[]; renderResumeView();
+      resumeAnalyzing=true; resumeMessage=''; resumeAnalysis=null; resumeAnalysisOpen=false; resumeAnalysisTab='analysis'; resumeSuggestions=[]; resumeJobSuggestions=[]; clearResumeReview(currentResume?.id); renderResumeView();
       try {
         const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'analyze-resume',master_resume_text:resumeText})});
         resumeAnalysis=normalizeResumeAnalysis(result?.analysis);
         resumeAnalysisOpen=true;
+        persistResumeReview();
         resumeMessage='Analysis complete. No resume content was changed.';
         autoClearResumeMessage(resumeMessage,12000);
       } catch(error) {
@@ -272,9 +301,9 @@
       finally { resumeAnalyzing=false; renderResumeView(); }
       return;
     }
-    if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; resumeAnalysisTab='analysis'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
-    if(action==='analysis-tab') { resumeAnalysisTab=button.dataset.tabValue==='suggestions'?'suggestions':'analysis'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
-    if(action==='suggestion-mode') { resumeSuggestionMode=button.dataset.mode==='job'?'job':'general'; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
+    if(action==='view-analysis') { if(resumeAnalysis) { resumeAnalysisOpen=true; resumeAnalysisTab='analysis'; persistResumeReview(); renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); } return; }
+    if(action==='analysis-tab') { resumeAnalysisTab=button.dataset.tabValue==='suggestions'?'suggestions':'analysis'; persistResumeReview(); renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
+    if(action==='suggestion-mode') { resumeSuggestionMode=button.dataset.mode==='job'?'job':'general'; persistResumeReview(); renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); return; }
     if(action==='generate-suggestions') {
       if(!currentResume || resumeSuggestionsLoading) return;
       const resumeText=resumeAnalysisText(currentResume);
@@ -286,6 +315,7 @@
         if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No usable suggestions were returned. Please try again.');
         resumeSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Resume improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
         if(!resumeSuggestions.length) throw new Error('No editable examples were returned. Please try again.');
+        persistResumeReview();
       } catch(error) {
         resumeMessage='Suggestion generation failed: '+(error.message||'Please try again.');
         autoClearResumeMessage(resumeMessage,12000);
@@ -307,6 +337,7 @@
         if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No job-specific suggestions were returned. Please try again.');
         resumeJobSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Job-specific improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
         if(!resumeJobSuggestions.length) throw new Error('No editable job-specific examples were returned. Please try again.');
+        persistResumeReview();
       } catch(error) {
         resumeMessage='Job-specific suggestions failed: '+(error.message||'Please try again.');
         autoClearResumeMessage(resumeMessage,12000);
@@ -321,15 +352,15 @@
       catch(error) { const field=root.querySelector('[data-suggestion-index="'+Number(button.dataset.index)+'"][data-suggestion-kind="'+(button.dataset.suggestionKind||'general')+'"]'); if(field) { field.focus(); field.select(); resumeMessage='Clipboard access was blocked. The suggestion is selected so you can copy it manually.'; } }
       return;
     }
-    if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; renderResumeView(); return; }
-    if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; renderResumeView(); return; }
+    if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; persistResumeReview(); renderResumeView(); return; }
+    if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=[]; resumeJobSuggestions=[]; clearResumeReview(currentResume?.id); renderResumeView(); return; }
     if(action==='new') return createResume();
     if(action==='back') { if(currentResume&&resumeIsDirty()&&!confirm('Discard unsaved changes to this resume?')) return; currentResume=null; return loadResumeList(); }
     if(action==='open') return openResume(id);
     if(action==='save') return saveResume();
     if(action==='print') { const paper=document.getElementById('rsResumePreview'); if(!paper)return; const w=window.open('','_blank','width=1000,height=800'); if(!w){alert('Allow pop-ups to print or save the resume as PDF.');return;} w.document.write('<!doctype html><html><head><title>'+escHtml(currentResume.title||'Resume')+'</title><style>@page{size:letter;margin:0}body{margin:0;font-family:Arial,sans-serif;color:#111}.paper{box-sizing:border-box;width:8.5in;min-height:11in;padding:.6in}.paper h1{text-align:center;font-size:22pt;margin:0 0 5pt}.paper-contact{text-align:center;font-size:9pt;margin-bottom:14pt}.paper-section{margin-top:12pt}.paper-section h2{font-size:10.5pt;text-transform:uppercase;border-bottom:1px solid #333;padding-bottom:3pt;margin:0 0 6pt}.paper-entry{margin-bottom:7pt}.paper-entry-head,.paper-subhead{display:flex;justify-content:space-between;gap:8pt;font-size:9.5pt}.paper ul{margin:4pt 0 0;padding-left:16pt;font-size:9.5pt;line-height:1.25}.paper li{margin-bottom:2pt}.paper p{font-size:9.5pt;line-height:1.3;margin:3pt 0}</style></head><body><div class="paper">'+paper.innerHTML.replaceAll('rs-paper-','paper-').replaceAll('rs-preview-sep','paper-sep')+'</div><script>window.onload=()=>{window.print()}</script></body></html>'); w.document.close(); return; }
     if(action==='duplicate') { if(!confirm('Create a separate copy of this resume?')) return; resumeLoading=true; renderResumeView(); try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({action:'duplicate',id,title:'Copy of '+(resumeRows.find(x=>String(x.id)===String(id))?.title||currentResume?.title||'Resume')})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); } catch(error) { resumeMessage=error.message||'Could not duplicate resume.'; currentResume=null; await loadResumeList(); } finally {resumeLoading=false;} return; }
-    if(action==='delete') { if(!confirm('Delete this resume and its saved versions? This cannot be undone.')) return; try { await api('/admin-resumes?id='+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({id})}); currentResume=null; resumeMessage='Resume deleted.'; await loadResumeList(); } catch(error) { resumeMessage=error.message||'Could not delete resume.'; renderResumeView(); } return; }
+    if(action==='delete') { if(!confirm('Delete this resume and its saved versions? This cannot be undone.')) return; try { await api('/admin-resumes?id='+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({id})}); clearResumeReview(id); currentResume=null; resumeMessage='Resume deleted.'; await loadResumeList(); } catch(error) { resumeMessage=error.message||'Could not delete resume.'; renderResumeView(); } return; }
     if(action==='add-contact-link') { currentResume.content.contact ||= {fullName:'',email:'',phone:'',location:'',links:[]}; currentResume.content.contact.links ||= []; currentResume.content.contact.links.push({label:'',url:'',hidden:false}); renderResumeView(); return; }
     if(action==='add-entry') { const sec=button.dataset.section; const defaults={experience:{id:uid(),company:'',title:'',location:'',startDate:'',endDate:'',current:false,hidden:false,bullets:[]},projects:{id:uid(),name:'',url:'',description:'',hidden:false,bullets:[]},skills:{id:uid(),category:'',items:[],hidden:false},education:{id:uid(),institution:'',degree:'',field:'',startDate:'',endDate:'',notes:'',hidden:false},certifications:{id:uid(),name:'',issuer:'',date:'',hidden:false}}; currentResume.content[sec].push(defaults[sec]); renderResumeView(); return; }
     if(action==='remove-entry') { const sec=button.dataset.section, index=Number(button.dataset.index); if(!confirm('Remove this entry from the resume?'))return; currentResume.content[sec].splice(index,1); renderResumeView(); return; }
@@ -689,12 +720,12 @@
     markDirty(); render();
   });
   root.addEventListener('input', event => {
-    if(event.target.matches('[data-resume-job-description]')) { resumeJobDescription=event.target.value; return; }
+    if(event.target.matches('[data-resume-job-description]')) { resumeJobDescription=event.target.value; persistResumeReview(); return; }
     const field=event.target.closest('[data-suggestion-index]');
     if (!field) return;
     const index=Number(field.dataset.suggestionIndex);
     const list=field.dataset.suggestionKind==='job'?resumeJobSuggestions:resumeSuggestions;
-    if (list[index]) list[index].text=field.value;
+    if (list[index]) { list[index].text=field.value; persistResumeReview(); }
   });
   root.addEventListener('change', event => {
     if (event.target.matches('#rsImportFile')) {
@@ -705,7 +736,7 @@
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && importReview) { importReview = null; render(); return; }
-    if (event.key === 'Escape' && resumeAnalysisOpen) { resumeAnalysisOpen=false; renderResumeView(); }
+    if (event.key === 'Escape' && resumeAnalysisOpen) { resumeAnalysisOpen=false; persistResumeReview(); renderResumeView(); }
   });
   document.addEventListener('scroll', updateEditorToolbarStickiness, {capture:true,passive:true});
   window.addEventListener('resize', updateEditorToolbarStickiness, {passive:true});
