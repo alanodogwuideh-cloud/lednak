@@ -289,7 +289,6 @@
       } catch(error) {
         resumeMessage='Suggestion generation failed: '+(error.message||'Please try again.');
         autoClearResumeMessage(resumeMessage,12000);
-        resumeAnalysisTab='analysis';
       }
       finally { resumeSuggestionsLoading=false; renderResumeView(); root.querySelector('.rs-analysis-modal')?.focus(); }
       return;
