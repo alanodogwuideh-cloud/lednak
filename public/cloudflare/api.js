@@ -1041,9 +1041,28 @@ async function adminResumeStudio(request, env) {
     const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
     const requestedTokens = isProfileImport ? 1500 : (action === 'cover-only' || isAnalysis) ? 2200 : 6500;
     try {
-      // Let the model complete naturally; a client-facing timeout must not truncate
-      // valid extraction. A transient invocation failure gets one same-model retry.
-      modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      // Keep imports responsive: after 7 seconds, return a deterministic text-based
+      // profile rather than leaving the admin waiting indefinitely. The AI promise
+      // may finish later, but it is not used after the fallback has been selected.
+      if (isProfileImport) {
+        let timeoutId;
+        const timeout = new Promise(resolve => {
+          timeoutId = setTimeout(() => resolve({ __resumeStudioFastFallback: true }), 7000);
+        });
+        try {
+          modelResult = await Promise.race([
+            env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens }),
+            timeout
+          ]);
+        } finally { clearTimeout(timeoutId); }
+        if (modelResult?.__resumeStudioFastFallback) {
+          const fallback = resumeStudioFastProfile(master);
+          const nextUsage = await recordResumeStudioRequest(env, record, usage);
+          return json({ ...fallback, usage: nextUsage, import_mode: 'fast-fallback' });
+        }
+      } else {
+        modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
+      }
     } catch (firstError) {
       try {
         modelResult = await env.AI.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: requestedTokens });
