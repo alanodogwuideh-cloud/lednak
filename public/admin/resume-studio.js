@@ -660,6 +660,7 @@
   }
   root.addEventListener('input', event => {
     const target = event.target;
+    if (target instanceof HTMLTextAreaElement && target.matches('[data-resume-path]')) { target.style.height = 'auto'; target.style.height = Math.max(target.scrollHeight, 42) + 'px'; }
     if (target.matches('[data-resume-path]') && target.type !== 'checkbox' && currentResume) {
       const path = target.dataset.resumePath;
       const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
