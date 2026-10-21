@@ -287,10 +287,13 @@
     const links=(contact.links||[]).filter(x=>!x.hidden&&x.url);
     const contactLine=[contact.email,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
     const linksLine=links.map(x=>esc(x.url)).join(' <span class="rs-preview-sep">|</span> ');
+    const chosenCustom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===c.template);
+    const customOrder=chosenCustom?.config?.documentLayout;
+    const orderedSections=Array.isArray(customOrder)&&customOrder.length?customOrder:[...new Set([...(c.sectionOrder||resumeSections),'languages','references'])];
     let html='<header class="rs-paper-header"><h1>'+esc(contact.fullName||'Your Name')+'</h1>'+(contact.headline?'<p class="rs-paper-headline">'+esc(contact.headline)+'</p>':'')+'<div class="rs-paper-contact"><div class="rs-paper-contact-details">'+contactLine+'</div><div class="rs-paper-contact-links">'+linksLine+'</div></div></header>';
-    for(const section of c.sectionOrder||resumeSections) {
+    for(const section of orderedSections) {
       if(hidden.has(section)) continue;
-      const title=esc(c.sectionTitles?.[section]||resumeSectionNames[section]);
+      const title=esc(c.sectionTitles?.[section]||resumeSectionNames[section]||({languages:'Languages',references:'References'}[section])||section);
       let body='';
       if(section==='summary'&&String(c.summary||'').trim()) body='<p class="rs-paper-summary">'+esc(c.summary).replace(/\n/g,'<br>')+'</p>';
       if(section==='experience') body=(c.experience||[]).filter(x=>!x.hidden).map(x=>'<div class="rs-paper-entry"><div class="rs-paper-entry-head"><strong>'+esc(x.title||'')+'</strong><span>'+esc([x.startDate,x.endDate|| (x.current?'Present':'')].filter(Boolean).join(' – '))+'</span></div><div class="rs-paper-subhead"><strong>'+esc(x.company||'')+'</strong><span>'+esc(x.location||'')+'</span></div><ul>'+((x.bullets||[]).filter(b=>!b.hidden&&String(b.text||'').trim()).map(b=>'<li>'+esc(b.text)+'</li>').join(''))+'</ul></div>').join('');
@@ -298,12 +301,11 @@
       if(section==='skills') body=(c.skills||[]).filter(x=>!x.hidden&&((x.items||[]).length||x.category)).map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.category||'Skills')+':</strong> '+esc((x.items||[]).join(', '))+'</p>').join('');
       if(section==='education') body=(c.education||[]).filter(x=>!x.hidden).map(x=>'<div class="rs-paper-entry"><div class="rs-paper-entry-head"><strong>'+esc([x.degree,x.field].filter(Boolean).join(' in '))+'</strong><span>'+esc([x.startDate,x.endDate].filter(Boolean).join(' – '))+'</span></div><div class="rs-paper-subhead"><strong>'+esc(x.institution||'')+'</strong><span>'+esc(x.notes||'')+'</span></div></div>').join('');
       if(section==='certifications') body=(c.certifications||[]).filter(x=>!x.hidden).map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.name||'')+'</strong>'+((x.issuer||x.date)?' — '+esc([x.issuer,x.date].filter(Boolean).join(', ')):'')+'</p>').join('');
+      if(section==='languages') body=(c.languages||[]).filter(x=>x.name).map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.name)+'</strong>'+(x.proficiency?' — '+esc(x.proficiency):'')+'</p>').join('');
+      if(section==='references') body=(c.references||[]).filter(x=>x.name).map(x=>'<div class="rs-paper-entry"><strong>'+esc(x.name)+'</strong><p>'+esc([x.title,x.company].filter(Boolean).join(' · '))+'</p><p>'+esc([x.email,x.phone].filter(Boolean).join(' · '))+'</p></div>').join('');
       if(body.trim()) html+='<section class="rs-paper-section"><h2>'+title+'</h2>'+body+'</section>';
     }
-    const languages=(c.languages||[]).filter(x=>x.name);
-    if(languages.length) html+='<section class="rs-paper-section"><h2>Languages</h2>'+languages.map(x=>'<p class="rs-paper-skill"><strong>'+esc(x.name)+'</strong>'+(x.proficiency?' — '+esc(x.proficiency):'')+'</p>').join('')+'</section>';
-    const references=(c.references||[]).filter(x=>x.name);
-    if(references.length) html+='<section class="rs-paper-section"><h2>References</h2>'+references.map(x=>'<div class="rs-paper-entry"><strong>'+esc(x.name)+'</strong><p>'+esc([x.title,x.company].filter(Boolean).join(' · '))+'</p><p>'+esc([x.email,x.phone].filter(Boolean).join(' · '))+'</p></div>').join('')+'</section>';
+    // Languages and references are rendered in the selected template's document order above.
     return html;
   }
   async function loadResumeList() {
