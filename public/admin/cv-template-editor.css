@@ -37,7 +37,37 @@
 @media(max-width:1120px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:240px minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr) 230px}#cvTemplateWorkspace .cvte-paper{padding:38px 34px;min-height:850px}}
 @media(max-width:850px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child>.section-head,#cvTemplateWorkspace .cvte-preview-wrap,#cvTemplateWorkspace .cvte-advanced{grid-column:1;grid-row:auto}#cvTemplateWorkspace .cvte-advanced{border-left:0;border-top:1px solid #e1e4e9;padding:14px 0 0}#cvTemplateWorkspace .cvte-adv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#cvTemplateWorkspace .cvte-paper{min-height:800px}}
 @media(max-width:560px){#cvTemplateWorkspace .cvte-adv-body,#cvTemplateWorkspace .cvte-adv-propgrid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-paper{padding:28px 22px;min-height:700px}#cvTemplateWorkspace .cvte-adv-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(prefers-reduced-motion:reduce){#cvTemplateWorkspace *{scroll-behavior:auto!important;transition:none!important}}/* Hierarchical document model and full-canvas mode; scoped to the template workspace only. */
+@media(prefers-reduced-motion:reduce){#cvTemplateWorkspace *{scroll-behavior:auto!important;transition:none!important}}
+/* Compact design-tool workspace; scoped exclusively to the CV template editor. */
+#cvTemplateWorkspace{padding:12px;background:#eef0f3}
+#cvTemplateWorkspace .cvte-shell{max-width:1800px}
+#cvTemplateWorkspace .cvte-top{margin:0 0 8px;padding:2px 4px 8px;align-items:center}
+#cvTemplateWorkspace .cvte-top p{display:none}
+#cvTemplateWorkspace .cvte-top h2{font-size:18px}
+#cvTemplateWorkspace .cvte-top .eyebrow{font-size:10px}
+#cvTemplateWorkspace .cvte-grid{grid-template-columns:minmax(170px,19%) minmax(0,1fr);gap:10px;align-items:stretch}
+#cvTemplateWorkspace .cvte-grid>.cvte-panel:first-child{padding:10px;overflow:auto;min-height:0}
+#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr) minmax(190px,22%);grid-template-rows:auto minmax(0,1fr);gap:8px;padding:10px;min-height:75vh;overflow:hidden}
+#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child>.section-head{grid-column:1/-1;grid-row:1;margin:0}
+#cvTemplateWorkspace .cvte-preview-wrap{grid-column:1;grid-row:2;min-height:70vh;padding:12px;overflow:auto}
+#cvTemplateWorkspace .cvte-paper{max-width:100%;width:min(100%,760px);min-height:960px}
+#cvTemplateWorkspace .cvte-advanced{grid-column:2;grid-row:2;align-self:stretch;overflow:auto;padding:0 0 0 10px;border-left:1px solid #e1e4e9}
+#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;gap:3px;margin:0 auto 10px;padding:4px;width:max-content;max-width:100%;min-height:34px;overflow:visible;border-radius:8px}
+#cvTemplateWorkspace .cvte-component-toolbar>button,#cvTemplateWorkspace .cvte-shape-menu>[data-shape-menu]{display:flex;align-items:center;justify-content:center;gap:3px;width:32px;height:30px;min-height:30px;padding:5px;border:0;border-radius:5px;background:transparent;color:#303640;cursor:pointer}
+#cvTemplateWorkspace .cvte-component-toolbar button:hover{background:#fff4e8;border-color:transparent}
+#cvTemplateWorkspace .cvte-component-toolbar button[aria-pressed=true]{background:#fff0df;color:#b9570a}
+#cvTemplateWorkspace .cvte-component-toolbar svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+#cvTemplateWorkspace .cvte-component-toolbar .cvte-chevron{width:10px;height:10px}
+#cvTemplateWorkspace .cvte-toolbar-spacer{width:1px;height:22px;background:#e1e4e9;margin:0 3px}
+#cvTemplateWorkspace .cvte-toolbar-hint{font-size:10px;color:#7b8490;white-space:nowrap;padding:0 5px}
+#cvTemplateWorkspace .cvte-shape-menu{position:relative;flex:0 0 auto}
+#cvTemplateWorkspace .cvte-shape-menu>[data-shape-menu]{width:auto;padding:5px 6px}
+#cvTemplateWorkspace .cvte-shape-dropdown{position:absolute;z-index:50;top:calc(100% + 5px);left:0;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe3e9;border-radius:8px;box-shadow:0 8px 24px #20242b20}
+#cvTemplateWorkspace .cvte-shape-dropdown[hidden]{display:none}
+#cvTemplateWorkspace .cvte-shape-dropdown button{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:6px 8px;border:0;border-radius:5px;background:#fff;text-align:left;color:#252a32;font:12px 'DM Sans',Arial,sans-serif;cursor:pointer}
+#cvTemplateWorkspace .cvte-shape-dropdown button:hover{background:#fff4e8}
+@media(max-width:1000px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:minmax(150px,22%) minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr) minmax(175px,28%)}#cvTemplateWorkspace .cvte-toolbar-hint{display:none}}
+@media(max-width:760px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr)}#cvTemplateWorkspace .cvte-advanced{grid-column:1;grid-row:auto;border-left:0;border-top:1px solid #e1e4e9;padding:12px 0 0}#cvTemplateWorkspace .cvte-preview-wrap{height:auto;min-height:65vh}#cvTemplateWorkspace .cvte-component-toolbar{width:100%;justify-content:flex-start;overflow-x:auto}#cvTemplateWorkspace .cvte-top{flex-wrap:wrap}}/* Hierarchical document model and full-canvas mode; scoped to the template workspace only. */
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode{padding:0}
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>:not(.cvte-advanced-layer){display:none!important}
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>.cvte-advanced-layer{position:relative;inset:auto;display:block;overflow:visible}
