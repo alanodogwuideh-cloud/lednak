@@ -1,4 +1,4 @@
-#resumeTab .rs-resume-paper{--resume-accent:var(--resume-user-accent,#23395b);print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#resumeTab .rs-custom-layout-layer{position:absolute;inset:0;pointer-events:none;z-index:auto}#resumeTab .rs-resume-paper{position:relative;isolation:isolate;--resume-accent:var(--resume-user-accent,#23395b);print-color-adjust:exact;-webkit-print-color-adjust:exact}
 #resumeTab .rs-resume-paper.rs-template-t1{--resume-accent:#23395B;padding:0 0 7%;border-top:0}
 #resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header{background:var(--resume-user-accent,#23395B);color:#fff;text-align:left;margin:-0.1% -8.2% 1.3em;padding:7% 8.2% 5%}
 #resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-contact{color:inherit}
