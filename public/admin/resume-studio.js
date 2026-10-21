@@ -16,6 +16,8 @@
   let saveError = '';
   let openAfterRender = '';
   let activeView = 'profile';
+  let resumeEditorStep = 0;
+  let resumeEditorResumeId = null;
   let importBusy = false;
   let importStage = 'Preparing your resume…';
   let importReview = null;
@@ -202,17 +204,18 @@
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" disabled>Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
     if (resumeLoading && !currentResume) { root.innerHTML=head+'<div class="panel rs-loading"><span class="rs-spinner"></span><p>Loading resumes…</p></div>'; return; }
     if (currentResume) {
+      if (resumeEditorResumeId !== currentResume.id) { resumeEditorResumeId=currentResume.id; resumeEditorStep=0; }
       const c=currentResume.content||{};
       const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span>'+(resumeAnalysis?'<button class="secondary" type="button" data-resume-action="view-analysis">Resume review</button>':'<button class="secondary" type="button" data-resume-action="analyze" '+(resumeAnalyzing?'disabled':'')+'>'+(resumeAnalyzing?'Analyzing…':'Analyze resume')+'</button>')+'<button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
       '<div class="rs-resume-editor-heading"><div><div class="eyebrow">US RESUME · US LETTER</div><h2>'+escHtml(currentResume.title||'Untitled Resume')+'</h2><p class="muted">Edit on the left; the resume preview updates as you type.</p></div><div class="rs-resume-heading-actions"><button type="button" class="secondary" data-resume-action="duplicate">Duplicate</button><button type="button" class="danger" data-resume-action="delete">Delete</button></div></div>';
       let fields='<div class="rs-editor-fields">'+rfield('title','Resume title',currentResume.title||'Untitled Resume');
       const contactLinks=Array.isArray(c.contact?.links)?c.contact.links:[];
-      fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><h3>Contact</h3></div>'+rfield('content.contact.fullName','Full name',c.contact?.fullName||'')+'<div class="rs-form-grid rs-contact-grid">'+rfield('content.contact.email','Email',c.contact?.email||'')+rfield('content.contact.phone','Phone',c.contact?.phone||'')+rfield('content.contact.location','Location',c.contact?.location||'')+'</div><div class="rs-contact-links">'+contactLinks.map((link,i)=>'<div class="rs-contact-link-row">'+rfield('content.contact.links.'+i+'.label','Link label',link.label||(i===0?'LinkedIn':i===1?'Portfolio':'Professional link'))+rfield('content.contact.links.'+i+'.url',(link.label||(i===0?'LinkedIn':i===1?'Portfolio':'Professional link'))+' URL',link.url||'')+'</div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-contact-link">+ Add link</button></div></section>';
-      fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><h3>Professional Summary</h3>'+rcheck('content.hiddenSections.summary','Hide section',(c.hiddenSections||[]).includes('summary'))+'</div>'+rfield('content.summary','Summary',c.summary||'','textarea')+'</section>';
+      fields+='<section class="rs-edit-section" data-resume-section="contact"><div class="rs-edit-section-head"><h3>Contact</h3></div>'+rfield('content.contact.fullName','Full name',c.contact?.fullName||'')+'<div class="rs-form-grid rs-contact-grid">'+rfield('content.contact.email','Email',c.contact?.email||'')+rfield('content.contact.phone','Phone',c.contact?.phone||'')+rfield('content.contact.location','Location',c.contact?.location||'')+'</div><div class="rs-contact-links">'+contactLinks.map((link,i)=>'<div class="rs-contact-link-row">'+rfield('content.contact.links.'+i+'.label','Link label',link.label||(i===0?'LinkedIn':i===1?'Portfolio':'Professional link'))+rfield('content.contact.links.'+i+'.url',(link.label||(i===0?'LinkedIn':i===1?'Portfolio':'Professional link'))+' URL',link.url||'')+'</div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-contact-link">+ Add link</button></div></section>';
+      fields+='<section class="rs-edit-section" data-resume-section="summary"><div class="rs-edit-section-head"><h3>Professional Summary</h3>'+rcheck('content.hiddenSections.summary','Hide section',(c.hiddenSections||[]).includes('summary'))+'</div>'+rfield('content.summary','Summary',c.summary||'','textarea')+'</section>';
       for (const section of (c.sectionOrder||resumeSections)) {
         if (section==='summary') continue;
         const items=Array.isArray(c[section])?c[section]:[];
-        fields+='<section class="rs-edit-section"><div class="rs-edit-section-head"><div>'+rfield('content.sectionTitles.'+section,'Section heading',c.sectionTitles?.[section]||resumeSectionNames[section])+'</div>'+rcheck('content.hiddenSections.'+section,'Hide section',(c.hiddenSections||[]).includes(section))+'<div class="rs-order-actions"><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="up" aria-label="Move section up">↑</button><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="down" aria-label="Move section down">↓</button></div></div>';
+        fields+='<section class="rs-edit-section" data-resume-section="'+section+'"><div class="rs-edit-section-head"><div>'+rfield('content.sectionTitles.'+section,'Section heading',c.sectionTitles?.[section]||resumeSectionNames[section])+'</div>'+rcheck('content.hiddenSections.'+section,'Hide section',(c.hiddenSections||[]).includes(section))+'<div class="rs-order-actions"><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="up" aria-label="Move section up">↑</button><button type="button" class="rs-icon-action" data-resume-action="move-section" data-section="'+section+'" data-dir="down" aria-label="Move section down">↓</button></div></div>';
         if(section==='experience') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Role '+(i+1)+'</strong><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"experience\" data-index=\"'+i+'\" data-dir=\"up\" aria-label=\"Move role up\">↑</button><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"experience\" data-index=\"'+i+'\" data-dir=\"down\" aria-label=\"Move role down\">↓</button>'+rcheck('content.experience.'+i+'.hidden','Hide role',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="experience" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.experience.'+i+'.title','Job title',x.title||'')+rfield('content.experience.'+i+'.company','Company',x.company||'')+rfield('content.experience.'+i+'.location','Location',x.location||'')+rfield('content.experience.'+i+'.startDate','Start date',x.startDate||'')+rfield('content.experience.'+i+'.endDate','End date',x.endDate||'')+'</div>'+(x.bullets||[]).map((b,j)=>'<div class="rs-resume-bullet-edit">'+rfield('content.experience.'+i+'.bullets.'+j+'.text','Achievement '+(j+1),b.text||'','textarea')+rcheck('content.experience.'+i+'.bullets.'+j+'.hidden','Hide bullet',!!b.hidden)+'<button type="button" class="rs-remove" data-resume-action="remove-bullet" data-section="experience" data-index="'+i+'" data-bullet="'+j+'">Remove bullet</button></div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-bullet" data-section="experience" data-index="'+i+'">+ Add bullet</button></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="experience">+ Add role</button>';
         if(section==='projects') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Project '+(i+1)+'</strong><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"projects\" data-index=\"'+i+'\" data-dir=\"up\" aria-label=\"Move project up\">↑</button><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"projects\" data-index=\"'+i+'\" data-dir=\"down\" aria-label=\"Move project down\">↓</button>'+rcheck('content.projects.'+i+'.hidden','Hide project',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="projects" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.projects.'+i+'.name','Project name',x.name||'')+rfield('content.projects.'+i+'.url','Project URL',x.url||'')+rfield('content.projects.'+i+'.description','Description',x.description||'','textarea')+'</div>'+(x.bullets||[]).map((b,j)=>'<div class="rs-resume-bullet-edit">'+rfield('content.projects.'+i+'.bullets.'+j+'.text','Achievement '+(j+1),b.text||'','textarea')+rcheck('content.projects.'+i+'.bullets.'+j+'.hidden','Hide bullet',!!b.hidden)+'<button type="button" class="rs-remove" data-resume-action="remove-bullet" data-section="projects" data-index="'+i+'" data-bullet="'+j+'">Remove bullet</button></div>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-bullet" data-section="projects" data-index="'+i+'">+ Add bullet</button></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="projects">+ Add project</button>';
         if(section==='skills') fields+=items.map((x,i)=>'<article class="rs-resume-entry"><div class="rs-resume-entry-top"><strong>Skill group '+(i+1)+'</strong><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"skills\" data-index=\"'+i+'\" data-dir=\"up\" aria-label=\"Move skill group up\">↑</button><button type=\"button\" class=\"rs-icon-action\" data-resume-action=\"move-entry\" data-section=\"skills\" data-index=\"'+i+'\" data-dir=\"down\" aria-label=\"Move skill group down\">↓</button>'+rcheck('content.skills.'+i+'.hidden','Hide group',!!x.hidden)+'<button class="rs-remove" type="button" data-resume-action="remove-entry" data-section="skills" data-index="'+i+'">Remove</button></div><div class="rs-form-grid">'+rfield('content.skills.'+i+'.category','Category',x.category||'')+rfield('content.skills.'+i+'.items','Skills (comma-separated)',(x.items||[]).join(', '))+'</div></article>').join('')+'<button type="button" class="rs-small-button" data-resume-action="add-entry" data-section="skills">+ Add skill group</button>';
@@ -221,7 +224,34 @@
         fields+='</section>';
       }
       fields+='</div>';
-      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+fields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':'')+(resumeAnalysis&&resumeAnalysisOpen?resumeAnalysisHtml():'');
+      const fieldsShell=document.createElement('div');
+      fieldsShell.innerHTML=fields;
+      const fieldsRoot=fieldsShell.firstElementChild;
+      const stepDefinitions=[
+        {title:'Basics',description:'Name and contact details'},
+        {title:'Summary',description:'Professional introduction'},
+        {title:'Experience',description:'Roles and achievements'},
+        {title:'Projects',description:'Selected work'},
+        {title:'Skills',description:'Relevant capabilities'},
+        {title:'Education',description:'Education and certifications'}
+      ];
+      const stepPanels=stepDefinitions.map((step,index)=>'<section class="rs-editor-step-panel" data-editor-step-panel="'+index+'" '+(resumeEditorStep===index?'':'hidden')+'><div class="rs-editor-step-heading"><span>STEP '+(index+1)+' OF '+stepDefinitions.length+'</span><h3>'+step.title+'</h3><p>'+step.description+'</p></div></section>');
+      const panelsShell=document.createElement('div');
+      panelsShell.innerHTML=stepPanels.join('');
+      const panels=Array.from(panelsShell.children);
+      Array.from(fieldsRoot.children).forEach((node,index)=>{
+        let step=0;
+        if(node.matches('[data-resume-section="summary"]')) step=1;
+        else if(node.matches('[data-resume-section="experience"]')) step=2;
+        else if(node.matches('[data-resume-section="projects"]')) step=3;
+        else if(node.matches('[data-resume-section="skills"]')) step=4;
+        else if(node.matches('[data-resume-section="education"],[data-resume-section="certifications"]')) step=5;
+        panels[step].appendChild(node);
+      });
+      const stepper='<nav class="rs-editor-stepper" aria-label="Resume creation steps">'+stepDefinitions.map((step,index)=>'<button type="button" class="rs-editor-step '+(resumeEditorStep===index?'is-active':index<resumeEditorStep?'is-complete':'')+'" data-resume-action="editor-step" data-step="'+index+'" aria-current="'+(resumeEditorStep===index?'step':'false')+'"><span class="rs-editor-step-number">'+(index<resumeEditorStep?'✓':index+1)+'</span><span class="rs-editor-step-copy"><strong>'+step.title+'</strong><small>'+step.description+'</small></span></button>').join('')+'</nav>';
+      const stepNavigation='<div class="rs-editor-step-navigation"><button type="button" class="secondary" data-resume-action="editor-prev" '+(resumeEditorStep===0?'disabled':'')+'>← Previous</button><span>Step '+(resumeEditorStep+1)+' of '+stepDefinitions.length+'</span><button type="button" class="primary" data-resume-action="editor-next" '+(resumeEditorStep===stepDefinitions.length-1?'disabled':'')+'>Next step →</button></div>';
+      const sequentialFields='<div class="rs-editor-fields">'+stepper+panels.map(panel=>panel.outerHTML).join('')+stepNavigation+'</div>';
+      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace"><div class="rs-resume-form-pane">'+sequentialFields+'</div><div class="rs-resume-preview-pane"><div class="rs-preview-label"><span>LIVE PREVIEW</span><span>US LETTER · 8.5 × 11 in</span></div><div id="rsResumePreview" class="rs-resume-paper">'+resumePreviewHtml(c)+'</div></div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':'')+(resumeAnalysis&&resumeAnalysisOpen?resumeAnalysisHtml():'');
       updateEditorToolbarStickiness();
       return;
     }
@@ -259,7 +289,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -267,7 +297,7 @@
     const title=prompt('Name this resume','Product Designer Resume');
     if(title===null) return;
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({title:title.trim()||'Untitled Resume'})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({title:title.trim()||'Untitled Resume'})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumeMessage=''; renderResumeView(); }
     catch(error) { resumeMessage=error.message||'Could not create resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -280,6 +310,15 @@
   }
   async function resumeAction(button, event) {
     const action=button.dataset.resumeAction, id=button.dataset.id||currentResume?.id;
+    if(action==='editor-step' || action==='editor-prev' || action==='editor-next') {
+      const lastStep=5;
+      if(action==='editor-step') resumeEditorStep=Math.max(0,Math.min(lastStep,Number(button.dataset.step)||0));
+      else if(action==='editor-prev') resumeEditorStep=Math.max(0,resumeEditorStep-1);
+      else resumeEditorStep=Math.min(lastStep,resumeEditorStep+1);
+      renderResumeView();
+      root.querySelector('[data-editor-step-panel="'+resumeEditorStep+'"] input, [data-editor-step-panel="'+resumeEditorStep+'"] textarea')?.focus({preventScroll:true});
+      return;
+    }
     if(action==='analyze') {
       if(!currentResume || resumeAnalyzing) return;
       const resumeText=resumeAnalysisText(currentResume);

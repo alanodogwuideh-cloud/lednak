@@ -252,3 +252,25 @@
 #resumeTab .rs-suggestion-copy{padding:8px 11px;border:1px solid #e7b98d;border-radius:8px;background:#fff8f1;color:#8a470c;font:700 11px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
 #resumeTab .rs-suggestion-copy:hover{background:#ffefdf}
 @media(max-width:600px){#resumeTab .rs-analysis-tabs{padding:0 18px}#resumeTab .rs-analysis-generate{align-items:stretch;flex-direction:column}#resumeTab .rs-analysis-generate button{width:100%}#resumeTab .rs-suggestion-card{padding:12px}#resumeTab .rs-suggestion-card-head{align-items:flex-start}}
+/* Sequential Resume Creation — six-step editor */
+#resumeTab .rs-editor-stepper{display:grid;gap:6px;margin:4px 0 16px}
+#resumeTab .rs-editor-step{display:flex;align-items:center;gap:11px;width:100%;min-width:0;padding:11px 12px;border:1px solid #e2e3dd;border-radius:10px;background:#fff;color:#555950;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
+#resumeTab .rs-editor-step:hover{border-color:#f0b27d;background:#fffaf5}
+#resumeTab .rs-editor-step.is-active{border-color:#f8831d;background:#fff7ef;color:#20211e;box-shadow:0 0 0 2px #f8831d16}
+#resumeTab .rs-editor-step.is-complete .rs-editor-step-number{border-color:#d9e9d7;background:#edf6eb;color:#31753b}
+#resumeTab .rs-editor-step-number{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border:1px solid #dedfd9;border-radius:50%;background:#f7f7f3;color:#656960;font-size:11px;font-weight:800}
+#resumeTab .rs-editor-step-copy{display:grid;gap:3px;min-width:0}
+#resumeTab .rs-editor-step-copy strong{font-size:12px;color:inherit}
+#resumeTab .rs-editor-step-copy small{font-size:10px;line-height:1.4;color:#777a73}
+#resumeTab .rs-editor-step-panel{display:grid;gap:14px;align-content:start;min-width:0}
+#resumeTab .rs-editor-step-panel[hidden]{display:none!important}
+#resumeTab .rs-editor-step-heading{padding:2px 1px 7px}
+#resumeTab .rs-editor-step-heading>span{font-size:9px;font-weight:800;letter-spacing:.1em;color:#a45a1b}
+#resumeTab .rs-editor-step-heading h3{margin:5px 0 4px;font-size:18px;letter-spacing:-.025em;color:#24251f}
+#resumeTab .rs-editor-step-heading p{margin:0;color:#777a73;font-size:11px;line-height:1.5}
+#resumeTab .rs-editor-step-navigation{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:14px;border-top:1px solid #e6e7e1}
+#resumeTab .rs-editor-step-navigation>span{color:#777a73;font-size:10px;white-space:nowrap}
+#resumeTab .rs-editor-step-navigation button{min-height:42px;padding:10px 13px}
+#resumeTab .rs-editor-step-navigation button:disabled{opacity:.42;cursor:not-allowed}
+@media(min-width:761px){#resumeTab .rs-editor-stepper{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){#resumeTab .rs-editor-stepper{grid-template-columns:minmax(0,1fr)}#resumeTab .rs-editor-step-navigation{gap:7px}#resumeTab .rs-editor-step-navigation button{padding:9px 10px;font-size:11px}#resumeTab .rs-editor-step-navigation>span{font-size:9px}}
