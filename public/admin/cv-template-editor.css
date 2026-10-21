@@ -37,4 +37,24 @@
 @media(max-width:1120px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:240px minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr) 230px}#cvTemplateWorkspace .cvte-paper{padding:38px 34px;min-height:850px}}
 @media(max-width:850px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child>.section-head,#cvTemplateWorkspace .cvte-preview-wrap,#cvTemplateWorkspace .cvte-advanced{grid-column:1;grid-row:auto}#cvTemplateWorkspace .cvte-advanced{border-left:0;border-top:1px solid #e1e4e9;padding:14px 0 0}#cvTemplateWorkspace .cvte-adv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#cvTemplateWorkspace .cvte-paper{min-height:800px}}
 @media(max-width:560px){#cvTemplateWorkspace .cvte-adv-body,#cvTemplateWorkspace .cvte-adv-propgrid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-paper{padding:28px 22px;min-height:700px}#cvTemplateWorkspace .cvte-adv-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(prefers-reduced-motion:reduce){#cvTemplateWorkspace *{scroll-behavior:auto!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){#cvTemplateWorkspace *{scroll-behavior:auto!important;transition:none!important}}/* Hierarchical document model and full-canvas mode; scoped to the template workspace only. */
+#cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode{padding:0}
+#cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>:not(.cvte-advanced-layer){display:none!important}
+#cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>.cvte-advanced-layer{position:relative;inset:auto;display:block;overflow:visible}
+#cvTemplateWorkspace .cvte-advanced-layer{overflow:visible;pointer-events:none}
+#cvTemplateWorkspace .cvte-adv-node{pointer-events:auto;min-width:0;max-width:100%;overflow-wrap:anywhere}
+#cvTemplateWorkspace .cvte-adv-node:not(.is-shape){min-height:0}
+#cvTemplateWorkspace .cvte-adv-node[data-node]{touch-action:none}
+#cvTemplateWorkspace .cvte-auto-content{min-width:0;max-width:100%;overflow:visible}
+#cvTemplateWorkspace .cvte-repeat-item{display:flex;flex-direction:column;gap:4px;min-width:0}
+#cvTemplateWorkspace .cvte-container-empty{min-height:32px;display:flex;align-items:center;justify-content:center;color:#8a919c;font-size:11px}
+#cvTemplateWorkspace .cvte-layer-row{min-width:0}
+#cvTemplateWorkspace .cvte-layer-icon{width:16px;flex:0 0 16px;color:#7b8490;font-size:13px;text-align:center}
+#cvTemplateWorkspace .cvte-layer-row>.cvte-adv-item{width:100%;min-width:0;display:flex;align-items:center;gap:6px}
+#cvTemplateWorkspace .cvte-adv-item span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cvTemplateWorkspace .cvte-document-mode-toggle{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;border:1px solid #e3e6eb;border-radius:8px;padding:10px}
+#cvTemplateWorkspace .cvte-document-mode-toggle>span{display:flex;flex-direction:row;align-items:center;gap:8px}
+#cvTemplateWorkspace .cvte-document-mode-toggle input{width:auto;flex:0 0 auto}
+#cvTemplateWorkspace .cvte-document-mode-toggle small{font-weight:400;color:#6b7280;line-height:1.45}
+#cvTemplateWorkspace .cvte-adv-propgrid [data-prop=background]{text-transform:lowercase}
+@media(max-width:850px){#cvTemplateWorkspace .cvte-document-mode-toggle{grid-column:auto}}
