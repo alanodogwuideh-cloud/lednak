@@ -317,6 +317,8 @@
  #resumeTab .rs-resume-stepper-pane .rs-editor-stepper{grid-template-columns:minmax(0,1fr)}
 }
 
+/* Desktop sequence layout: navigation left, active form right. Tablet/mobile retain stacked navigation. */
+@media(min-width:901px){#resumeTab .rs-resume-workspace-sequential{grid-template-columns:minmax(245px,31%) minmax(0,1fr)!important;gap:24px!important;align-items:start!important}#resumeTab .rs-resume-stepper-pane{position:sticky;top:18px}#resumeTab .rs-resume-stepper-pane .rs-editor-stepper{grid-template-columns:minmax(0,1fr)!important}}
 /* Sequential Resume Creation — six-step editor */
 #resumeTab .rs-editor-stepper{display:grid;gap:6px;margin:4px 0 16px}
 #resumeTab .rs-editor-step{display:flex;align-items:center;gap:11px;width:100%;min-width:0;padding:11px 12px;border:1px solid #e2e3dd;border-radius:10px;background:#fff;color:#555950;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
