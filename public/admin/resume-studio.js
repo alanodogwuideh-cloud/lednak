@@ -310,7 +310,7 @@
       if(resumeText.replace(/\s/g,'').length<80) { resumeMessage='Add more resume details before generating suggestions.'; renderResumeView(); return; }
       resumeSuggestionsLoading=true; resumeSuggestionError=''; resumeSuggestionMode='general'; resumeAnalysisTab='suggestions'; resumeSuggestions=[]; renderResumeView();
       try {
-        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+        const analysisEndpoint='/api/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-resume-fixes',master_resume_text:resumeText,analysis:resumeAnalysis})});
         if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No usable suggestions were returned. Please try again.');
         resumeSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Resume improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
@@ -333,7 +333,7 @@
       if(jobDescription.length>20000) { resumeMessage='The job description must be 20,000 characters or fewer.'; autoClearResumeMessage(resumeMessage,12000); renderResumeView(); return; }
       resumeJobSuggestionsLoading=true; resumeSuggestionMode='job'; resumeAnalysisTab='suggestions'; resumeJobSuggestions=[]; resumeMessage=''; renderResumeView();
       try {
-        const analysisEndpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+        const analysisEndpoint='/api/admin-resume-studio';
         const result=await api(analysisEndpoint,{method:'POST',body:JSON.stringify({action:'suggest-job-specific-fixes',master_resume_text:resumeText,analysis:resumeAnalysis,job_description:jobDescription})});
         if(!Array.isArray(result?.suggestions)||!result.suggestions.length) throw new Error('No job-specific suggestions were returned. Please try again.');
         resumeJobSuggestions=result.suggestions.slice(0,8).map(item=>({title:String(item?.title||'Job-specific improvement').slice(0,160),reason:String(item?.reason||'').slice(0,800),text:String(item?.text||'').slice(0,4000)})).filter(item=>item.text.trim());
