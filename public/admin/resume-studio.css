@@ -262,6 +262,21 @@
 #resumeTab .rs-resume-complete-intro>p:last-child{margin:0;color:#777a73;font-size:13px;line-height:1.65}
 #resumeTab .rs-resume-complete-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #dedfd9;border-radius:12px;background:#fff}
 #resumeTab .rs-resume-complete-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#resumeTab .rs-template-picker{display:flex;align-items:center;gap:9px;color:#60635b;font-size:12px;font-weight:700}
+#resumeTab .rs-template-picker select{min-height:40px;padding:8px 32px 8px 11px;border:1px solid #d8dad3;border-radius:9px;background:#fff;color:#292a25;font:600 13px 'DM Sans',sans-serif}
+#resumeTab .rs-template-picker select:focus{outline:0;border-color:#f8831d;box-shadow:none}
+#resumeTab .rs-resume-paper.rs-template-modern{font-family:Arial,Helvetica,sans-serif;border-top:8px solid #f8831d;padding-top:5.5%}
+#resumeTab .rs-resume-paper.rs-template-modern .rs-paper-header{text-align:left;border-bottom:2px solid #f8831d;padding-bottom:1em}
+#resumeTab .rs-resume-paper.rs-template-modern .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-modern .rs-paper-contact-links{text-align:left}
+#resumeTab .rs-resume-paper.rs-template-modern .rs-paper-section h2{color:#a45a1b;border-bottom:1px solid #f1b47e}
+#resumeTab .rs-resume-paper.rs-template-minimal{font-family:Georgia,'Times New Roman',serif;line-height:1.4;padding:8%}
+#resumeTab .rs-resume-paper.rs-template-minimal .rs-paper-header{text-align:left;margin-bottom:1.8em}
+#resumeTab .rs-resume-paper.rs-template-minimal .rs-paper-header h1{font-size:2em;font-weight:600}
+#resumeTab .rs-resume-paper.rs-template-minimal .rs-paper-section h2{border:0;letter-spacing:.12em;font-size:1em}
+#resumeTab .rs-resume-paper.rs-template-executive{font-family:Arial,Helvetica,sans-serif;padding:6.5%;border-top:5px solid #30332e}
+#resumeTab .rs-resume-paper.rs-template-executive .rs-paper-header{padding-bottom:1em;border-bottom:1px solid #999}
+#resumeTab .rs-resume-paper.rs-template-executive .rs-paper-header h1{letter-spacing:.04em;text-transform:uppercase}
+#resumeTab .rs-resume-paper.rs-template-executive .rs-paper-section h2{color:#30332e;border-bottom:2px solid #30332e}
 #resumeTab .rs-resume-complete-preview{display:grid;gap:10px;justify-items:center;min-width:0}
 #resumeTab .rs-resume-complete-preview .rs-preview-label{display:flex;justify-content:space-between;gap:12px;width:min(100%,8.5in);font-size:10px;color:#777a73}
 #resumeTab .rs-resume-complete-preview .rs-resume-paper{width:min(100%,8.5in);min-height:11in;box-sizing:border-box;box-shadow:0 8px 34px #17181616}
