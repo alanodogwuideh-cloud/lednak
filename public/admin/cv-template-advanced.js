@@ -171,10 +171,39 @@
         const n=nodeById(el.dataset.node);if(!n)return;selected=n.id;
         const parent=nodeById(n.parentId),handle=e.target.closest('[data-resize]'),isResize=!!handle;
         if((e.target.closest('button')&&!isResize)||n.locked)return;
-        remember();const rect=parent?el.parentElement.getBoundingClientRect():p.getBoundingClientRect();if(parent&&parent.type==='container'&&parent.layout!=='free'&&!isResize)n.positionMode='absolute';drag={id:n.id,startX:e.clientX,startY:e.clientY,x:n.x,y:n.y,w:n.w,h:n.h,resize:isResize,handle:handle?.dataset.resize||'se',rect,element:el};try{el.setPointerCapture(e.pointerId)}catch{}e.preventDefault();
+        const flowChild=!!parent&&parent.type==='container'&&parent.layout!=='free'&&n.positionMode!=='absolute'&&!isResize;
+        remember();
+        const coordinateHost=el.parentElement||p,rect=coordinateHost.getBoundingClientRect();
+        drag={id:n.id,parentId:n.parentId||null,startX:e.clientX,startY:e.clientY,x:Number(n.x)||0,y:Number(n.y)||0,w:Number(n.w)||30,h:Number(n.h)||12,resize:isResize,flowChild,handle:handle?.dataset.resize||'se',rect,element:el,moved:false,pointerId:e.pointerId};
+        try{el.setPointerCapture(e.pointerId)}catch{}e.preventDefault();
       });
-      el.addEventListener('pointermove',e=>{if(!drag||drag.id!==el.dataset.node)return;const dx=(e.clientX-drag.startX)/drag.rect.width*100,dy=(e.clientY-drag.startY)/drag.rect.height*100,n=nodeById(drag.id);if(!n)return;if(drag.resize){n.heightMode='fixed';const h=drag.handle;let x=drag.x,y=drag.y,w=drag.w,hh=drag.h;if(h.includes('w')){x=Math.max(0,Math.min(drag.x+drag.w-2,drag.x+dx));w=drag.w-(x-drag.x)}else if(h.includes('e'))w=Math.max(2,Math.min(100-drag.x,drag.w+dx));if(h.includes('n')){y=Math.max(0,Math.min(drag.y+drag.h-.5,drag.y+dy));hh=drag.h-(y-drag.y)}else if(h.includes('s'))hh=Math.max(.5,Math.min(100-drag.y,drag.h+dy));n.x=x;n.y=y;n.w=w;n.h=hh;Object.assign(el.style,{left:x+'%',top:y+'%',width:w+'%',height:hh+'%'})}else{n.x=Math.max(0,Math.min(100-n.w,drag.x+dx));n.y=Math.max(0,Math.min(100-n.h,drag.y+dy));el.style.left=n.x+'%';el.style.top=n.y+'%'}});
-      const end=()=>{if(drag&&drag.id===el.dataset.node){drag=null;render()}};
+      el.addEventListener('pointermove',e=>{
+        if(!drag||drag.id!==el.dataset.node)return;
+        const dx=(e.clientX-drag.startX)/Math.max(1,drag.rect.width)*100,dy=(e.clientY-drag.startY)/Math.max(1,drag.rect.height)*100,n=nodeById(drag.id);if(!n)return;
+        if(Math.abs(dx)>.15||Math.abs(dy)>.15)drag.moved=true;
+        if(drag.flowChild&&!drag.moved)return;
+        if(drag.resize){
+          n.heightMode='fixed';const h=drag.handle;let x=drag.x,y=drag.y,w=drag.w,hh=drag.h;
+          if(h.includes('w')){x=Math.max(0,Math.min(drag.x+drag.w-2,drag.x+dx));w=drag.w-(x-drag.x)}else if(h.includes('e'))w=Math.max(2,Math.min(100-drag.x,drag.w+dx));
+          if(h.includes('n')){y=Math.max(0,Math.min(drag.y+drag.h-.5,drag.y+dy));hh=drag.h-(y-drag.y)}else if(h.includes('s'))hh=Math.max(.5,Math.min(100-drag.y,drag.h+dy));
+          if(!drag.flowChild){n.x=x;n.y=y;el.style.left=x+'%';el.style.top=y+'%'}
+          n.w=w;n.h=hh;el.style.width=w+'%';el.style.height=hh+'%';
+        }else if(!drag.flowChild){
+          n.positionMode='absolute';n.x=Math.max(0,Math.min(100-n.w,drag.x+dx));n.y=Math.max(0,Math.min(100-n.h,drag.y+dy));el.style.left=n.x+'%';el.style.top=n.y+'%';
+        }
+      });
+      const end=e=>{
+        if(!drag||drag.id!==el.dataset.node)return;
+        const g=drag,n=nodeById(g.id);drag=null;
+        if(e.type==='pointerup'&&n&&g.flowChild&&g.moved){
+          const siblings=childrenOf(g.parentId),from=siblings.findIndex(x=>x.id===n.id),others=siblings.filter(x=>x.id!==n.id);
+          const candidates=Array.from(layer.querySelectorAll('[data-node]')).filter(item=>{const candidate=nodeById(item.dataset.node);return candidate&&candidate.parentId===g.parentId&&candidate.id!==n.id&&candidate.positionMode!=='absolute'&&item.getBoundingClientRect().width>0});
+          let before=null,best=Infinity;
+          candidates.forEach(item=>{const r=item.getBoundingClientRect(),vertical=!['row'].includes(nodeById(g.parentId)?.layout),mid=vertical?r.top+r.height/2:r.left+r.width/2,pos=vertical?e.clientY:e.clientX,d=Math.abs(pos-mid);if(d<best){best=d;before={id:item.dataset.node,after:pos>mid}}});
+          if(from>=0&&before){const ordered=others.slice(),target=ordered.findIndex(x=>x.id===before.id);ordered.splice(Math.max(0,target+(before.after?1:0)),0,n);ordered.forEach((x,i)=>x.layer=i*10)}
+        }
+        render();
+      };
       el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
       el.addEventListener('click',e=>{if(e.target.closest('[data-node]')!==el)return;selected=el.dataset.node;render()});
     });
