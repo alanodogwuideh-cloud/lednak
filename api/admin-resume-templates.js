@@ -1,0 +1,18 @@
+import { tursoQuery } from 'lib/turso';
+import { requireSupabaseAdmin } from 'lib/admin-auth';
+export const access = 'public';
+export const methods = ['GET','POST','PUT','DELETE'];
+const txt=(v,n=160)=>String(v??'').trim().slice(0,n);
+const id=()=>crypto.randomUUID();
+async function schema(){await tursoQuery("CREATE TABLE IF NOT EXISTS custom_resume_templates (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', base_template TEXT NOT NULL DEFAULT 'classic', config TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");}
+function clean(input){const c=input?.config&&typeof input.config==='object'?input.config:{};return {name:txt(input?.name,80)||'Untitled template',description:txt(input?.description,240),baseTemplate:/^(t[1-8]|classic|modern|minimal|executive)$/.test(input?.baseTemplate)?input.baseTemplate:'classic',config:{accent:/^#[0-9a-fA-F]{6}$/.test(c.accent||'')?c.accent:'#F8831D',font:['Arial','Georgia','Helvetica','Verdana','Trebuchet MS','Times New Roman'].includes(c.font)?c.font:'Arial',bodySize:Math.max(9,Math.min(12,Number(c.bodySize)||10)),nameSize:Math.max(20,Math.min(32,Number(c.nameSize)||24)),spacing:Math.max(8,Math.min(22,Number(c.spacing)||15)),headingStyle:['underline','plain','accent-block'].includes(c.headingStyle)?c.headingStyle:'underline',headerAlign:['left','center'].includes(c.headerAlign)?c.headerAlign:'center',skillStyle:['pills','plain'].includes(c.skillStyle)?c.skillStyle:'pills',pageSize:['letter','a4'].includes(c.pageSize)?c.pageSize:'letter'}}}
+export default async function(req,res){
+ const auth=await requireSupabaseAdmin(req);if(!auth.ok)return res.status(auth.status).json({error:auth.error});
+ try{await schema();
+ if(req.method==='GET'){const {rows}=await tursoQuery('SELECT id,name,description,status,base_template,config,created_at,updated_at FROM custom_resume_templates ORDER BY updated_at DESC');return res.json(rows.map(r=>({...r,config:typeof r.config==='string'?JSON.parse(r.config):r.config})))}
+ if(req.method==='POST'){const v=clean(req.body);const key=id();const status=req.body?.status==='published'?'published':'draft';await tursoQuery('INSERT INTO custom_resume_templates (id,name,description,status,base_template,config,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)',[key,v.name,v.description,status,v.baseTemplate,JSON.stringify(v.config)]);return res.status(201).json({id:key,...v,status})}
+ const key=txt(req.query?.id||req.body?.id,80);if(!key)return res.status(400).json({error:'Template ID is required.'});
+ if(req.method==='DELETE'){const {rows}=await tursoQuery('DELETE FROM custom_resume_templates WHERE id=$1 RETURNING id',[key]);if(!rows.length)return res.status(404).json({error:'Template not found.'});return res.json({ok:true,id:key})}
+ const v=clean(req.body);const status=req.body?.status==='published'?'published':'draft';const {rows}=await tursoQuery('UPDATE custom_resume_templates SET name=$1,description=$2,status=$3,base_template=$4,config=$5,updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING id,name,description,status,base_template,config,created_at,updated_at',[v.name,v.description,status,v.baseTemplate,JSON.stringify(v.config),key]);if(!rows.length)return res.status(404).json({error:'Template not found.'});return res.json({...rows[0],config:JSON.parse(rows[0].config)});
+ }catch(e){console.error('Resume template editor API failed:',e?.message);return res.status(500).json({error:'Template storage is unavailable. Please try again.'})}
+}
