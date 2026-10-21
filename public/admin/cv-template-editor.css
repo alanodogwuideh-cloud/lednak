@@ -121,3 +121,30 @@
 #cvTemplateWorkspace .cvte-layer-row[draggable="true"]{cursor:grab}
 #cvTemplateWorkspace .cvte-layer-row.is-dragging{cursor:grabbing}
 @media(max-width:720px){#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;overflow-x:auto;max-width:100%}}
+/* Template editor inspector: grouped, collapsible controls. Scoped to the template workspace only. */
+#cvTemplateWorkspace .cvte-inspector{width:100%;min-width:0;color:#252a31;font:12px/1.4 'DM Sans',Arial,sans-serif}
+#cvTemplateWorkspace .cvte-inspector-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #e8eaee}
+#cvTemplateWorkspace .cvte-inspector-title strong{font-size:13px;font-weight:650}
+#cvTemplateWorkspace .cvte-inspector-title span{max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#737985;font-size:10px}
+#cvTemplateWorkspace .cvte-inspector-section{border-bottom:1px solid #e8eaee}
+#cvTemplateWorkspace .cvte-inspector-heading{width:100%;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:0;background:transparent;color:#303640;text-align:left;font:600 12px 'DM Sans',Arial,sans-serif;cursor:pointer}
+#cvTemplateWorkspace .cvte-inspector-heading:hover{background:#f6f7f9}
+#cvTemplateWorkspace .cvte-inspector-heading:focus-visible{outline:2px solid #F8831D;outline-offset:-2px}
+#cvTemplateWorkspace .cvte-inspector-chevron{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid #e0e3e8;border-radius:4px;color:#69717d;font-size:14px;font-weight:400}
+#cvTemplateWorkspace .cvte-inspector-content{padding:10px 12px 12px}
+#cvTemplateWorkspace .cvte-inspector-content[hidden]{display:none!important}
+#cvTemplateWorkspace .cvte-inspector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 8px}
+#cvTemplateWorkspace .cvte-inspector-content label{display:flex;flex-direction:column;gap:5px;min-width:0;color:#69717d;font-size:10px;font-weight:500}
+#cvTemplateWorkspace .cvte-inspector-content input:not([type=color]),#cvTemplateWorkspace .cvte-inspector-content select,#cvTemplateWorkspace .cvte-inspector-content textarea{width:100%;min-width:0;box-sizing:border-box;min-height:31px;padding:6px 8px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;color:#272c34;font:11px 'DM Sans',Arial,sans-serif;outline:none}
+#cvTemplateWorkspace .cvte-inspector-content input[type=color]{width:100%;height:31px;min-height:31px;padding:3px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;box-sizing:border-box}
+#cvTemplateWorkspace .cvte-inspector-content textarea{resize:vertical;min-height:64px;line-height:1.45}
+#cvTemplateWorkspace .cvte-inspector-content input:focus,#cvTemplateWorkspace .cvte-inspector-content select:focus,#cvTemplateWorkspace .cvte-inspector-content textarea:focus{border-color:#F8831D;box-shadow:0 0 0 1px #F8831D}
+#cvTemplateWorkspace .cvte-inspector-full{display:flex;margin-bottom:10px}
+#cvTemplateWorkspace .cvte-inspector-align{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px}
+#cvTemplateWorkspace .cvte-inspector-align button,#cvTemplateWorkspace .cvte-inspector-action-grid button{min-width:0;min-height:31px;padding:6px 8px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;color:#454c57;font:11px 'DM Sans',Arial,sans-serif;cursor:pointer}
+#cvTemplateWorkspace .cvte-inspector-align button:hover,#cvTemplateWorkspace .cvte-inspector-action-grid button:hover{border-color:#F8831D;background:#fff4e9}
+#cvTemplateWorkspace .cvte-inspector-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#cvTemplateWorkspace .cvte-inspector-action-grid .cvte-inspector-danger{color:#b42318}
+#cvTemplateWorkspace .cvte-inspector-note,#cvTemplateWorkspace .cvte-inspector-empty{margin:0;padding:12px;color:#737985;font-size:11px;line-height:1.5}
+#cvTemplateWorkspace .cvte-inspector-empty{border:1px dashed #dfe3e8;border-radius:6px}
+@media(max-width:720px){#cvTemplateWorkspace .cvte-inspector-grid{gap:8px 6px}#cvTemplateWorkspace .cvte-inspector-content{padding:9px}}
