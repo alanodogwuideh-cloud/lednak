@@ -96,10 +96,14 @@ export default async function(req,res) {
         const {rows:result}=await tursoQuery('SELECT id,title,template,content,created_at,updated_at FROM resumes WHERE id=$1 LIMIT 1',[newId]);
         return res.status(201).json({...result[0],content:normalizeContent(parseStoredJson(result[0].content,{}))});
       }
-      const {rows:master}=await tursoQuery('SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');
-      let profile={};
-      profile=parseStoredJson(master[0]?.profile_json,{});
-      const content=snapshotFromProfile(profile);
+      // New resumes start completely blank; the Master Profile and existing resumes remain untouched.
+      const content=normalizeContent({
+        contact:{fullName:'',email:'',phone:'',location:'',links:[]},
+        summary:'',summaryLabel:'',
+        sectionOrder:['summary','experience','projects','skills','education','certifications'],
+        sectionTitles:{summary:'Professional Summary',experience:'Experience',projects:'Projects',skills:'Skills',education:'Education',certifications:'Certifications'},
+        hiddenSections:[],experience:[],projects:[],skills:[],education:[],certifications:[]
+      });
       const title=text(body.title,160)||'Untitled Resume';
       const template='us';
       const created=await tursoQuery('INSERT INTO resumes (title,template,content,created_at,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[title,template,JSON.stringify(content)]);
