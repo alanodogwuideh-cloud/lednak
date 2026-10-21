@@ -13,7 +13,7 @@
   function restore(v){nodes=clone(v||[]);selected=nodes.find(n=>n.id===selected)?.id||nodes[0]?.id||null;render()}
   function add(type){remember();const n=defaults(type);n.x=Math.min(70,5+nodes.length*2);n.y=Math.min(75,5+nodes.length*3);n.layer=nodes.length?Math.max(...nodes.map(x=>Number(x.layer)||0))+1:0;nodes.push(n);selected=n.id;render()}
   function update(key,value){const n=nodes.find(n=>n.id===selected);if(!n)return;if(['x','y','w','h','fontSize','fontWeight','lineHeight','letterSpacing','weight','opacity','borderWeight','radius','gap','rowGap','padding','paddingX','paddingY','columns','layer'].includes(key)){value=Number(value);if(!Number.isFinite(value))return}if(key==='color'||key==='borderColor')value=hex(value);n[key]=value;renderPreview()}
-  function moveLayer(dir){const n=nodes.find(n=>n.id===selected);if(!n)return;remember();if(dir==='back')n.layer=Math.max(-100,(Number(n.layer)||0)-1);if(dir==='front')n.layer=Math.min(100,(Number(n.layer)||0)+1);if(dir==='backmost')n.layer=Math.min(-100,...nodes.map(x=>Number(x.layer)||0))-1;if(dir==='frontmost')n.layer=Math.max(0,...nodes.map(x=>Number(x.layer)||0))+1;render()}
+  function moveLayer(dir){const n=nodes.find(n=>n.id===selected);if(!n)return;remember();const ordered=nodes.slice().sort((a,b)=>(Number(a.layer)||0)-(Number(b.layer)||0));const i=ordered.findIndex(x=>x.id===selected);if(dir==='back'&&i>0)[ordered[i-1],ordered[i]]=[ordered[i],ordered[i-1]];else if(dir==='front'&&i>=0&&i<ordered.length-1)[ordered[i+1],ordered[i]]=[ordered[i],ordered[i+1]];else if(dir==='backmost'&&i>=0)ordered.unshift(ordered.splice(i,1)[0]);else if(dir==='frontmost'&&i>=0)ordered.push(ordered.splice(i,1)[0]);ordered.forEach((x,index)=>x.layer=index*10);render()}
   function render(){
     const w=workspace();if(!w)return;
     let panel=w.querySelector('#cvteAdvancedPanel');
@@ -34,6 +34,7 @@
         if(act==='redo'){if(future.length){history.push(getLayout());restore(future.pop())}}
         if(act==='left'||act==='center'||act==='right'){const n=nodes.find(n=>n.id===selected);if(n){remember();n.x=act==='left'?5:act==='center'?(100-n.w)/2:95-n.w;render()}}
       });
+      panel.addEventListener('focusin',e=>{if(e.target.dataset.prop)remember()});
       panel.addEventListener('input',e=>{const key=e.target.dataset.prop;if(!key)return;const n=nodes.find(n=>n.id===selected);if(!n)return;let value=e.target.type==='number'?Number(e.target.value):e.target.value;if(e.target.type==='checkbox')value=e.target.checked;if(e.target.type==='color'||key==='color'||key==='borderColor')value=hex(value);if(['text','color','borderColor'].includes(key))n[key]=value;else n[key]=value;renderPreview();const status=panel.querySelector('#cvteAdvStatus');if(status)status.textContent='Unsaved layout changes.'});
     }
     const list=panel.querySelector('#cvteAdvList'),props=panel.querySelector('#cvteAdvProps');
