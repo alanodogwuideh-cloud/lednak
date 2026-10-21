@@ -123,6 +123,7 @@
 @media(max-width:720px){#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;overflow-x:auto;max-width:100%}}
 /* Single-level inspector navigation: template appearance lives in Data; no standalone duplicate panel. */
 #cvTemplateWorkspace .cvte-appearance-quick{display:none!important}
+#cvTemplateWorkspace .cvte-inspector-title,#cvTemplateWorkspace .cvte-inspector-subtitle,#cvTemplateWorkspace .cvte-inspector-placeholder{display:none!important}
 #cvTemplateWorkspace [data-inspector-panel="layeractions"],#cvTemplateWorkspace [data-inspector-toggle="layeractions"]{display:none!important}
 #cvTemplateWorkspace .cvte-template-appearance{display:flex;flex-direction:column;gap:10px;padding:12px;border-bottom:1px solid #e8eaee}
 #cvTemplateWorkspace .cvte-template-appearance h4{margin:0;font-size:12px;font-weight:650;color:#303640}
