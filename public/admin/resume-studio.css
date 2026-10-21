@@ -252,6 +252,20 @@
 #resumeTab .rs-suggestion-copy{padding:8px 11px;border:1px solid #e7b98d;border-radius:8px;background:#fff8f1;color:#8a470c;font:700 11px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
 #resumeTab .rs-suggestion-copy:hover{background:#ffefdf}
 @media(max-width:600px){#resumeTab .rs-analysis-tabs{padding:0 18px}#resumeTab .rs-analysis-generate{align-items:stretch;flex-direction:column}#resumeTab .rs-analysis-generate button{width:100%}#resumeTab .rs-suggestion-card{padding:12px}#resumeTab .rs-suggestion-card-head{align-items:flex-start}}
+/* Resume completion screen: preview is shown only after completing step six. */
+#resumeTab .rs-resume-workspace-sequential{grid-template-columns:minmax(0,1fr);max-width:920px;margin:0 auto}
+#resumeTab .rs-resume-complete{display:grid;gap:22px;max-width:1060px;margin:0 auto}
+#resumeTab .rs-resume-complete-intro{text-align:center;max-width:620px;margin:14px auto 0}
+#resumeTab .rs-resume-complete-mark{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 15px;border-radius:50%;background:#eaf5e8;color:#2f7a3d;font-size:24px;font-weight:800}
+#resumeTab .rs-resume-complete-intro .eyebrow{margin:0 0 8px;color:#a45a1b;font-size:10px;font-weight:800;letter-spacing:.12em}
+#resumeTab .rs-resume-complete-intro h2{margin:0 0 9px;font-size:28px;letter-spacing:-.035em;color:#20211e}
+#resumeTab .rs-resume-complete-intro>p:last-child{margin:0;color:#777a73;font-size:13px;line-height:1.65}
+#resumeTab .rs-resume-complete-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #dedfd9;border-radius:12px;background:#fff}
+#resumeTab .rs-resume-complete-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#resumeTab .rs-resume-complete-preview{display:grid;gap:10px;justify-items:center;min-width:0}
+#resumeTab .rs-resume-complete-preview .rs-preview-label{display:flex;justify-content:space-between;gap:12px;width:min(100%,8.5in);font-size:10px;color:#777a73}
+#resumeTab .rs-resume-complete-preview .rs-resume-paper{width:min(100%,8.5in);min-height:11in;box-sizing:border-box;box-shadow:0 8px 34px #17181616}
+@media(max-width:600px){#resumeTab .rs-resume-complete-intro h2{font-size:23px}#resumeTab .rs-resume-complete-toolbar{align-items:stretch;flex-direction:column}#resumeTab .rs-resume-complete-actions{display:grid;grid-template-columns:1fr 1fr}#resumeTab .rs-resume-complete-toolbar>button,#resumeTab .rs-resume-complete-actions button{width:100%}#resumeTab .rs-resume-complete-preview .rs-resume-paper{min-height:auto;padding:22px 18px}}
 /* Sequential Resume Creation — six-step editor */
 #resumeTab .rs-editor-stepper{display:grid;gap:6px;margin:4px 0 16px}
 #resumeTab .rs-editor-step{display:flex;align-items:center;gap:11px;width:100%;min-width:0;padding:11px 12px;border:1px solid #e2e3dd;border-radius:10px;background:#fff;color:#555950;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
