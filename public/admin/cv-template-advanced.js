@@ -97,6 +97,25 @@
   const sampleData={contact:{fullName:'Alex Morgan',headline:'Product Designer',email:'alex@example.com',phone:'+234 800 000 0000',location:'Abuja, Nigeria'},summary:'Product designer who turns complex workflows into clear, accessible digital products.',experience:[{title:'Senior Product Designer',company:'Example Company',startDate:'2023',endDate:'Present',bullets:[{text:'Led product design from discovery through delivery.'}]}],projects:[{name:'Portfolio project',description:'A selected project.'}],skills:[{category:'Design',items:['Product design','Research','Prototyping']}],education:[{degree:'BSc',institution:'Example University'}],certifications:[],languages:[],references:[]};
   function resolveBinding(binding,data,ctx){if(!binding)return '';if(ctx&&Object.prototype.hasOwnProperty.call(ctx,binding))return ctx[binding];let v=data;for(const part of String(binding).split('.'))v=v?.[part];return v??''}
   function textFor(n,data,ctx){const v=resolveBinding(n.binding,data,ctx);if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:(x.text||x.name||x.title||'')).filter(Boolean).join(' · ');if(v&&typeof v==='object')return v.text||v.name||v.title||'';return v!==''&&v!=null?String(v):String(n.text||'')}
+  function emptyNode(n,data,ctx){
+    if(!n||n.visible===false)return true;
+    if(n.type==='shape'||n.type==='line')return false;
+    if(n.binding||n.repeatBinding){
+      const v=resolveBinding(n.binding||n.repeatBinding,data,ctx);
+      if(Array.isArray(v))return v.length===0;
+      if(v&&typeof v==='object')return Object.values(v).every(x=>!String(x??'').trim());
+      if(v!==''&&v!=null)return false;
+      if(String(n.text||'').trim())return false;
+      return true;
+    }
+    const kids=childrenOf(n.id);
+    return kids.length?kids.every(ch=>emptyNode(ch,data,ctx)):!String(n.text||'').trim();
+  }
+  function shouldHideSection(n,data,ctx){
+    if(n.type!=='container'||!/ section$/i.test(n.name||''))return false;
+    const content=childrenOf(n.id).filter(ch=>!String(ch.name||'').toLowerCase().endsWith('heading'));
+    return content.length>0&&content.every(ch=>emptyNode(ch,data,ctx));
+  }
   function childStyle(n,isRoot,parent){
     const flow=!!parent&&parent.type==='container'&&parent.layout!=='free'&&n.positionMode!=='absolute';
     const documentRoot=!parent&&n.positionMode==='document';
@@ -109,7 +128,7 @@
     return position+width+'height:'+height+';min-height:'+minHeight+';z-index:'+Math.max(-100,Math.min(100,Number(n.layer)||0))+';color:'+safeColor(n.color)+';background:'+colorOrTransparent(n.background||'transparent')+';font-size:'+Math.max(7,Math.min(48,Number(n.fontSize)||11))+'px;font-weight:'+Math.max(100,Math.min(900,Number(n.fontWeight)||400))+';line-height:'+Math.max(.8,Math.min(3,Number(n.lineHeight)||1.35))+';letter-spacing:'+Number(n.letterSpacing||0)+'px;text-align:'+(['left','center','right'].includes(n.textAlign)?n.textAlign:'left')+';text-transform:'+(['uppercase','capitalize'].includes(n.textTransform)?n.textTransform:'none')+';opacity:'+opacity+';padding:'+Math.max(0,Number(n.padding)||0)+'px;box-sizing:border-box;overflow-wrap:anywhere;'+border;
   }
   function renderNode(n,parent,data,ctx,forExport=false){
-    if(n.visible===false)return '';
+    if(n.visible===false||shouldHideSection(n,data,ctx))return '';
     const isRoot=!parent,style=childStyle(n,isRoot,parent),shape=n.type==='shape',line=n.type==='line',container=n.type==='container';
     const cls='cvte-adv-node '+(n.id===selected?'selected ':'')+(shape?'is-shape ':'')+(n.locked?'is-locked':'');
     const resolved=textFor(n,data,ctx);
@@ -122,7 +141,7 @@
       const display=n.layout==='grid'||n.layout==='columns2'||n.layout==='columns3'?'grid':n.layout==='free'?'block':'flex';
       const cols=n.layout==='columns3'?3:n.layout==='columns2'?2:Math.max(1,Math.min(6,Number(n.columns)||2));
       const innerStyle='display:'+display+';position:'+(n.layout==='free'?'relative':'relative')+';flex-direction:'+(n.layout==='row'?'row':'column')+';grid-template-columns:repeat('+cols+',minmax(0,1fr));gap:'+Math.max(0,Number(n.rowGap)||0)+'px '+Math.max(0,Number(n.gap)||0)+'px;padding:'+Math.max(0,Number(n.padding)||0)+'px;align-items:'+({stretch:'stretch',start:'flex-start',center:'center',end:'flex-end'}[n.align]||'stretch')+';justify-content:'+({start:'flex-start',center:'center',end:'flex-end',between:'space-between'}[n.justify]||'flex-start')+';min-width:0;box-sizing:border-box;overflow-wrap:anywhere;';
-      if(items&&items.length){body='<div class="cvte-auto-content" style="'+innerStyle+'">'+items.map((item,i)=>'<div class="cvte-repeat-item" style="min-width:0;position:relative">'+childrenOf(n.id).map(ch=>renderNode(ch,n,data,item,forExport)).join('')+'</div>').join('')+'</div>'}
+      if(items){body='<div class="cvte-auto-content" style="'+innerStyle+'">'+items.map((item,i)=>'<div class="cvte-repeat-item" style="min-width:0;position:relative">'+childrenOf(n.id).map(ch=>renderNode(ch,n,data,item,forExport)).join('')+'</div>').join('')+'</div>'}
       else {const kids=childrenOf(n.id);body='<div class="cvte-auto-content" style="'+innerStyle+(forExport?'':'border:1px dashed #c9ced6;border-radius:4px;')+'">'+(kids.length?kids.map(ch=>renderNode(ch,n,data,ctx,forExport)).join(''):String(n.text||'').split(/\n/).filter(Boolean).map(t=>'<div>'+esc(t)+'</div>').join('')||(!forExport?'<div class="cvte-container-empty">Select this container and add components</div>':''))+'</div>'}
     }else{
       let content=resolved;
@@ -155,7 +174,7 @@
   const observer=new MutationObserver(()=>{if(workspace()&&!workspace().hidden&&!workspace().querySelector('#cvteAdvancedPanel'))render()});
   observer.observe(document.documentElement,{childList:true,subtree:true});
   function exportNode(n,parent,data,ctx){
-    if(n.visible===false)return '';
+    if(n.visible===false||shouldHideSection(n,data,ctx))return '';
     const style=childStyle(n,!parent,parent),shape=n.type==='shape',line=n.type==='line',container=n.type==='container';
     let body='',value=resolveBinding(n.binding,data,ctx);
     if(shape){const br=n.shapeKind==='ellipse'?'50%':n.shapeKind==='rounded'?Math.max(0,Number(n.radius)||8)+'px':'0';body='<div style="width:100%;height:100%;min-height:24px;background:'+safeColor(n.color)+';border-radius:'+br+';border:'+Math.max(0,Number(n.borderWeight)||0)+'px solid '+safeColor(n.borderColor||n.color)+';box-sizing:border-box"></div>'}
