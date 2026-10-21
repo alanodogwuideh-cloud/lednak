@@ -7,7 +7,40 @@ const id=()=>crypto.randomUUID();
 const color=(v,fallback='#F8831D')=>/^#[0-9a-fA-F]{6}$/.test(v||'')?v:fallback;
 const num=(v,min,max,fallback)=>Math.max(min,Math.min(max,Number.isFinite(Number(v))?Number(v):fallback));
 async function schema(){await tursoQuery("CREATE TABLE IF NOT EXISTS custom_resume_templates (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', base_template TEXT NOT NULL DEFAULT 'classic', config TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");}
-function clean(input){const c=input?.config&&typeof input.config==='object'?input.config:{};return {name:txt(input?.name,80)||'Untitled template',description:txt(input?.description,240),baseTemplate:/^(t[1-8]|classic|modern|minimal|executive)$/.test(input?.baseTemplate)?input.baseTemplate:'classic',config:{accent:color(c.accent),font:['Arial','Georgia','Helvetica','Verdana','Trebuchet MS','Times New Roman'].includes(c.font)?c.font:'Arial',bodySize:num(c.bodySize,9,12,10),nameSize:num(c.nameSize,20,32,24),spacing:num(c.spacing,8,22,15),headingStyle:['underline','plain','accent-block'].includes(c.headingStyle)?c.headingStyle:'underline',headerAlign:['left','center'].includes(c.headerAlign)?c.headerAlign:'center',skillStyle:['pills','plain'].includes(c.skillStyle)?c.skillStyle:'pills',pageSize:['letter','a4'].includes(c.pageSize)?c.pageSize:'letter',layout:Array.isArray(c.layout)?c.layout.slice(0,80).map((n,i)=>({id:txt(n?.id,80)||String(i),type:['shape','line','text','bullets','container'].includes(n?.type)?n.type:'text',text:txt(n?.text,4000),x:num(n?.x,0,100,0),y:num(n?.y,0,100,0),w:num(n?.w,2,100,30),h:num(n?.h,.5,100,10),color:color(n?.color),opacity:num(n?.opacity,0,100,100),borderColor:color(n?.borderColor,color(n?.color)),borderWeight:num(n?.borderWeight,0,12,0),radius:num(n?.radius,0,80,8),shapeKind:['rect','rounded','ellipse'].includes(n?.shapeKind)?n.shapeKind:'rect',weight:num(n?.weight,1,12,1),fontSize:num(n?.fontSize,7,48,11),fontWeight:num(n?.fontWeight,100,900,400),lineHeight:num(n?.lineHeight,.8,3,1.35),letterSpacing:num(n?.letterSpacing,-2,10,0),textAlign:['left','center','right'].includes(n?.textAlign)?n.textAlign:'left',textTransform:['none','uppercase','capitalize'].includes(n?.textTransform)?n.textTransform:'none',heightMode:['auto','min','fixed'].includes(n?.heightMode)?n.heightMode:'auto',layout:['vertical','row','grid','columns2','columns3'].includes(n?.layout)?n.layout:'vertical',columns:num(n?.columns,1,3,2),gap:num(n?.gap,0,60,8),rowGap:num(n?.rowGap,0,60,8),padding:num(n?.padding,0,60,8),paddingX:num(n?.paddingX,0,60,8),paddingY:num(n?.paddingY,0,60,8),align:['stretch','start','center','end'].includes(n?.align)?n.align:'stretch',justify:['start','center','end','between'].includes(n?.justify)?n.justify:'start',locked:!!n?.locked,visible:n?.visible!==false,bullet:['disc','circle','square','number'].includes(n?.bullet)?n.bullet:'disc',layer:num(n?.layer,-100,100,i)})):[]}}}
+function clean(input){
+ const c=input?.config&&typeof input.config==='object'?input.config:{};
+ const sections=['summary','experience','education','skills','projects','certifications','languages','references'];
+ const layout=Array.isArray(c.layout)?c.layout.slice(0,160).map((n,i)=>({
+  id:txt(n?.id,80)||String(i),
+  name:txt(n?.name,120),
+  type:['shape','line','text','bullets','container'].includes(n?.type)?n.type:'text',
+  parentId:txt(n?.parentId,80)||null,
+  positionMode:['auto','absolute','document'].includes(n?.positionMode)?n.positionMode:((n?.type==='shape'||n?.type==='line')?'absolute':'auto'),
+  binding:txt(n?.binding,120),
+  repeatBinding:txt(n?.repeatBinding,120),
+  text:String(n?.text??'').slice(0,8000),
+  x:num(n?.x,0,100,0),y:num(n?.y,0,100,0),w:num(n?.w,2,100,30),h:num(n?.h,.5,100,10),
+  color:color(n?.color,n?.type==='container'?'#24272c':'#F8831D'),
+  background:n?.background==='transparent'?'transparent':(/^#[0-9a-fA-F]{6}$/.test(n?.background||'')?n.background:'transparent'),
+  opacity:num(n?.opacity,0,100,100),borderColor:color(n?.borderColor,color(n?.color)),borderWeight:num(n?.borderWeight,0,12,0),radius:num(n?.radius,0,80,8),
+  shapeKind:['rect','rounded','ellipse'].includes(n?.shapeKind)?n.shapeKind:'rect',weight:num(n?.weight,1,12,1),
+  fontSize:num(n?.fontSize,7,48,11),fontWeight:num(n?.fontWeight,100,900,400),lineHeight:num(n?.lineHeight,.8,3,1.35),letterSpacing:num(n?.letterSpacing,-2,10,0),
+  textAlign:['left','center','right'].includes(n?.textAlign)?n.textAlign:'left',textTransform:['none','uppercase','capitalize'].includes(n?.textTransform)?n.textTransform:'none',
+  heightMode:['auto','min','fixed'].includes(n?.heightMode)?n.heightMode:'auto',
+  layout:['vertical','row','grid','columns2','columns3','free'].includes(n?.layout)?n.layout:'vertical',
+  columns:num(n?.columns,1,6,2),gap:num(n?.gap,0,60,8),rowGap:num(n?.rowGap,0,60,8),padding:num(n?.padding,0,60,8),paddingX:num(n?.paddingX,0,60,8),paddingY:num(n?.paddingY,0,60,8),
+  align:['stretch','start','center','end'].includes(n?.align)?n.align:'stretch',justify:['start','center','end','between'].includes(n?.justify)?n.justify:'start',
+  locked:!!n?.locked,visible:n?.visible!==false,bullet:['disc','circle','square','number'].includes(n?.bullet)?n.bullet:'disc',layer:num(n?.layer,-100,100,i)
+ })): [];
+ return {name:txt(input?.name,80)||'Untitled template',description:txt(input?.description,240),baseTemplate:/^(t[1-8]|classic|modern|minimal|executive)$/.test(input?.baseTemplate)?input.baseTemplate:'classic',config:{
+  accent:color(c.accent),font:['Arial','Georgia','Helvetica','Verdana','Trebuchet MS','Times New Roman'].includes(c.font)?c.font:'Arial',
+  bodySize:num(c.bodySize,9,12,10),nameSize:num(c.nameSize,20,32,24),spacing:num(c.spacing,8,22,15),
+  headingStyle:['underline','plain','accent-block'].includes(c.headingStyle)?c.headingStyle:'underline',headerAlign:['left','center'].includes(c.headerAlign)?c.headerAlign:'center',
+  skillStyle:['pills','plain'].includes(c.skillStyle)?c.skillStyle:'pills',pageSize:['letter','a4'].includes(c.pageSize)?c.pageSize:'letter',
+  documentLayout:Array.isArray(c.documentLayout)?c.documentLayout.filter((x,i,a)=>sections.includes(x)&&a.indexOf(x)===i):sections,
+  documentModelVersion:num(c.documentModelVersion,1,2,1),useCustomDocumentLayout:c.useCustomDocumentLayout===true,layout
+ }};
+}
 export default async function(req,res){
  const auth=await requireSupabaseAdmin(req);if(!auth.ok)return res.status(auth.status).json({error:auth.error});
  try{await schema();
