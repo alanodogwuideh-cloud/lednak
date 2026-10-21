@@ -40,4 +40,54 @@
 #resumeTab .rs-template-accent{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
 #resumeTab .rs-template-accent input{width:34px;height:30px;padding:2px;border:1px solid #ddd;border-radius:7px;background:#fff}
 #resumeTab .rs-template-page-size{min-height:40px;padding:8px 30px 8px 10px;border:1px solid #d8dad3;border-radius:9px;background:#fff;color:#292a25}
-@media print{#resumeTab .rs-resume-paper{box-shadow:none!important;border:0!important;overflow:visible!important;aspect-ratio:auto!important;width:100%!important;max-width:none!important}#resumeTab .rs-paper-section{break-inside:auto}#resumeTab .rs-paper-entry{break-inside:avoid}#resumeTab .rs-paper-header{break-after:avoid}}
+/* Stage 1: reference-matched resume templates T1–T4. These rules are scoped to the resume paper only; editor chrome and creation flow are untouched. */
+#resumeTab .rs-resume-paper.rs-template-t1{--resume-accent:#23395B;font-family:Arial,Helvetica,sans-serif;color:#171717;padding:0 7.5% 6.5%;border-top:0}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header{background:var(--resume-user-accent,#23395B);color:#fff;text-align:center;margin:-0.1% -8.2% 2.1em;padding:5.2% 8.2% 4.2%;border-bottom:2px solid #d7e0eb}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header h1{color:#fff;font-size:2.65em;line-height:1.12;font-weight:500;margin:0 0 .15em}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-headline{color:#fff;font-size:1.45em;margin:.1em 0 .9em}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-contact{display:block;color:#fff;font-size:1em;line-height:1.8}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-contact-links{display:inline;text-align:center}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-contact-links:before{content:'  •  '}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-section{padding:0;margin:1.8em 0 0}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-section h2{color:var(--resume-user-accent,#23395B);border:0;font-size:1.45em;font-weight:600;letter-spacing:-.02em;margin:0 0 .65em}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-entry{margin:0 0 1.1em}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-entry-head{display:block}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-entry-head>span{display:block;margin-top:.35em}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-entry ul{padding-left:1.4em;margin:.8em 0 0}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-skill{display:inline-block;margin:.25em .25em .25em 0;padding:.45em .7em;border-radius:999px;background:#e9edf2;color:#171717}
+#resumeTab .rs-resume-paper.rs-template-t2{--resume-accent:#7A263A;font-family:Arial,Helvetica,sans-serif;color:#171717;padding:5.8%}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header{text-align:center;border:0;padding:0 0 1.6em;margin:0 0 1.5em;position:relative}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header:after{content:'';display:block;height:1px;background:#d8dadd;position:absolute;bottom:0;left:0;right:0}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header h1{color:var(--resume-user-accent,#7A263A);font-size:2.5em;font-weight:500}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-headline{font-size:1.35em;margin:.2em 0 .8em}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-section{margin:1.6em 0 0;padding-top:1.3em;border-top:1px solid #d8dadd;position:relative}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-section:before{content:'';display:block;position:absolute;top:-1px;left:0;width:10%;height:3px;background:var(--resume-user-accent,#7A263A)}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-section h2{color:var(--resume-user-accent,#7A263A);border:0;text-transform:uppercase;letter-spacing:0;font-size:1.05em;margin:0 0 .9em}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-entry{margin:0 0 1.25em}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-entry-head{display:block}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-entry-head>span{display:block;margin-top:.3em;font-style:italic}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-skill{display:inline-block;margin:.2em .35em .2em 0}
+#resumeTab .rs-resume-paper.rs-template-t3{--resume-accent:#315B4C;font-family:Arial,Helvetica,sans-serif;padding:5.8%}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-header{text-align:center;border:0;border-left:0;padding:0 0 1.2em;margin:0 0 1.3em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-header h1{color:#171717;font-size:2.2em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-headline{font-size:1.2em;color:#555;margin:.2em 0 .8em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-contact{font-size:.95em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-section{display:grid;grid-template-columns:23% minmax(0,1fr);gap:1.3em;margin:0;padding:1em 0;border-top:2px solid #34383b}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-section h2{border:0;color:#42464a;font-size:1em;font-weight:500;margin:0;text-transform:uppercase;letter-spacing:0}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-entry{margin:0 0 1em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-entry-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.3em .8em}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-entry-head strong{font-weight:700}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-entry-head>span{color:#555}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-skill{margin:.2em 0}
+#resumeTab .rs-resume-paper.rs-template-t4{--resume-accent:#B65F68;font-family:Arial,Helvetica,sans-serif;padding:0 5.7% 6%}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header{background:#f7f0f2;text-align:center;margin:0 -6.1% 1.4em;padding:4.8% 6.1%;border-radius:0}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header h1{color:#171717;font-size:2.35em;font-weight:700}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-headline{color:var(--resume-user-accent,#B65F68);font-size:1.35em;margin:.6em 0}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8em 1em;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-contact-links{text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-section{margin:1.3em 0 0;padding:0}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-section h2{display:inline-block;padding:.35em .65em;background:var(--resume-user-accent,#B65F68);color:#fff;border-radius:0;border:0;font-size:1.15em;font-weight:500;margin:0 0 .8em}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-entry{margin:0 0 1.1em}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-entry-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.4em 1em}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-skill{display:inline-block;margin:.25em .3em .25em 0;padding:.4em .7em;border-radius:999px;background:#f7f0f2}
+@media print{#resumeTab .rs-resume-paper{box-shadow:none!important;border:0!important;overflow:visible!important;aspect-ratio:auto!important;width:100%!important;max-width:none!important}#resumeTab .rs-paper-section{break-inside:auto}#resumeTab .rs-paper-entry{break-inside:avoid}#resumeTab .rs-paper-header{break-after:avoid}#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
