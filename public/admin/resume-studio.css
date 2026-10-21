@@ -265,6 +265,10 @@
 #resumeTab .rs-template-picker{display:flex;align-items:center;gap:9px;color:#60635b;font-size:12px;font-weight:700}
 #resumeTab .rs-template-picker select{min-height:40px;padding:8px 32px 8px 11px;border:1px solid #d8dad3;border-radius:9px;background:#fff;color:#292a25;font:600 13px 'DM Sans',sans-serif}
 #resumeTab .rs-template-picker select:focus{outline:0;border-color:#f8831d;box-shadow:none}
+#resumeTab .rs-template-picker input[type=color]{width:36px;height:36px;padding:2px;border:1px solid #d8dad3;border-radius:8px;background:#fff;cursor:pointer}
+#resumeTab .rs-paper-headline{font-size:1.05em;font-weight:600;margin:.2em 0 .45em;color:inherit}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header{color:#fff}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-headline{color:#fff}
 #resumeTab .rs-resume-paper.rs-template-modern{font-family:Arial,Helvetica,sans-serif;border-top:8px solid #f8831d;padding-top:5.5%}
 #resumeTab .rs-resume-paper.rs-template-modern .rs-paper-header{text-align:left;border-bottom:2px solid #f8831d;padding-bottom:1em}
 #resumeTab .rs-resume-paper.rs-template-modern .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-modern .rs-paper-contact-links{text-align:left}

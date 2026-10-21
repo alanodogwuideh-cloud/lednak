@@ -47,7 +47,11 @@ function normalizeContent(value) {
   const content = obj(value);
   const sections = ['summary','experience','projects','skills','education','certifications'];
   const out = {
-    contact: obj(content.contact),
+    contact: {...obj(content.contact),headline:text(obj(content.contact).headline,180)},
+    languages: arr(content.languages).slice(0,30).map(x=>({name:text(x?.name,100),proficiency:text(x?.proficiency,60)})),
+    references: arr(content.references).slice(0,30).map(x=>({name:text(x?.name,160),title:text(x?.title,160),company:text(x?.company,160),email:text(x?.email,254),phone:text(x?.phone,80)})),
+    accent: /^#[0-9a-fA-F]{6}$/.test(content.accent||'')?content.accent:'#23395B',
+    pageSize: ['letter','a4'].includes(content.pageSize)?content.pageSize:'letter',
     summary: text(content.summary,2500),
     summaryLabel: text(content.summaryLabel,120),
     sectionOrder: arr(content.sectionOrder).filter(x=>sections.includes(x)).slice(0,sections.length),
@@ -62,6 +66,7 @@ function normalizeContent(value) {
   for (const section of sections) if (!out.sectionOrder.includes(section)) out.sectionOrder.push(section);
   out.contact = {
     fullName:text(out.contact.fullName,160),email:text(out.contact.email,254),phone:text(out.contact.phone,80),location:text(out.contact.location,160),
+    headline:text(out.contact.headline,180),
     links:arr(out.contact.links).slice(0,20).map(x=>({label:text(x?.label,80),url:text(x?.url,500),hidden:x?.hidden===true}))
   };
   if (JSON.stringify(out).length > 250000) throw Object.assign(new Error('This resume is too large to save.'),{status:413});

@@ -30,6 +30,7 @@ function normalizeProfile(input) {
       email: text(contact.email, 254),
       phone: text(contact.phone, 80),
       location: text(contact.location, 160),
+      headline: text(contact.headline, 180),
       links: array(contact.links, 20).map(link => ({
         label: text(link?.label, 80),
         url: text(link?.url, 500),
@@ -83,6 +84,10 @@ function normalizeProfile(input) {
       issuer: text(item?.issuer, 180),
       date: text(item?.date, 80),
     })),
+    languages: array(input.languages, 30).map(item => ({name:text(item?.name,100),proficiency:text(item?.proficiency,60)})),
+    references: array(input.references, 30).map(item => ({name:text(item?.name,160),title:text(item?.title,160),company:text(item?.company,160),email:text(item?.email,254),phone:text(item?.phone,80)})),
+  accent: /^#[0-9a-fA-F]{6}$/.test(input.accent||'')?input.accent:'#23395B',
+  pageSize: ['letter','a4'].includes(input.pageSize)?input.pageSize:'letter',
   };
   if (JSON.stringify(profile).length > 250000) {
     throw Object.assign(new Error('The master profile is too large. Please shorten some entries and try again.'), { status: 413 });
