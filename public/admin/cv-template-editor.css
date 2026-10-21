@@ -169,6 +169,20 @@
 #cvTemplateWorkspace .cvte-corner-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
 #cvTemplateWorkspace .cvte-corner-grid .cvte-appearance-input{height:38px}
 #cvTemplateWorkspace .cvte-corner-grid input{font-size:13px}
+/* Keep compact Appearance controls aligned regardless of generic inspector label rules. */
+#cvTemplateWorkspace .cvte-appearance-controls{align-items:start;grid-auto-flow:row}
+#cvTemplateWorkspace .cvte-appearance-controls>.cvte-appearance-field{width:100%;min-width:0}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start;gap:8px;width:100%;min-width:0;height:40px;padding:0 10px;border:1px solid #D8DCE2;border-radius:7px;background:#F3F4F6;box-shadow:none;box-sizing:border-box}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:focus-within{border-color:#F8831D;box-shadow:0 0 0 1px #F8831D}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input input{display:block!important;flex:1 1 auto;width:0;min-width:0;height:100%;margin:0;padding:0;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;outline:0!important;font:13px/1.4 'DM Sans',Arial,sans-serif;color:#252A31;text-align:left}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-corner-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:10px;width:100%;min-width:0;margin-top:0}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-corner-grid label.cvte-appearance-input{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start;gap:8px;width:100%;height:40px;min-width:0;margin:0;padding:0 10px;overflow:hidden}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-corner-icon{display:block;flex:0 0 16px;width:16px;text-align:center;font-size:16px;line-height:1;color:#747980}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-glyph{display:block;flex:0 0 16px;width:16px;text-align:center;font-size:16px;line-height:1;color:#747980}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-radius-link{display:grid;place-items:center;flex:0 0 36px;width:36px;height:38px;margin:0 -9px 0 0;border:0;border-radius:7px;background:#E7F2FF;color:#1684FF;font-size:19px;line-height:1}
+#cvTemplateWorkspace .cvte-appearance-controls input[type=number]::-webkit-inner-spin-button,#cvTemplateWorkspace .cvte-appearance-controls input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#cvTemplateWorkspace .cvte-appearance-controls input[type=number]{appearance:textfield;-moz-appearance:textfield}
+@media(max-width:420px){#cvTemplateWorkspace .cvte-appearance-controls{gap:12px 8px;padding:10px}#cvTemplateWorkspace .cvte-appearance-controls .cvte-corner-grid{gap:8px}}
 #cvTemplateWorkspace .cvte-inspector-content label{display:flex;flex-direction:column;gap:5px;min-width:0;color:#69717d;font-size:10px;font-weight:500}
 #cvTemplateWorkspace .cvte-inspector-content input:not([type=color]),#cvTemplateWorkspace .cvte-inspector-content select,#cvTemplateWorkspace .cvte-inspector-content textarea{width:100%;min-width:0;box-sizing:border-box;min-height:31px;padding:6px 8px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;color:#272c34;font:11px 'DM Sans',Arial,sans-serif;outline:none}
 #cvTemplateWorkspace .cvte-inspector-content input[type=color]{width:100%;height:31px;min-height:31px;padding:3px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;box-sizing:border-box}
