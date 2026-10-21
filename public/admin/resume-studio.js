@@ -3,6 +3,21 @@
   if (!root) return;
 
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+  function confirmDialog(message, options = {}) {
+    return new Promise(resolve => {
+      document.querySelector('.rs-confirm-backdrop')?.remove();
+      const danger = options.tone === 'danger' || /delete|remove|replace|discard|cannot be undone/i.test(message);
+      const title = options.title || (danger ? 'Confirm this action' : 'Are you sure?');
+      const confirmLabel = options.confirmLabel || (danger ? 'Continue' : 'Confirm');
+      const overlay = document.createElement('div');
+      overlay.className = 'rs-confirm-backdrop';
+      overlay.innerHTML = '<section class="rs-confirm-modal '+(danger?'is-danger':'is-neutral')+'" role="alertdialog" aria-modal="true" aria-labelledby="rsConfirmTitle" aria-describedby="rsConfirmMessage" tabindex="-1"><div class="rs-confirm-icon" aria-hidden="true">'+(danger?'!':'?')+'</div><h3 id="rsConfirmTitle">'+escHtml(title)+'</h3><p id="rsConfirmMessage">'+escHtml(message)+'</p><div class="rs-confirm-actions"><button type="button" class="secondary" data-confirm-choice="cancel">Cancel</button><button type="button" class="'+(danger?'danger':'primary')+'" data-confirm-choice="confirm">'+escHtml(confirmLabel)+'</button></div></section>';
+      const finish = value => { if (!overlay.isConnected) return; overlay.remove(); document.removeEventListener('keydown', onKey); resolve(value); };
+      const onKey = event => { if(event.key === 'Escape'){event.preventDefault();finish(false);} };
+      overlay.addEventListener('click', event => { const choice=event.target.closest('[data-confirm-choice]'); if(choice) finish(choice.dataset.confirmChoice === 'confirm'); else if(event.target === overlay) finish(false); });
+      document.addEventListener('keydown', onKey); document.body.appendChild(overlay); overlay.querySelector('[data-confirm-choice="confirm"]')?.focus();
+    });
+  }
   const emptyProfile = () => ({
     contact: { fullName: '', email: '', phone: '', location: '', links: [] },
     summaries: [], experience: [], projects: [], skills: [], education: [], certifications: []
@@ -255,8 +270,8 @@
       });
       const stepper='<nav class="rs-editor-stepper" aria-label="Resume creation steps">'+stepDefinitions.map((step,index)=>'<button type="button" class="rs-editor-step '+(resumeEditorStep===index?'is-active':index<resumeEditorStep?'is-complete':'')+'" data-resume-action="editor-step" data-step="'+index+'" aria-current="'+(resumeEditorStep===index?'step':'false')+'"><span class="rs-editor-step-number">'+(index<resumeEditorStep?'✓':index+1)+'</span><span class="rs-editor-step-copy"><strong>'+step.title+'</strong><small>'+step.description+'</small></span></button>').join('')+'</nav>';
       const stepNavigation='<div class="rs-editor-step-navigation"><button type="button" class="secondary" data-resume-action="editor-prev" '+(resumeEditorStep===0?'disabled':'')+'>← Previous</button><span>Step '+(resumeEditorStep+1)+' of '+stepDefinitions.length+'</span><button type="button" class="primary" data-resume-action="editor-next">'+(resumeEditorStep===stepDefinitions.length-1?'Complete ✓':'Next step →')+'</button></div>';
-      const sequentialFields='<div class="rs-editor-fields">'+stepper+panels.map(panel=>panel.outerHTML).join('')+stepNavigation+'</div>';
-      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace rs-resume-workspace-sequential"><div class="rs-resume-form-pane">'+sequentialFields+'</div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':'')+(resumeAnalysis&&resumeAnalysisOpen?resumeAnalysisHtml():'');
+      const sequentialFields='<div class="rs-editor-fields">'+panels.map(panel=>panel.outerHTML).join('')+stepNavigation+'</div>';
+      root.innerHTML=head+editorHeader+'<div class="rs-resume-workspace rs-resume-workspace-sequential"><aside class="rs-resume-stepper-pane">'+stepper+'</aside><div class="rs-resume-form-pane">'+sequentialFields+'</div></div>'+(resumeAnalyzing?'<div class="rs-analysis-loading"><span class="rs-spinner" aria-hidden="true"></span><span>Reviewing resume structure and evidence…</span></div>':'')+(resumeAnalysis&&resumeAnalysisOpen?resumeAnalysisHtml():'');
       updateEditorToolbarStickiness();
       return;
     }
@@ -401,15 +416,15 @@
     if(action==='close-analysis') { if(button.dataset.overlayBackdrop==='true' && event.target!==button) return; resumeAnalysisOpen=false; persistResumeReview(); renderResumeView(); return; }
     if(action==='clear-analysis') { resumeAnalysis=null; resumeAnalysisOpen=false; resumeSuggestions=[]; resumeJobSuggestions=[]; clearResumeReview(currentResume?.id); renderResumeView(); return; }
     if(action==='new') return createResume();
-    if(action==='back') { if(currentResume&&resumeIsDirty()&&!confirm('Discard unsaved changes to this resume?')) return; currentResume=null; resumePreviewMode=false; resumeEditorStep=0; return loadResumeList(); }
+    if(action==='back') { if(currentResume&&resumeIsDirty()&&!await confirmDialog('Discard unsaved changes to this resume?')) return; currentResume=null; resumePreviewMode=false; resumeEditorStep=0; return loadResumeList(); }
     if(action==='open') return openResume(id);
     if(action==='save') return saveResume();
     if(action==='print') { const paper=document.getElementById('rsResumePreview'); if(!paper)return; const w=window.open('','_blank','width=1000,height=800'); if(!w){alert('Allow pop-ups to print or save the resume as PDF.');return;} w.document.write('<!doctype html><html><head><title>'+escHtml(currentResume.title||'Resume')+'</title><style>@page{size:letter;margin:0}body{margin:0;font-family:Arial,sans-serif;color:#111}.paper{box-sizing:border-box;width:8.5in;min-height:11in;padding:.6in}.paper h1{text-align:center;font-size:22pt;margin:0 0 5pt}.paper-contact{text-align:center;font-size:9pt;margin-bottom:14pt}.paper-section{margin-top:12pt}.paper-section h2{font-size:10.5pt;text-transform:uppercase;border-bottom:1px solid #333;padding-bottom:3pt;margin:0 0 6pt}.paper-entry{margin-bottom:7pt}.paper-entry-head,.paper-subhead{display:flex;justify-content:space-between;gap:8pt;font-size:9.5pt}.paper ul{margin:4pt 0 0;padding-left:16pt;font-size:9.5pt;line-height:1.25}.paper li{margin-bottom:2pt}.paper p{font-size:9.5pt;line-height:1.3;margin:3pt 0}</style></head><body><div class="paper">'+paper.innerHTML.replaceAll('rs-paper-','paper-').replaceAll('rs-preview-sep','paper-sep')+'</div><script>window.onload=()=>{window.print()}</script></body></html>'); w.document.close(); return; }
-    if(action==='duplicate') { if(!confirm('Create a separate copy of this resume?')) return; resumeLoading=true; renderResumeView(); try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({action:'duplicate',id,title:'Copy of '+(resumeRows.find(x=>String(x.id)===String(id))?.title||currentResume?.title||'Resume')})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; resumeMessage=''; renderResumeView(); } catch(error) { resumeMessage=error.message||'Could not duplicate resume.'; currentResume=null; await loadResumeList(); } finally {resumeLoading=false;} return; }
-    if(action==='delete') { if(!confirm('Delete this resume and its saved versions? This cannot be undone.')) return; try { await api('/admin-resumes?id='+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({id})}); clearResumeReview(id); currentResume=null; resumeMessage='Resume deleted.'; await loadResumeList(); } catch(error) { resumeMessage=error.message||'Could not delete resume.'; renderResumeView(); } return; }
+    if(action==='duplicate') { if(!await confirmDialog('Create a separate copy of this resume?',{title:'Duplicate resume',confirmLabel:'Duplicate'})) return; resumeLoading=true; renderResumeView(); try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({action:'duplicate',id,title:'Copy of '+(resumeRows.find(x=>String(x.id)===String(id))?.title||currentResume?.title||'Resume')})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; resumeMessage=''; renderResumeView(); } catch(error) { resumeMessage=error.message||'Could not duplicate resume.'; currentResume=null; await loadResumeList(); } finally {resumeLoading=false;} return; }
+    if(action==='delete') { if(!await confirmDialog('Delete this resume and its saved versions? This cannot be undone.',{title:'Delete resume',confirmLabel:'Delete',tone:'danger'})) return; try { await api('/admin-resumes?id='+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({id})}); clearResumeReview(id); currentResume=null; resumeMessage='Resume deleted.'; await loadResumeList(); } catch(error) { resumeMessage=error.message||'Could not delete resume.'; renderResumeView(); } return; }
     if(action==='add-contact-link') { currentResume.content.contact ||= {fullName:'',email:'',phone:'',location:'',links:[]}; currentResume.content.contact.links ||= []; currentResume.content.contact.links.push({label:'',url:'',hidden:false}); renderResumeView(); return; }
     if(action==='add-entry') { const sec=button.dataset.section; const defaults={experience:{id:uid(),company:'',title:'',location:'',startDate:'',endDate:'',current:false,hidden:false,bullets:[]},projects:{id:uid(),name:'',url:'',description:'',hidden:false,bullets:[]},skills:{id:uid(),category:'',items:[],hidden:false},education:{id:uid(),institution:'',degree:'',field:'',startDate:'',endDate:'',notes:'',hidden:false},certifications:{id:uid(),name:'',issuer:'',date:'',hidden:false}}; currentResume.content[sec].push(defaults[sec]); renderResumeView(); return; }
-    if(action==='remove-entry') { const sec=button.dataset.section, index=Number(button.dataset.index); if(!confirm('Remove this entry from the resume?'))return; currentResume.content[sec].splice(index,1); renderResumeView(); return; }
+    if(action==='remove-entry') { const sec=button.dataset.section, index=Number(button.dataset.index); if(!await confirmDialog('Remove this entry from the resume?',{title:'Remove resume entry',confirmLabel:'Remove',tone:'danger'}))return; currentResume.content[sec].splice(index,1); renderResumeView(); return; }
     if(action==='add-bullet') { const sec=button.dataset.section,index=Number(button.dataset.index); currentResume.content[sec][index].bullets.push({id:uid(),text:'',hidden:false}); renderResumeView(); return; }
     if(action==='remove-bullet') { const sec=button.dataset.section,index=Number(button.dataset.index),bi=Number(button.dataset.bullet); currentResume.content[sec][index].bullets.splice(bi,1); renderResumeView(); return; }
     if(action==='move-entry') { const sec=button.dataset.section,items=currentResume.content[sec],idx=Number(button.dataset.index),to=idx+(button.dataset.dir==='up'?-1:1); if(Array.isArray(items)&&to>=0&&to<items.length){[items[idx],items[to]]=[items[to],items[idx]];renderResumeView()} return; }
@@ -697,7 +712,7 @@
           } else assign(path, field.value.trim());
         });
         const hasExisting = profile.contact.fullName || profile.contact.email || profile.experience.length || profile.projects.length || profile.skills.length || profile.education.length || profile.certifications.length || profile.summaries.length;
-        if (hasExisting && !confirm('This will replace the current Master Profile fields with the imported information. Your saved server profile will not change until you click Save Master Profile. Continue?')) return;
+        if (hasExisting && !await confirmDialog('This will replace the current Master Profile fields with the imported information. Your saved server profile will not change until you click Save Master Profile. Continue?',{title:'Replace Master Profile fields',confirmLabel:'Replace',tone:'danger'})) return;
         profile = normalizeImportedProfile(imported);
         importReview = null; importError = ''; openAfterRender = 'contact';
         markDirty(); render();
@@ -709,8 +724,8 @@
     const viewTab=event.target.closest('[data-view], [data-resume-view]');
     if (viewTab) {
       const view=viewTab.dataset.view||viewTab.dataset.resumeView;
-      if (view==='resumes') { if (activeView==='resumes' && currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to the resume list?')) return; if (JSON.stringify(profile)!==savedJson && !confirm('Your Master Profile has unsaved changes. Discard them and open Resumes?')) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
-      if (view==='profile') { if (currentResume && resumeIsDirty() && !confirm('This resume has unsaved changes. Discard them and return to Master Profile?')) return; activeView='profile'; currentResume=null; render(); return; }
+      if (view==='resumes') { if (activeView==='resumes' && currentResume && resumeIsDirty() && !await confirmDialog('This resume has unsaved changes. Discard them and return to the resume list?',{title:'Discard resume changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson && !await confirmDialog('Your Master Profile has unsaved changes. Discard them and open Resumes?',{title:'Discard Master Profile changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
+      if (view==='profile') { if (currentResume && resumeIsDirty() && !await confirmDialog('This resume has unsaved changes. Discard them and return to Master Profile?',{title:'Discard resume changes',confirmLabel:'Discard',tone:'danger'})) return; activeView='profile'; currentResume=null; render(); return; }
     }
     const resumeButton=event.target.closest('[data-resume-action]');
     if (resumeButton) { await resumeAction(resumeButton, event); return; }
@@ -733,7 +748,7 @@
       openAfterRender = groupKey;
     } else if (action === 'remove-bullet') {
       const list = profile[groupKey]?.[parentIndex]?.bullets;
-      if (list && await confirm('Remove this bullet?')) list.splice(index,1); else return;
+      if (list && await confirmDialog('Remove this bullet?',{title:'Remove achievement bullet',confirmLabel:'Remove',tone:'danger'})) list.splice(index,1); else return;
       openAfterRender = groupKey;
     } else if (action === 'move-bullet') {
       const list = profile[groupKey]?.[parentIndex]?.bullets;
@@ -741,13 +756,13 @@
       if (!list || to < 0 || to >= list.length) return;
       [list[index],list[to]] = [list[to],list[index]]; openAfterRender = groupKey;
     } else if (action === 'remove-link') {
-      if (!await confirm('Remove this professional link?')) return;
+      if (!await confirmDialog('Remove this professional link?',{title:'Remove professional link',confirmLabel:'Remove',tone:'danger'})) return;
       profile.contact.links.splice(index,1); openAfterRender = 'contact';
     } else if (action.startsWith('remove-')) {
       const kind = action.slice(7);
       const key = simpleGroups[kind];
       if (!key || !profile[key] || !profile[key][index]) return;
-      if (!await confirm('Remove this ' + kind + '? This change is not saved until you save the profile.')) return;
+      if (!await confirmDialog('Remove this ' + kind + '? This change is not saved until you save the profile.',{title:'Remove profile item',confirmLabel:'Remove',tone:'danger'})) return;
       profile[key].splice(index,1);
       openAfterRender = key;
     } else if (action.startsWith('move-')) {
@@ -785,12 +800,12 @@
   document.addEventListener('scroll', updateEditorToolbarStickiness, {capture:true,passive:true});
   window.addEventListener('resize', updateEditorToolbarStickiness, {passive:true});
   document.addEventListener('resume-studio-open', () => { void loadProfile(); });
-  document.addEventListener('click', event => {
+  document.addEventListener('click', async event => {
     const tab = event.target.closest('.tab[data-tab]');
     const profileDirty = JSON.stringify(profile) !== savedJson;
     const resumeDirty = activeView === 'resumes' && resumeIsDirty();
     if (!tab || (!profileDirty && !resumeDirty)) return;
-    if (!confirm(profileDirty ? 'You have unsaved Master Profile changes. Leave this section and discard them?' : 'You have unsaved resume changes. Leave this section and discard them?')) {
+    if (!await confirmDialog(profileDirty ? 'You have unsaved Master Profile changes. Leave this section and discard them?' : 'You have unsaved resume changes. Leave this section and discard them?',{title:'Discard unsaved changes',confirmLabel:'Discard',tone:'danger'})) {
       event.preventDefault();
       event.stopImmediatePropagation();
       return;

@@ -266,6 +266,48 @@
 #resumeTab .rs-resume-complete-preview .rs-preview-label{display:flex;justify-content:space-between;gap:12px;width:min(100%,8.5in);font-size:10px;color:#777a73}
 #resumeTab .rs-resume-complete-preview .rs-resume-paper{width:min(100%,8.5in);min-height:11in;box-sizing:border-box;box-shadow:0 8px 34px #17181616}
 @media(max-width:600px){#resumeTab .rs-resume-complete-intro h2{font-size:23px}#resumeTab .rs-resume-complete-toolbar{align-items:stretch;flex-direction:column}#resumeTab .rs-resume-complete-actions{display:grid;grid-template-columns:1fr 1fr}#resumeTab .rs-resume-complete-toolbar>button,#resumeTab .rs-resume-complete-actions button{width:100%}#resumeTab .rs-resume-complete-preview .rs-resume-paper{min-height:auto;padding:22px 18px}}
+/* Resume Studio confirmation overlay */
+.rs-confirm-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:20px;background:rgba(24,25,22,.48);backdrop-filter:blur(4px);animation:rsConfirmFade .16s ease-out}
+.rs-confirm-modal{box-sizing:border-box;width:min(440px,100%);padding:28px 28px 22px;border:1px solid #e5e6df;border-radius:18px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.22);color:#252620;text-align:center;animation:rsConfirmRise .18s ease-out}
+.rs-confirm-modal h3{margin:0 0 9px;font:750 20px/1.25 Manrope,'DM Sans',sans-serif;letter-spacing:-.025em}
+.rs-confirm-modal p{margin:0 auto 24px;max-width:360px;color:#6e7169;font:500 13px/1.65 'DM Sans',sans-serif;overflow-wrap:anywhere}
+.rs-confirm-icon{display:grid;place-items:center;width:48px;height:48px;margin:0 auto 17px;border-radius:15px;background:#fff2e7;color:#b95d13;font:800 23px/1 'DM Sans',sans-serif}
+.rs-confirm-modal.is-danger .rs-confirm-icon{background:#fff0ef;color:#c13b32}
+.rs-confirm-modal.is-neutral .rs-confirm-icon{background:#fff4e8;color:#a75a19}
+.rs-confirm-actions{display:flex;justify-content:center;gap:10px}
+.rs-confirm-actions button{min-width:112px;min-height:42px;padding:11px 16px;border-radius:9px;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+.rs-confirm-actions .danger{border:1px solid #c83d34;background:#c83d34;color:#fff}
+.rs-confirm-actions .danger:hover{background:#a92e27;border-color:#a92e27}
+.rs-confirm-actions .primary{border:1px solid #f8831d;background:#f8831d;color:#fff}
+.rs-confirm-actions .primary:hover{background:#df6d0e;border-color:#df6d0e}
+.rs-confirm-actions .secondary{border:1px solid #dedfd9;background:#fff;color:#454740}
+.rs-confirm-actions .secondary:hover{background:#f7f7f3}
+@keyframes rsConfirmFade{from{opacity:0}to{opacity:1}}
+@keyframes rsConfirmRise{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){.rs-confirm-backdrop{padding:14px}.rs-confirm-modal{padding:24px 19px 18px;border-radius:16px}.rs-confirm-actions{display:grid;grid-template-columns:1fr 1fr}.rs-confirm-actions button{min-width:0;width:100%}}
+@media(prefers-reduced-motion:reduce){.rs-confirm-backdrop,.rs-confirm-modal{animation:none}}
+
+/* Resume creation desktop split layout: step navigation left, active form right. */
+#resumeTab .rs-resume-workspace-sequential{display:grid;grid-template-columns:minmax(245px,31%) minmax(0,1fr);gap:24px;max-width:1440px;margin:0 auto;align-items:start}
+#resumeTab .rs-resume-stepper-pane{position:sticky;top:18px;min-width:0}
+#resumeTab .rs-resume-stepper-pane .rs-editor-stepper{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}
+#resumeTab .rs-resume-stepper-pane .rs-editor-step{min-height:76px;padding:14px 15px;gap:14px;border-radius:13px}
+#resumeTab .rs-resume-stepper-pane .rs-editor-step-number{flex-basis:40px;width:40px;height:40px;font-size:13px}
+#resumeTab .rs-resume-stepper-pane .rs-editor-step-copy strong{font-size:14px}
+#resumeTab .rs-resume-stepper-pane .rs-editor-step-copy small{font-size:12px}
+#resumeTab .rs-resume-workspace-sequential .rs-resume-form-pane{min-width:0}
+#resumeTab .rs-resume-workspace-sequential .rs-editor-fields{display:grid;gap:16px}
+@media(max-width:900px){
+ #resumeTab .rs-resume-workspace-sequential{grid-template-columns:minmax(0,1fr);gap:16px}
+ #resumeTab .rs-resume-stepper-pane{position:relative;top:auto}
+ #resumeTab .rs-resume-stepper-pane .rs-editor-stepper{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #resumeTab .rs-resume-stepper-pane .rs-editor-step{min-height:64px;padding:10px;gap:10px}
+ #resumeTab .rs-resume-stepper-pane .rs-editor-step-number{flex-basis:32px;width:32px;height:32px}
+}
+@media(max-width:460px){
+ #resumeTab .rs-resume-stepper-pane .rs-editor-stepper{grid-template-columns:minmax(0,1fr)}
+}
+
 /* Sequential Resume Creation — six-step editor */
 #resumeTab .rs-editor-stepper{display:grid;gap:6px;margin:4px 0 16px}
 #resumeTab .rs-editor-step{display:flex;align-items:center;gap:11px;width:100%;min-width:0;padding:11px 12px;border:1px solid #e2e3dd;border-radius:10px;background:#fff;color:#555950;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
