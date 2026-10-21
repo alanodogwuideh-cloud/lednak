@@ -266,6 +266,15 @@
 #resumeTab .rs-resume-complete-preview .rs-preview-label{display:flex;justify-content:space-between;gap:12px;width:min(100%,8.5in);font-size:10px;color:#777a73}
 #resumeTab .rs-resume-complete-preview .rs-resume-paper{width:min(100%,8.5in);min-height:11in;box-sizing:border-box;box-shadow:0 8px 34px #17181616}
 @media(max-width:600px){#resumeTab .rs-resume-complete-intro h2{font-size:23px}#resumeTab .rs-resume-complete-toolbar{align-items:stretch;flex-direction:column}#resumeTab .rs-resume-complete-actions{display:grid;grid-template-columns:1fr 1fr}#resumeTab .rs-resume-complete-toolbar>button,#resumeTab .rs-resume-complete-actions button{width:100%}#resumeTab .rs-resume-complete-preview .rs-resume-paper{min-height:auto;padding:22px 18px}}
+.rs-name-modal{text-align:left}
+.rs-name-modal .rs-confirm-icon{margin-left:0;font-size:13px;letter-spacing:.02em}
+.rs-name-modal h3{text-align:left}
+.rs-name-modal>p{text-align:left;margin-left:0;margin-right:0;margin-bottom:18px}
+.rs-name-form label{display:block;margin:0 0 7px;color:#60635b;font:700 12px 'DM Sans',sans-serif}
+.rs-name-form input{box-sizing:border-box;width:100%;min-height:46px;margin-bottom:22px;padding:12px 13px;border:1px solid #d8dad3;border-radius:10px;background:#fff;color:#292a25;font:500 14px 'DM Sans',sans-serif;outline:none}
+.rs-name-form input:focus{border-color:#f8831d;box-shadow:0 0 0 3px rgba(248,131,29,.14)}
+.rs-name-form .rs-confirm-actions{justify-content:flex-end}
+
 /* Resume Studio confirmation overlay */
 .rs-confirm-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:20px;background:rgba(24,25,22,.48);backdrop-filter:blur(4px);animation:rsConfirmFade .16s ease-out}
 .rs-confirm-modal{box-sizing:border-box;width:min(440px,100%);padding:28px 28px 22px;border:1px solid #e5e6df;border-radius:18px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.22);color:#252620;text-align:center;animation:rsConfirmRise .18s ease-out}

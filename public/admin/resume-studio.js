@@ -313,8 +313,21 @@
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
+  function requestResumeTitle() {
+    return new Promise(resolve => {
+      const overlay=document.createElement('div');
+      overlay.className='rs-confirm-backdrop';
+      overlay.innerHTML='<section class="rs-confirm-modal is-neutral rs-name-modal" role="dialog" aria-modal="true" aria-labelledby="rsNameTitle"><div class="rs-confirm-icon" aria-hidden="true">CV</div><h3 id="rsNameTitle">Name this resume</h3><p>Choose a clear name so you can find this resume later.</p><form class="rs-name-form"><label for="rsResumeName">Resume name</label><input id="rsResumeName" name="resumeName" type="text" maxlength="120" required value="Product Designer Resume" autocomplete="off"/><div class="rs-confirm-actions"><button type="button" class="secondary" data-name-cancel>Cancel</button><button type="submit" class="primary">Create resume</button></div></form></section>';
+      const input=overlay.querySelector('#rsResumeName');
+      const finish=value=>{overlay.remove();document.removeEventListener('keydown',onKey);resolve(value);};
+      const onKey=event=>{if(event.key==='Escape'){event.preventDefault();finish(null);}};
+      overlay.addEventListener('click',event=>{if(event.target===overlay||event.target.closest('[data-name-cancel]'))finish(null);});
+      overlay.querySelector('form').addEventListener('submit',event=>{event.preventDefault();const value=input.value.trim();if(value)finish(value);else input.focus();});
+      document.addEventListener('keydown',onKey);document.body.appendChild(overlay);input.focus();input.select();
+    });
+  }
   async function createResume() {
-    const title=prompt('Name this resume','Product Designer Resume');
+    const title=await requestResumeTitle();
     if(title===null) return;
     resumeLoading=true; renderResumeView();
     try { currentResume=await api('/admin-resumes',{method:'POST',body:JSON.stringify({title:title.trim()||'Untitled Resume'})}); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; resumeMessage=''; renderResumeView(); }
