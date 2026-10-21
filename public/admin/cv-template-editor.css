@@ -121,6 +121,14 @@
 #cvTemplateWorkspace .cvte-layer-row[draggable="true"]{cursor:grab}
 #cvTemplateWorkspace .cvte-layer-row.is-dragging{cursor:grabbing}
 @media(max-width:720px){#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;overflow-x:auto;max-width:100%}}
+/* Single-level inspector navigation: template appearance lives in Data; no standalone duplicate panel. */
+#cvTemplateWorkspace .cvte-appearance-quick{display:none!important}
+#cvTemplateWorkspace [data-inspector-panel="layeractions"],#cvTemplateWorkspace [data-inspector-toggle="layeractions"]{display:none!important}
+#cvTemplateWorkspace .cvte-template-appearance{display:flex;flex-direction:column;gap:10px;padding:12px;border-bottom:1px solid #e8eaee}
+#cvTemplateWorkspace .cvte-template-appearance h4{margin:0;font-size:12px;font-weight:650;color:#303640}
+#cvTemplateWorkspace .cvte-template-appearance label{display:flex;flex-direction:column;gap:5px;color:#69717d;font-size:10px;font-weight:500}
+#cvTemplateWorkspace .cvte-template-appearance input,#cvTemplateWorkspace .cvte-template-appearance select{width:100%;min-height:32px;box-sizing:border-box;padding:6px 8px;border:1px solid #dfe3e8;border-radius:5px;background:#fff;color:#272c34;font:11px 'DM Sans',Arial,sans-serif}
+#cvTemplateWorkspace .cvte-template-appearance input[type=color]{padding:3px}
 /* Template editor inspector: grouped, collapsible controls. Scoped to the template workspace only. */
 #cvTemplateWorkspace .cvte-inspector{width:100%;min-width:0;color:#252a31;font:12px/1.4 'DM Sans',Arial,sans-serif}
 #cvTemplateWorkspace .cvte-inspector-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #e8eaee}
