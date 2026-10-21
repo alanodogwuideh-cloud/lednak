@@ -17,6 +17,24 @@
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header{background:#f8e9eb;text-align:left;padding:5%;border-radius:5px}
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header h1{color:var(--resume-user-accent,#B65F68)}
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-section h2{display:inline-block;padding:.3em .65em;background:#f8e9eb;color:var(--resume-user-accent,#B65F68);border-radius:3px;border:0}
+#resumeTab .rs-resume-paper.rs-template-t5{--resume-accent:#343A40;font-family:Arial,Helvetica,sans-serif;padding-left:9%;border-left:8px solid var(--resume-user-accent,#343A40)}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-header{text-align:left;padding-bottom:.8em;border-bottom:1px solid #d7d9dc}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-header h1{color:var(--resume-user-accent,#343A40)}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-contact-links{text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-section h2{color:var(--resume-user-accent,#343A40);border-bottom:0;border-left:3px solid var(--resume-user-accent,#343A40);padding-left:.6em}
+#resumeTab .rs-resume-paper.rs-template-t6{--resume-accent:#176B68;font-family:Arial,Helvetica,sans-serif}
+#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header{display:grid;grid-template-columns:minmax(0,1fr);text-align:left;padding-bottom:1em;border-bottom:2px solid var(--resume-user-accent,#176B68)}
+#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header h1{color:var(--resume-user-accent,#176B68);letter-spacing:-.03em}
+#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-section h2{color:var(--resume-user-accent,#176B68);border-bottom:2px solid #d8e8e6}
+#resumeTab .rs-resume-paper.rs-template-t7{--resume-accent:#2857A4;font-family:Georgia,'Times New Roman',serif}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-header{text-align:left;border-bottom:1px solid #b9c9e5;padding-bottom:1em}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-header h1{color:var(--resume-user-accent,#2857A4);font-size:2.6em}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-section h2{color:var(--resume-user-accent,#2857A4);font-family:Arial,Helvetica,sans-serif;letter-spacing:.12em;border-bottom:1px solid #b9c9e5}
+#resumeTab .rs-resume-paper.rs-template-t8{--resume-accent:#222222;font-family:Arial,Helvetica,sans-serif;font-size:clamp(6.8px,.64vw,9.5px);padding:6.5%}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-header{text-align:left;margin-bottom:.8em}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-header h1{font-size:2em;letter-spacing:-.025em}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-section{margin-top:.8em}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-section h2{color:var(--resume-user-accent,#222222);font-size:1em;letter-spacing:.08em;border-bottom:1px solid #777}
 #resumeTab .rs-template-picker{flex-wrap:wrap}
 #resumeTab .rs-template-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 #resumeTab .rs-template-accent{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
