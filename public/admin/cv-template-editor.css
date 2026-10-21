@@ -112,3 +112,12 @@
 #cvTemplateWorkspace .cvte-document-mode-toggle small{font-weight:400;color:#6b7280;line-height:1.45}
 #cvTemplateWorkspace .cvte-adv-propgrid [data-prop=background]{text-transform:lowercase}
 @media(max-width:850px){#cvTemplateWorkspace .cvte-document-mode-toggle{grid-column:auto}}
+/* Requested template-editor-only controls: keep stacking actions accessible after removing single-step reorder controls. */
+#cvTemplateWorkspace .cvte-adv-tools{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+#cvTemplateWorkspace .cvte-adv-tools button{min-width:0;min-height:30px;padding:6px 7px;border:1px solid #dfe3e9;border-radius:5px;background:#fff;color:#303640;font:500 10px 'DM Sans',Arial,sans-serif;cursor:pointer}
+#cvTemplateWorkspace .cvte-adv-tools button:hover{background:#fff1e4;border-color:#F8831D}
+#cvTemplateWorkspace .cvte-adv-tools button:focus-visible{outline:2px solid #F8831D;outline-offset:2px}
+#cvTemplateWorkspace .cvte-component-toolbar{justify-content:flex-start;flex-wrap:wrap;box-sizing:border-box}
+#cvTemplateWorkspace .cvte-layer-row[draggable="true"]{cursor:grab}
+#cvTemplateWorkspace .cvte-layer-row.is-dragging{cursor:grabbing}
+@media(max-width:720px){#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;overflow-x:auto;max-width:100%}}
