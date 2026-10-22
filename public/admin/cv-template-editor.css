@@ -95,7 +95,7 @@
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode{padding:0}
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>:not(.cvte-advanced-layer){display:none!important}
 #cvTemplateWorkspace .cvte-paper.cvte-custom-document-mode>.cvte-advanced-layer{position:relative;inset:auto;display:block;overflow:visible}
-#cvTemplateWorkspace .cvte-advanced-layer{overflow:visible;pointer-events:none}
+#cvTemplateWorkspace .cvte-advanced-layer{overflow:visible;pointer-events:auto;background:transparent}
 #cvTemplateWorkspace .cvte-adv-node{pointer-events:auto;min-width:0;max-width:100%;overflow-wrap:anywhere}
 #cvTemplateWorkspace .cvte-adv-node:not(.is-shape){min-height:0}
 #cvTemplateWorkspace .cvte-adv-node[data-node]{touch-action:none}
