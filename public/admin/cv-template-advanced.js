@@ -23,9 +23,9 @@
     nodes.forEach(n=>{let p=n.parentId,seen=new Set([n.id]);while(p){if(seen.has(p)){n.parentId=null;break}seen.add(p);p=nodes.find(x=>x.id===p)?.parentId||null}});
     selected=nodes[0]?.id||null;history=[];future=[];render();
   }
-  function snapshot(){return {nodes:getLayout(),selected,selectedIds:[...selectedIds]}}
+  function snapshot(){return {nodes:getLayout(),documentLayout:getDocumentLayout(),selected,selectedIds:[...selectedIds]}}
   function remember(){history.push(snapshot());if(history.length>60)history.shift();future=[]}
-  function restore(v){const state=Array.isArray(v)?{nodes:v,selected:null,selectedIds:[]}:v||{};nodes=clone(state.nodes||[]);const ids=new Set(nodes.map(n=>n.id));selected=ids.has(state.selected)?state.selected:nodes[0]?.id||null;selectedIds=new Set((state.selectedIds||[]).filter(id=>ids.has(id)));if(!selectedIds.size&&selected)selectedIds.add(selected);render()}
+  function restore(v){const state=Array.isArray(v)?{nodes:v,selected:null,selectedIds:[]}:v||{};nodes=clone(state.nodes||[]);if(Array.isArray(state.documentLayout))documentLayout=state.documentLayout.filter((x,i,a)=>allowedSections.includes(x)&&a.indexOf(x)===i);const ids=new Set(nodes.map(n=>n.id));selected=ids.has(state.selected)?state.selected:nodes[0]?.id||null;selectedIds=new Set((state.selectedIds||[]).filter(id=>ids.has(id)));if(!selectedIds.size&&selected)selectedIds.add(selected);render()}
   const nodeById=id=>nodes.find(n=>n.id===id);
   const childrenOf=id=>nodes.filter(n=>(n.parentId||null)===(id||null)).sort((a,b)=>(Number(a.layer)||0)-(Number(b.layer)||0));
   function descendants(id){const out=[];const walk=pid=>childrenOf(pid).forEach(n=>{out.push(n.id);if(n.type==='container')walk(n.id)});walk(id);return out}
