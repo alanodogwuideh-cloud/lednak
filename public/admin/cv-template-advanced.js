@@ -326,7 +326,7 @@
     if(mod&&key==='g'){e.preventDefault();if(e.shiftKey)ungroupSelected();else groupSelected();return}
     if(mod&&key==='d'){e.preventDefault();duplicateSelected();return}
     if(mod&&key==='c'&&(selected||selectedIds.size)){e.preventDefault();copySelected();return}
-    if(mod&&key==='x'){if(selected||selectedIds.size){e.preventDefault();copySelected();remember();const ids=new Set(selectedIds);if(selected)ids.add(selected);ids.forEach(removeNode);selectedIds.clear();selected=null;render()}return}if(mod&&key==='v'&&copiedNodes?.length){e.preventDefault();pasteCopied();return}
+    if(mod&&key==='x'){if(selected||selectedIds.size){e.preventDefault();copySelected();deleteSelected()}return}if(mod&&key==='v'&&copiedNodes?.length){e.preventDefault();pasteCopied();return}
     if(mod&&e.key==='['){e.preventDefault();reorderSelected('back');return}
     if(mod&&e.key===']'){e.preventDefault();reorderSelected('front');return}
     if(!mod&&['Delete','Backspace'].includes(e.key)&&(selected||selectedIds.size)){e.preventDefault();deleteSelected();return}
