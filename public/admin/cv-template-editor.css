@@ -121,6 +121,12 @@
 #cvTemplateWorkspace .cvte-layer-row[draggable="true"]{cursor:grab}
 #cvTemplateWorkspace .cvte-layer-row.is-dragging{cursor:grabbing}
 @media(max-width:720px){#cvTemplateWorkspace .cvte-component-toolbar{flex-wrap:nowrap;overflow-x:auto;max-width:100%}}
+/* Canvas zoom controls: editor-only, non-document UI. */
+#cvTemplateWorkspace .cvte-zoom-controls{display:flex;align-items:center;gap:3px;margin-left:auto;padding:2px 4px;border:1px solid #e1e4e9;border-radius:7px;background:#fff;white-space:nowrap}
+#cvTemplateWorkspace .cvte-zoom-controls button{min-width:27px;height:25px;padding:2px 6px;border:0;border-radius:4px;background:transparent;color:#303640;font:600 10px 'DM Sans',Arial,sans-serif;cursor:pointer}
+#cvTemplateWorkspace .cvte-zoom-controls button:hover{background:#fff1e4;color:#a84b08}
+#cvTemplateWorkspace .cvte-zoom-controls output{min-width:36px;text-align:center;color:#626b78;font:500 10px 'DM Sans',Arial,sans-serif}
+#cvTemplateWorkspace .cvte-zoom-controls button:focus-visible{outline:2px solid #F8831D;outline-offset:1px}
 /* Single-level inspector navigation: template appearance lives in Data; no standalone duplicate panel. */
 #cvTemplateWorkspace .cvte-appearance-quick{display:none!important}
 #cvTemplateWorkspace .cvte-inspector-title,#cvTemplateWorkspace .cvte-inspector-subtitle,#cvTemplateWorkspace .cvte-inspector-placeholder{display:none!important}
