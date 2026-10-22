@@ -1,6 +1,6 @@
 (() => {
  const templates = {
-  t1:{name:'New York',className:'rs-template-t1',accent:'#222222',pageSize:'letter',layout:'labels-left'},
+  t1:{name:'New York',className:'rs-template-t1',accent:'#23395B',pageSize:'a4',layout:'standard'},
   t2:{name:'Paris',className:'rs-template-t2',accent:'#174879',pageSize:'letter',layout:'banner'},
   t3:{name:'Toronto',className:'rs-template-t3',accent:'#A65F64',pageSize:'letter',layout:'editorial'},
   t4:{name:'Chicago',className:'rs-template-t4',accent:'#4F83BD',pageSize:'letter',layout:'banner'},
