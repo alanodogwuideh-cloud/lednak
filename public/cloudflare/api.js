@@ -1358,7 +1358,6 @@ export async function handleCloudflareApi(request, env) {
             const body = await request.json().catch(() => ({}));
             const { template_id, resume_data, user_id } = body;
 
-            // Master Batch Template Import Loop Engine
             const [
               { renderLeftRailClassic },
               { renderBurgundyClassic },
@@ -1388,33 +1387,33 @@ export async function handleCloudflareApi(request, env) {
               { renderPureCompact },
               { renderBlueMinimalist }
             ] = await Promise.all([
-              import('../src/templates/left-rail-classic.js'),
-              import('../src/templates/burgundy-classic.js'),
-              import('../src/templates/ledger.js'),
-              import('../src/templates/blush-blocks.js'),
-              import('../src/templates/charcoal-sidebar.js'),
-              import('../src/templates/teal-contemporary.js'),
-              import('../src/templates/blue-editorial.js'),
-              import('../src/templates/monochrome-compact.js'),
-              import('../src/templates/modern-minimalist.js'),
-              import('../src/templates/executive-serif.js'),
-              import('../src/templates/navy-banner.js'),
-              import('../src/templates/burgundy-block-classic.js'),
-              import('../src/templates/emerald-contemporary.js'),
-              import('../src/templates/slate-minimalist.js'),
-              import('../src/templates/charcoal-classic.js'),
-              import('../src/templates/corporate-ledger.js'),
-              import('../src/templates/minimal-blush.js'),
-              import('../src/templates/premium-teal-banner.js'),
-              import('../src/templates/slate-editorial.js'),
-              import('../src/templates/dense-monochrome.js'),
-              import('../src/templates/steel-sidebar.js'),
-              import('../src/templates/midnight-minimal.js'),
-              import('../src/templates/bold-executive.js'),
-              import('../src/templates/classic-navy.js'),
-              import('../src/templates/burgundy-editorial.js'),
-              import('../src/templates/pure-compact.js'),
-              import('../src/templates/blue-minimalist.js')
+              import('../../src/templates/left-rail-classic.js'),
+              import('../../src/templates/burgundy-classic.js'),
+              import('../../src/templates/ledger.js'),
+              import('../../src/templates/blush-blocks.js'),
+              import('../../src/templates/charcoal-sidebar.js'),
+              import('../../src/templates/teal-contemporary.js'),
+              import('../../src/templates/blue-editorial.js'),
+              import('../../src/templates/monochrome-compact.js'),
+              import('../../src/templates/modern-minimalist.js'),
+              import('../../src/templates/executive-serif.js'),
+              import('../../src/templates/navy-banner.js'),
+              import('../../src/templates/burgundy-block-classic.js'),
+              import('../../src/templates/emerald-contemporary.js'),
+              import('../../src/templates/slate-minimalist.js'),
+              import('../../src/templates/charcoal-classic.js'),
+              import('../../src/templates/corporate-ledger.js'),
+              import('../../src/templates/minimal-blush.js'),
+              import('../../src/templates/premium-teal-banner.js'),
+              import('../../src/templates/slate-editorial.js'),
+              import('../../src/templates/dense-monochrome.js'),
+              import('../../src/templates/steel-sidebar.js'),
+              import('../../src/templates/midnight-minimal.js'),
+              import('../../src/templates/bold-executive.js'),
+              import('../../src/templates/classic-navy.js'),
+              import('../../src/templates/burgundy-editorial.js'),
+              import('../../src/templates/pure-compact.js'),
+              import('../../src/templates/blue-minimalist.js')
             ]);
 
             const templatesRegistry = {
