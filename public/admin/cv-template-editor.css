@@ -310,6 +310,17 @@
 #cvTemplateWorkspace .cvte-inspector-grid .cvte-select-chevron,
 #cvTemplateWorkspace .cvte-select-control>.cvte-select-chevron{display:none!important}
 #cvTemplateWorkspace .cvte-adv-propgrid select::-ms-expand{display:none!important}
+/* Definitive arrow removal: older inspector rules draw SVG arrows on label>select elements too. */
+#cvTemplateWorkspace .cvte-inspector-grid label>select,
+#cvTemplateWorkspace .cvte-inspector-full>select,
+#cvTemplateWorkspace .cvte-inspector-content label>select,
+#cvTemplateWorkspace .cvte-template-appearance label>select,
+#cvTemplateWorkspace .cvte-adv-propgrid select{appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;background-image:none!important;background:none!important;padding-right:9px!important}
+#cvTemplateWorkspace .cvte-inspector-grid label>select::-ms-expand,
+#cvTemplateWorkspace .cvte-inspector-full>select::-ms-expand,
+#cvTemplateWorkspace .cvte-inspector-content label>select::-ms-expand,
+#cvTemplateWorkspace .cvte-template-appearance label>select::-ms-expand,
+#cvTemplateWorkspace .cvte-adv-propgrid select::-ms-expand{display:none!important}
 .cvte-inspector-grid .cvte-color-field,.cvte-inspector-content .cvte-color-field{height:30px!important;min-height:30px!important;max-height:30px!important;display:flex!important;align-items:center!important;gap:7px!important;padding:0 5px!important;box-sizing:border-box!important}
 .cvte-inspector-grid .cvte-color-field input[type=color],.cvte-inspector-content .cvte-color-field input[type=color]{appearance:none!important;-webkit-appearance:none!important;flex:0 0 18px!important;width:18px!important;min-width:18px!important;height:18px!important;min-height:18px!important;max-height:18px!important;margin:0!important;padding:0!important;border-radius:6px!important;align-self:center!important;box-sizing:border-box!important}
 .cvte-inspector-grid .cvte-color-field input[data-color-hex],.cvte-inspector-content .cvte-color-field input[data-color-hex]{flex:1 1 auto!important;width:0!important;height:18px!important;min-height:18px!important;max-height:18px!important;line-height:18px!important;font:12px/18px 'DM Sans',Arial,sans-serif!important;margin:0!important;padding:0!important;box-sizing:border-box!important;align-self:center!important}
