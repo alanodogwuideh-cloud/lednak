@@ -309,6 +309,8 @@
 #cvTemplateWorkspace .cvte-appearance-controls>.cvte-appearance-field{gap:4px!important;align-self:start!important}
 #cvTemplateWorkspace .cvte-appearance-controls>.cvte-appearance-field>span:first-child{height:18px!important;min-height:18px!important;line-height:18px!important;margin:0 0 2px!important;padding:0!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input{height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important}
-#cvTemplateWorkspace .cvte-appearance-controls .cvte-radius-link{align-self:center!important;margin:0 2px 0 0!important;flex:0 0 24px!important;width:24px!important;height:26px!important;min-height:26px!important;box-sizing:border-box!important;border-radius:6px!important}
-#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link){padding:0 2px 0 8px!important;gap:4px!important;overflow:hidden!important}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-radius-link{align-self:center!important;margin:0!important;padding:0!important;flex:0 0 24px!important;width:24px!important;height:26px!important;min-height:26px!important;box-sizing:border-box!important;border-radius:6px!important}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link){padding:0!important;gap:4px!important;overflow:hidden!important}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>.cvte-radius-link{margin-right:0!important;right:0!important}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>input{padding-left:8px!important;padding-right:0!important;min-width:0!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>input{height:28px!important;min-height:0!important;align-self:center!important}

@@ -47,7 +47,7 @@
     if(key==='parentId'){const target=value?nodeById(value):null;if(target&&(target.type!=='container'||target.id===n.id||descendants(n.id).includes(target.id)))return;n.parentId=target?.id||null;n.x=0;n.y=0;n.layer=childrenOf(n.parentId).length*10;render();return}
     if(key==='type'&&value==='container'&&n.type!=='container'){n.type='container';n.layout='vertical';n.text=''}
     else n[key]=value;
-    if(key==='radius') {['radiusTopLeft','radiusTopRight','radiusBottomLeft','radiusBottomRight'].forEach(k=>n[k]=value)}
+    if(key==='radius') {['radiusTopLeft','radiusTopRight','radiusBottomLeft','radiusBottomRight'].forEach(k=>{n[k]=value;const individual=w.querySelector('[data-prop="'+k+'"]');if(individual)individual.value=String(value)})}
     if(/^radius(TopLeft|TopRight|BottomLeft|BottomRight)$/.test(key)){n.radiusCornersExpanded=true}
     renderPreview();
   }
