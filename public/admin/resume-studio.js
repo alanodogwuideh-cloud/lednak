@@ -721,7 +721,21 @@
     const picker = event.target.closest('[data-resume-template],[data-resume-accent],[data-resume-page-size]');
     if (!picker || !currentResume) return;
     currentResume.content ||= {};
-    if (picker.matches('[data-resume-template]')) { const custom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===picker.value); currentResume.content.template = custom ? 'custom:'+custom.id : (['t1','t2','t3','t4','t5','t6','t7','t8','classic','modern','minimal','executive'].includes(picker.value) ? picker.value : 'classic'); if(custom){currentResume.content.accent=custom.config?.accent||'#F8831D';currentResume.content.pageSize=custom.config?.pageSize||'letter';} }
+    if (picker.matches('[data-resume-template]')) { 
+      const custom = window.CustomResumeTemplates?.find(t => 'custom:' + t.id === picker.value); 
+      
+      // Master verification mapping list array for your 27 new premium decoupling IDs
+      const validStudioTemplates = [
+        'left-rail-classic', 'burgundy-classic', 'ledger', 'blush-blocks', 
+        'charcoal-sidebar', 'teal-contemporary', 'blue-editorial', 'monochrome-compact', 
+        'modern-minimalist', 'executive-serif', 'navy-banner', 'burgundy-block-classic', 
+        'emerald-contemporary', 'slate-minimalist', 'charcoal-classic', 'corporate-ledger', 
+        'minimal-blush', 'premium-teal-banner', 'slate-editorial', 'dense-monochrome', 
+        'steel-sidebar', 'midnight-minimal', 'bold-executive', 'classic-navy', 
+        'burgundy-editorial', 'pure-compact', 'blue-minimalist'
+      ];
+
+      currentResume.content.template = custom ? 'custom:' + custom.id : (validStudioTemplates.includes(picker.value) ? picker.value : 'left-rail-classic');
     if (picker.matches('[data-resume-accent]')) currentResume.content.accent = /^#[0-9a-fA-F]{6}$/.test(picker.value)?picker.value:'#23395B';
     if (picker.matches('[data-resume-page-size]')) currentResume.content.pageSize = picker.value==='a4'?'a4':'letter';
     const paper = root.querySelector('#rsResumePreview');
