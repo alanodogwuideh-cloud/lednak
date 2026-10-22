@@ -184,8 +184,8 @@
     const children=Array.from(p.children).filter(el=>el!==layer),firstSection=children.findIndex(el=>el.tagName==='H3');
     if(firstSection>=0){const header=children.slice(0,firstSection),groups=[];let group=null;children.slice(firstSection).forEach(el=>{if(el.tagName==='H3'){group={key:({'Professional Summary':'summary','Experience':'experience','Skills':'skills','Education':'education'}[el.textContent.trim()]||el.textContent.trim().toLowerCase()),els:[]};groups.push(group)}if(group)group.els.push(el)});const rank=key=>{const i=documentLayout.indexOf(key);return i<0?999:i};groups.sort((a,b)=>rank(a.key)-rank(b.key));const frag=document.createDocumentFragment();header.concat(...groups.map(g=>g.els)).forEach(el=>frag.appendChild(el));p.appendChild(frag)}
     layer.innerHTML=childrenOf(null).map(n=>renderNode(n,null,sampleData,null,false)).join('');
+    if(!layer.dataset.frameContextBound){layer.dataset.frameContextBound='1';layer.addEventListener('contextmenu',e=>{const el=e.target.closest('[data-node]');if(!el||!layer.contains(el))return;e.preventDefault();e.stopPropagation();const id=el.dataset.node;if(!selectedIds.has(id)){selected=id;selectedIds=new Set([id])}else selected=id;render();showContextMenu(e)},true)}
     layer.querySelectorAll('[data-node]').forEach(el=>{
-      el.addEventListener('contextmenu',e=>{e.preventDefault();const id=el.dataset.node;if(!selectedIds.has(id)){selected=id;selectedIds=new Set([id])}else selected=id;render();showContextMenu(e)});
       el.addEventListener('pointerdown',e=>{
         if(e.target.closest('[data-node]')!==el)return;
         const n=nodeById(el.dataset.node);if(!n)return;selected=n.id;
