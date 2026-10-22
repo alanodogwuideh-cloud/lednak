@@ -5,7 +5,7 @@
   const colorWithOpacity=(v,opacity)=>{const c=safeColor(v),a=Math.max(0,Math.min(100,Number(opacity??100)))/100;return 'rgba('+parseInt(c.slice(1,3),16)+','+parseInt(c.slice(3,5),16)+','+parseInt(c.slice(5,7),16)+','+a+')'};
   const safeImageUrl=v=>{const s=String(v??'').trim();return /^https?:\/\//i.test(s)||/^data:image\/(png|jpeg|webp|gif);base64,/i.test(s)?s:''};
   const allowedSections=['summary','experience','education','skills','projects','certifications','languages','references'];
-  let nodes=[],selected=null,history=[],future=[],drag=null,drawingTool=null,drawGesture=null,documentLayout=allowedSections.slice(),activeInspectorTab='design';
+  let nodes=[],selected=null,selectedIds=new Set(),history=[],future=[],drag=null,drawingTool=null,drawGesture=null,documentLayout=allowedSections.slice(),activeInspectorTab='design';
   const collapsedLayers=new Set();
   const workspace=()=>document.getElementById('cvTemplateWorkspace');
   const paper=()=>workspace()?.querySelector('.cvte-paper');
@@ -185,6 +185,7 @@
     if(firstSection>=0){const header=children.slice(0,firstSection),groups=[];let group=null;children.slice(firstSection).forEach(el=>{if(el.tagName==='H3'){group={key:({'Professional Summary':'summary','Experience':'experience','Skills':'skills','Education':'education'}[el.textContent.trim()]||el.textContent.trim().toLowerCase()),els:[]};groups.push(group)}if(group)group.els.push(el)});const rank=key=>{const i=documentLayout.indexOf(key);return i<0?999:i};groups.sort((a,b)=>rank(a.key)-rank(b.key));const frag=document.createDocumentFragment();header.concat(...groups.map(g=>g.els)).forEach(el=>frag.appendChild(el));p.appendChild(frag)}
     layer.innerHTML=childrenOf(null).map(n=>renderNode(n,null,sampleData,null,false)).join('');
     layer.querySelectorAll('[data-node]').forEach(el=>{
+      el.addEventListener('contextmenu',e=>{e.preventDefault();selected=el.dataset.node;render();showContextMenu(e)});
       el.addEventListener('pointerdown',e=>{
         if(e.target.closest('[data-node]')!==el)return;
         const n=nodeById(el.dataset.node);if(!n)return;selected=n.id;
@@ -224,7 +225,7 @@
         render();
       };
       el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
-      el.addEventListener('click',e=>{if(e.target.closest('[data-node]')!==el)return;selected=el.dataset.node;render()});
+      el.addEventListener('click',e=>{if(e.target.closest('[data-node]')!==el)return;const id=el.dataset.node;if(e.shiftKey){if(selectedIds.has(id))selectedIds.delete(id);else selectedIds.add(id);selected=id}else{selected=id;selectedIds=new Set([id])}render()});
     });
   }
   const observer=new MutationObserver(()=>{if(workspace()&&!workspace().hidden&&!workspace().querySelector('#cvteAdvancedPanel'))render()});
@@ -285,6 +286,9 @@
     nodes.push(...copies);selected=copies[0].id;render();
   }
   function copySelected(){const copies=cloneSubtree(selected);if(copies?.length)copiedNodes=copies;}
+  function groupSelected(){const n=nodeById(selected);if(!n)return;const ids=new Set(selectedIds.size>1?selectedIds:[selected]);const items=nodes.filter(x=>ids.has(x.id));if(items.length<2||items.some(x=>(x.parentId||null)!==(n.parentId||null)))return;remember();const minX=Math.min(...items.map(x=>Number(x.x)||0));const minY=Math.min(...items.map(x=>Number(x.y)||0));const maxX=Math.max(...items.map(x=>(Number(x.x)||0)+(Number(x.w)||0)));const maxY=Math.max(...items.map(x=>(Number(x.y)||0)+(Number(x.h)||0)));const group={...defaults('container'),id:makeId(),name:'Frame',parentId:n.parentId||null,type:'container',layout:'free',positionMode:'absolute',x:minX,y:minY,w:Math.max(2,maxX-minX),h:Math.max(.5,maxY-minY),background:'transparent',color:'#24272c',borderColor:'#D5DAE2',borderWeight:0,layer:Math.min(...items.map(x=>Number(x.layer)||0))};items.forEach(ch=>{ch.parentId=group.id;ch.positionMode='absolute';ch.x=Math.max(0,(Number(ch.x)||0)-minX);ch.y=Math.max(0,(Number(ch.y)||0)-minY)});nodes.push(group);selected=group.id;selectedIds=new Set([group.id]);render()}
+  function ungroupSelected(){const n=nodeById(selected);if(!n||n.type!=='container')return;const kids=childrenOf(n.id);if(!kids.length)return;remember();kids.forEach(ch=>{ch.parentId=n.parentId||null;ch.x=(Number(ch.x)||0)+(Number(n.x)||0);ch.y=(Number(ch.y)||0)+(Number(n.y)||0);ch.positionMode='absolute';});nodes=nodes.filter(x=>x.id!==n.id);selected=kids[0].id;render();}
+  function showContextMenu(e){const n=nodeById(selected);if(!n)return;let menu=w.querySelector('#cvteLayerContextMenu');if(!menu){menu=document.createElement('div');menu.id='cvteLayerContextMenu';menu.className='cvte-layer-context-menu';menu.style.cssText='position:fixed;z-index:99999;background:#fff;border:1px solid #d9dee7;border-radius:8px;box-shadow:0 8px 28px #18223024;padding:4px;min-width:150px;font:12px DM Sans,Arial,sans-serif';document.body.appendChild(menu)}menu.innerHTML='<button data-cmd="group">Group selection</button><button data-cmd="ungroup">Ungroup frame</button>';menu.querySelectorAll('button').forEach(b=>{b.style.cssText='display:block;width:100%;border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:5px;cursor:pointer;font:inherit';b.disabled=b.dataset.cmd==='group'?childrenOf(n.parentId).length<2:n.type!=='container'||!childrenOf(n.id).length;b.onclick=()=>{menu.remove();b.dataset.cmd==='group'?groupSelected():ungroupSelected()}});menu.style.left=Math.max(8,Math.min(e.clientX,innerWidth-170))+'px';menu.style.top=Math.max(8,Math.min(e.clientY,innerHeight-90))+'px';}
   function pasteCopied(){
     if(!copiedNodes?.length)return;
     const source=copiedNodes,oldRoot=source[0],newRootId=makeId(),map=new Map(source.map((n,i)=>[n.id,i===0?newRootId:makeId()]));
@@ -298,10 +302,11 @@
     const t=e.target,tag=(t?.tagName||'').toLowerCase(),typing=t?.isContentEditable||['input','textarea','select'].includes(tag);
     const mod=e.metaKey||e.ctrlKey,key=String(e.key||'').toLowerCase();
     const act=name=>{const b=w.querySelector('#cvteAdvancedPanel [data-action="'+name+'"]');if(b)b.click()};
-    if(typing)return;
+    if(typing&&!mod&&!['Escape','Delete','Backspace','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
     if(mod&&key==='z'){e.preventDefault();act(e.shiftKey?'redo':'undo');return}
     if(mod&&key==='y'){e.preventDefault();act('redo');return}
     if(mod&&key==='s')return;
+    if(mod&&key==='g'){e.preventDefault();if(e.shiftKey)ungroupSelected();else groupSelected();return}
     if(mod&&key==='d'){e.preventDefault();duplicateSelected();return}
     if(mod&&key==='c'&&selected){e.preventDefault();copySelected();return}
     if(mod&&key==='v'&&copiedNodes){e.preventDefault();pasteCopied();return}
