@@ -1361,9 +1361,12 @@ export async function handleCloudflareApi(request, env) {
             // Import Template #1 module dynamically from your source directory
             const { renderLeftRailClassic } = await import('../src/templates/left-rail-classic.js');
             const { renderBurgundyClassic } = await import('../src/templates/burgundy-classic.js');
+            const { renderLedger } = await import('../src/templates/ledger.js');
+            
             const templatesRegistry = { 
               'left-rail-classic': renderLeftRailClassic,
-              'burgundy-classic': renderBurgundyClassic 
+              'burgundy-classic': renderBurgundyClassic
+              'ledger': renderLedger
             };
             const renderer = templatesRegistry[template_id] || templatesRegistry['left-rail-classic'];
             
