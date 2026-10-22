@@ -333,6 +333,7 @@
     if(mod&&e.key===']'){e.preventDefault();reorderSelected('front');return}
     if(!mod&&['Delete','Backspace'].includes(e.key)&&(selected||selectedIds.size)){e.preventDefault();deleteSelected();return}
     if(!mod&&!e.altKey){
+      if(['+','=','-','0','1'].includes(e.key)){const bar=w.querySelector('.cvte-component-toolbar');const action=e.key==='+'||e.key==='='?'in':e.key==='-'?'out':e.key==='0'?'fit':'reset',button=bar?.querySelector('[data-zoom="'+action+'"]');if(button){e.preventDefault();button.click();return}}
       if(key==='v'){e.preventDefault();drawingTool=null;const p=paper();if(p)p.style.cursor='default';const hint=w.querySelector('.cvte-toolbar-hint');if(hint)hint.textContent='Select and edit components on the canvas';return}
       if(key==='t'){e.preventDefault();add('text');return}
       if(key==='f'){e.preventDefault();add('field');return}
