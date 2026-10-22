@@ -38,6 +38,11 @@
 @media(max-width:850px){#cvTemplateWorkspace .cvte-grid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child{grid-template-columns:minmax(0,1fr)}#cvTemplateWorkspace .cvte-grid>.cvte-panel:last-child>.section-head,#cvTemplateWorkspace .cvte-preview-wrap,#cvTemplateWorkspace .cvte-advanced{grid-column:1;grid-row:auto}#cvTemplateWorkspace .cvte-advanced{border-left:0;border-top:1px solid #e1e4e9;padding:14px 0 0}#cvTemplateWorkspace .cvte-adv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#cvTemplateWorkspace .cvte-paper{min-height:800px}}
 @media(max-width:560px){#cvTemplateWorkspace .cvte-adv-body,#cvTemplateWorkspace .cvte-adv-propgrid{grid-template-columns:1fr}#cvTemplateWorkspace .cvte-paper{padding:28px 22px;min-height:700px}#cvTemplateWorkspace .cvte-adv-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){#cvTemplateWorkspace *{scroll-behavior:auto!important;transition:none!important}}
+/* Right-click editor menus scroll internally when needed, without a visible scrollbar. */
+#cvteLayerContextMenu{scrollbar-width:none!important;-ms-overflow-style:none!important;overscroll-behavior:contain!important;padding:8px 6px!important;box-sizing:border-box!important}
+#cvteLayerContextMenu::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+#cvteLayerContextMenu>button{padding:9px 12px!important;min-height:34px!important;box-sizing:border-box!important}
+#cvteLayerContextMenu>hr{margin:5px 3px!important;border:0!important;border-top:1px solid #e8ebf0!important}
 /* Complete replacement workspace: compact app chrome, dedicated toolbar, wide canvas and contextual side panels. */
 #cvTemplateWorkspace{position:fixed;inset:0;z-index:9100;padding:0;background:#eef0f3;color:#252a32;font:13px/1.4 'DM Sans',Arial,sans-serif;overflow:hidden}
 #cvTemplateWorkspace[hidden]{display:none!important}#cvTemplateWorkspace .cvte-shell{height:100%;max-width:none;margin:0;display:flex;flex-direction:column;gap:0;min-height:0}
