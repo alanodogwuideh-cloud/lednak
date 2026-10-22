@@ -99,7 +99,7 @@
 #cvTemplateWorkspace .cvte-adv-node{pointer-events:auto;min-width:0;max-width:100%;overflow-wrap:anywhere}
 #cvTemplateWorkspace .cvte-adv-node:not(.is-shape){min-height:0}
 #cvTemplateWorkspace .cvte-adv-node[data-node]{touch-action:none}
-#cvTemplateWorkspace .cvte-auto-content{min-width:0;max-width:100%;overflow:visible}
+#cvTemplateWorkspace .cvte-auto-content{min-width:0;max-width:100%;overflow:visible;border:0!important;border-radius:0!important}
 #cvTemplateWorkspace .cvte-repeat-item{display:flex;flex-direction:column;gap:4px;min-width:0}
 #cvTemplateWorkspace .cvte-container-empty{min-height:32px;display:flex;align-items:center;justify-content:center;color:#8a919c;font-size:11px}
 #cvTemplateWorkspace .cvte-layer-row{min-width:0}
