@@ -1360,7 +1360,11 @@ export async function handleCloudflareApi(request, env) {
 
             // Import Template #1 module dynamically from your source directory
             const { renderLeftRailClassic } = await import('../src/templates/left-rail-classic.js');
-            const templatesRegistry = { 'left-rail-classic': renderLeftRailClassic };
+            const { renderBurgundyClassic } = await import('../src/templates/burgundy-classic.js');
+            const templatesRegistry = { 
+              'left-rail-classic': renderLeftRailClassic,
+              'burgundy-classic': renderBurgundyClassic 
+            };
             const renderer = templatesRegistry[template_id] || templatesRegistry['left-rail-classic'];
             
             // Build the pixel-perfect HTML template with the injected data
