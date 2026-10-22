@@ -1353,6 +1353,53 @@ export async function handleCloudflareApi(request, env) {
         if (!auth.ok) return route === 'admin-resume-studio' ? resumeStudioCors(json({ error: auth.error }, auth.status), request) : json({ error: auth.error }, auth.status);
         if (route === 'admin-projects') return await adminProjects(request, env, auth);
         if (route === 'admin-case-study') return await adminCaseStudy(request, env, auth);
+        if (route === 'build-resume' && method === 'POST') {
+          try {
+            const body = await request.json().catch(() => ({}));
+            const { template_id, resume_data, user_id } = body;
+
+            // Import Template #1 module dynamically from your source directory
+            const { renderLeftRailClassic } = await import('../src/templates/left-rail-classic.js');
+            const templatesRegistry = { 'left-rail-classic': renderLeftRailClassic };
+            const renderer = templatesRegistry[template_id] || templatesRegistry['left-rail-classic'];
+            
+            // Build the pixel-perfect HTML template with the injected data
+            const finalHtml = renderer(resume_data || {});
+
+            // Optional transaction logging to your Turso DB database
+            if (env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN) {
+              try {
+                const recordId = crypto.randomUUID();
+                await tursoQuery(env, "INSERT INTO resumes (id, user_id, template_id, resume_data) VALUES (\$1, \$2, \$3, \$4)", [
+                  recordId, user_id || 'anonymous', template_id || 'left-rail-classic', JSON.stringify(resume_data || {})
+                ]);
+              } catch (dbErr) {
+                console.error("Turso DB logging failed:", dbErr.message);
+              }
+            }
+
+            // Optional static backup snapshot saved to your Cloudflare R2 Storage Bucket
+            if (env.R2_BUCKET) {
+              try {
+                const snapshotId = crypto.randomUUID();
+                await env.R2_BUCKET.put(`resumes/${snapshotId}.html`, finalHtml, {
+                  customMetadata: { "Content-Type": "text/html" }
+                });
+              } catch (r2Err) {
+                console.error("R2 Storage snapshot write failed:", r2Err.message);
+              }
+            }
+
+            // Return the compiled markup canvas straight back to the frontend frame
+            return resumeStudioCors(new Response(finalHtml, {
+              status: 200,
+              headers: { "Content-Type": "text/html; charset=utf-8" }
+            }), request);
+
+          } catch (err) {
+            return resumeStudioCors(json({ error: err.message }, 500), request);
+          }
+        }
         if (route === 'admin-settings') return await adminSettings(request, env);
         if (route === 'admin-resume-profile') return await adminResumeProfile(request, env);
         if (route === 'admin-resumes') return await adminResumes(request, env);
