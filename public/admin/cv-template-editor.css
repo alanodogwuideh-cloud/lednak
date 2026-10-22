@@ -343,3 +343,12 @@
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>.cvte-radius-link{margin-right:0!important;right:0!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>input{padding-left:8px!important;padding-right:0!important;min-width:0!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input:has(.cvte-radius-link)>input{height:28px!important;min-height:0!important;align-self:center!important}
+/* Layer-tree quick actions: compact, accessible visibility and lock toggles. */
+#cvTemplateWorkspace .cvte-layer-line{display:flex;align-items:center;gap:3px;min-width:0}
+#cvTemplateWorkspace .cvte-layer-line>.cvte-adv-item{flex:1 1 auto;min-width:0}
+#cvTemplateWorkspace .cvte-layer-quick-action{flex:0 0 24px;width:24px;height:26px;min-height:26px;padding:0;border:1px solid transparent;border-radius:5px;background:transparent;color:#68717d;font:12px/1 'DM Sans',Arial,sans-serif;cursor:pointer;display:grid;place-items:center}
+#cvTemplateWorkspace .cvte-layer-quick-action:hover{border-color:#f2c49d;background:#fff8f1;color:#9a4b0a}
+#cvTemplateWorkspace .cvte-layer-quick-action:focus-visible{outline:2px solid #F8831D;outline-offset:1px}
+#cvTemplateWorkspace .cvte-layer-row.is-hidden-layer>.cvte-layer-line>.cvte-adv-item{opacity:.55}
+#cvTemplateWorkspace .cvte-layer-row.is-locked-layer>.cvte-layer-line>.cvte-adv-item{color:#747b84}
+@media(max-width:560px){#cvTemplateWorkspace .cvte-layer-quick-action{flex-basis:22px;width:22px}}
