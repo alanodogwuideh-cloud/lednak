@@ -670,7 +670,7 @@
     const picker = event.target.closest('[data-resume-template],[data-resume-accent],[data-resume-page-size]');
     if (!picker || !currentResume) return;
     currentResume.content ||= {};
-    if (picker.matches('[data-resume-template]')) { const custom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===picker.value); currentResume.content.template = custom ? 'custom:'+custom.id : (/^t(?:[1-9]|1[0-9]|2[0-7])$/.test(picker.value) ? picker.value : 't1'); if(custom){currentResume.content.accent=custom.config?.accent||'#F8831D';currentResume.content.pageSize=custom.config?.pageSize||'letter';} }
+    if (picker.matches('[data-resume-template]')) { const custom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===picker.value); const coreId=/^t(?:[1-9]|1[0-9]|2[0-7])$/.test(picker.value)?picker.value:'t1'; currentResume.content.template = custom ? 'custom:'+custom.id : coreId; if(custom){currentResume.content.accent=custom.config?.accent||'#F8831D';currentResume.content.pageSize=custom.config?.pageSize||'letter';} else { const defaults=window.ResumeTemplates?.get(coreId); if(defaults){currentResume.content.accent=defaults.accent||'#23395B';currentResume.content.pageSize=defaults.pageSize==='a4'?'a4':'letter';} } }
     if (picker.matches('[data-resume-accent]')) currentResume.content.accent = /^#[0-9a-fA-F]{6}$/.test(picker.value)?picker.value:'#23395B';
     if (picker.matches('[data-resume-page-size]')) currentResume.content.pageSize = picker.value==='a4'?'a4':'letter';
     const paper = root.querySelector('#rsResumePreview');
