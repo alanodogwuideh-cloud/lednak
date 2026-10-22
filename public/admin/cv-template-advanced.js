@@ -148,8 +148,8 @@
   function childStyle(n,isRoot,parent){
     const flow=!!parent&&parent.type==='container'&&parent.layout!=='free'&&n.positionMode!=='absolute';
     const documentRoot=!parent&&n.positionMode==='document';
-    const position=documentRoot||flow?'position:relative;left:auto;top:auto;':'position:absolute;left:'+Math.max(0,Math.min(100,Number(n.x)||0))+'%;top:'+Math.max(0,Math.min(100,Number(n.y)||0))+'%;';
-    let width=documentRoot?'width:100%;min-width:0;':flow?(parent.layout==='grid'?'min-width:0;width:100%;':parent.layout==='row'?'min-width:0;flex:1 1 0;width:auto;':'min-width:0;'+(Number(n.w)<100?'width:'+Math.max(1,Number(n.w)||100)+'%;':'width:100%;')):'width:'+Math.max(2,Math.min(100,Number(n.w)||30))+'%;';if(n.bleed&&parent){width='width:calc(100% + '+Math.max(0,Number(parent.paddingLeft??parent.padding)||0)+'px + '+Math.max(0,Number(parent.paddingRight??parent.padding)||0)+'px);min-width:0;margin-left:-'+Math.max(0,Number(parent.paddingLeft??parent.padding)||0)+'px;margin-right:-'+Math.max(0,Number(parent.paddingRight??parent.padding)||0)+'px;';}
+    const position=documentRoot||flow?'position:relative;left:auto;top:auto;':'position:absolute;left:'+Math.max(-200,Math.min(300,Number(n.x)||0))+'%;top:'+Math.max(-200,Math.min(300,Number(n.y)||0))+'%;';
+    let width=documentRoot?'width:'+Math.max(20,Math.min(100,Number(n.w)||100))+'%;min-width:0;margin-left:auto;margin-right:auto;':flow?(parent.layout==='grid'?'min-width:0;width:100%;':parent.layout==='row'?'min-width:0;flex:1 1 0;width:auto;':'min-width:0;'+(Number(n.w)<100?'width:'+Math.max(1,Number(n.w)||100)+'%;':'width:100%;')):'width:'+Math.max(2,Math.min(100,Number(n.w)||30))+'%;';if(n.bleed&&parent){width='width:calc(100% + '+Math.max(0,Number(parent.paddingLeft??parent.padding)||0)+'px + '+Math.max(0,Number(parent.paddingRight??parent.padding)||0)+'px);min-width:0;margin-left:-'+Math.max(0,Number(parent.paddingLeft??parent.padding)||0)+'px;margin-right:-'+Math.max(0,Number(parent.paddingRight??parent.padding)||0)+'px;';}
     const pageHeight=820;const height=flow?'auto':documentRoot?(n.heightMode==='fixed'?Math.max(200,pageHeight*Math.max(.5,Number(n.h)||100)/100)+'px':'auto'):n.heightMode==='fixed'?Math.max(.5,Number(n.h)||10)+'%':'auto';
     const minHeight=n.heightMode==='min'?Math.max(.5,Number(n.h)||10)+'%':'0';
     const opacity=Math.max(0,Math.min(100,Number(n.opacity??100)))/100;
@@ -278,6 +278,14 @@
     section('References','references',[{name:'Reference name',binding:'name',fontWeight:700},{name:'Title',binding:'title'},{name:'Company',binding:'company'},{name:'Email',binding:'email'},{name:'Phone',binding:'phone'}]);
     return out;
   }
+  function createCoreTemplateLayout(templateId){
+    const out=createStarterLayout();
+    const styles={t1:{accent:'#23395B',font:'Arial',align:'center',padding:24},t2:{accent:'#7A263A',font:'Arial',align:'center',padding:30},t3:{accent:'#315B4C',font:'Arial',align:'left',padding:30},t4:{accent:'#B65F68',font:'Arial',align:'center',padding:26},t5:{accent:'#343A40',font:'Arial',align:'left',padding:32},t6:{accent:'#176B68',font:'Arial',align:'left',padding:30},t7:{accent:'#2857A4',font:'Georgia',align:'left',padding:30},t8:{accent:'#222222',font:'Arial',align:'left',padding:22}};
+    const s=styles[templateId];if(!s)return out;
+    const page=out.find(n=>n.name==='Page content');if(page){page.padding=s.padding;page.paddingLeft=s.padding;page.paddingRight=s.padding;page.w=100;page.h=100;page.heightMode='auto'}
+    out.forEach(n=>{if(/heading$/i.test(n.name||'')){n.color=s.accent;n.textTransform='uppercase';n.fontSize=templateId==='t8'?10:11}if(n.name==='Full name'){n.textAlign=s.align;n.color=templateId==='t1'?'#23395B':'#24272c';n.fontSize=templateId==='t7'?28:templateId==='t8'?22:25}if(n.name==='Professional title')n.color=s.accent;if(/section$/.test(n.name||''))n.gap=templateId==='t8'?3:5;if(n.type==='container'&&n.name==='Header'){n.align=s.align==='center'?'center':'stretch'}if(n.type==='shape'&&n.shapeKind==='rounded')n.radius=6});
+    return out;
+  }
   let copiedNodes=null;
   function cloneSubtree(id){
     const root=nodeById(id);if(!root)return null;
@@ -344,6 +352,6 @@
     }
   },true);
 
-  window.CVTEAdvanced={getLayout,setLayout,getDocumentLayout,setDocumentLayout,createStarterLayout,setDrawingTool(kind){drawingTool=kind;const p=paper();if(p)p.style.cursor='crosshair';const hint=workspace()?.querySelector('.cvte-toolbar-hint');if(hint)hint.textContent='Drag on the page to draw '+({rect:'a rectangle',rounded:'a rounded rectangle',ellipse:'an ellipse',triangle:'a triangle',diamond:'a diamond',star:'a star'}[kind]||'a shape');},exportHtml(layout,data){const original=nodes;nodes=Array.isArray(layout)?layout:[];const rootData=data||{};const result=childrenOf(null).filter(n=>n.visible!==false).map(n=>exportNode(n,null,rootData,null)).join('');nodes=original;return result}};
+  window.CVTEAdvanced={getLayout,setLayout,getDocumentLayout,setDocumentLayout,createStarterLayout,createCoreTemplateLayout,setDrawingTool(kind){drawingTool=kind;const p=paper();if(p)p.style.cursor='crosshair';const hint=workspace()?.querySelector('.cvte-toolbar-hint');if(hint)hint.textContent='Drag on the page to draw '+({rect:'a rectangle',rounded:'a rounded rectangle',ellipse:'an ellipse',triangle:'a triangle',diamond:'a diamond',star:'a star'}[kind]||'a shape');},exportHtml(layout,data){const original=nodes;nodes=Array.isArray(layout)?layout:[];const rootData=data||{};const result=childrenOf(null).filter(n=>n.visible!==false).map(n=>exportNode(n,null,rootData,null)).join('');nodes=original;return result}};
   document.addEventListener('input',e=>{if(e.target.closest('#cvteForm'))renderPreview()});
 })();
