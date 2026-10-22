@@ -221,5 +221,21 @@
 #cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label:has(input[type=checkbox]){flex-direction:row!important;align-items:center!important;gap:8px!important}
 #cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label>input[type=checkbox]{flex:0 0 auto!important;width:16px!important;height:16px!important;min-height:16px!important;margin:0!important}
 #cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label:has(input[type=color]){min-width:0!important}
+/* Align paired inspector fields by the same label and control baselines. */
+#cvTemplateWorkspace .cvte-appearance-controls{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important;gap:12px 10px!important}
+#cvTemplateWorkspace .cvte-appearance-controls>.cvte-appearance-field{align-self:start!important;margin:0!important;padding:0!important}
+#cvTemplateWorkspace .cvte-appearance-controls>.cvte-appearance-field>span:first-child{display:block;min-height:17px;line-height:17px;margin:0 0 6px}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input{height:40px!important;min-height:40px!important;align-self:start!important;margin:0!important;box-sizing:border-box!important}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label{align-self:start!important}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label:not(:has(input[type=checkbox])){min-height:0!important}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label>span:first-child{display:block;min-height:18px;line-height:18px;margin:0 0 6px}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field{display:flex;align-items:center;gap:10px;width:100%;height:40px;min-height:40px;box-sizing:border-box;padding:5px 10px;border:1px solid #D8DCE2;border-radius:7px;background:#fff;overflow:hidden}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field:focus-within{border-color:#F8831D;box-shadow:0 0 0 1px #F8831D}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[type=color]{display:block!important;flex:0 0 28px!important;width:28px!important;height:28px!important;min-height:28px!important;max-height:28px!important;padding:0!important;border:1px solid #D8DCE2!important;border-radius:4px!important;overflow:hidden;background:transparent!important;cursor:pointer;box-shadow:none!important}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[data-color-hex]{display:block!important;flex:1 1 auto!important;width:0!important;min-width:0!important;height:28px!important;min-height:28px!important;max-height:28px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;outline:0!important;font:13px/1.3 'DM Sans',Arial,sans-serif!important;color:#252A31!important;letter-spacing:.1px}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[data-color-hex]:focus{border:0!important;box-shadow:none!important}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[type=color]::-webkit-color-swatch{border:0;border-radius:3px}
+#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label .cvte-color-field input[type=color]::-moz-color-swatch{border:0;border-radius:3px}
 @media(max-width:420px){#cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid{column-gap:8px!important;row-gap:10px!important}}
 @media(max-width:720px){#cvTemplateWorkspace .cvte-inspector-grid{gap:8px 6px}#cvTemplateWorkspace .cvte-inspector-content{padding:9px}}
