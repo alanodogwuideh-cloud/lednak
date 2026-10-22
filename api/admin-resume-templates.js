@@ -36,7 +36,7 @@ function clean(input){
   align:['stretch','start','center','end'].includes(n?.align)?n.align:'stretch',justify:['start','center','end','between'].includes(n?.justify)?n.justify:'start',
   locked:!!n?.locked,visible:n?.visible!==false,bullet:['disc','circle','square','number'].includes(n?.bullet)?n.bullet:'disc',layer:num(n?.layer,-100,100,i)
  })): [];
- return {name:txt(input?.name,80)||'Untitled template',description:txt(input?.description,240),baseTemplate:/^(t[1-8]|classic|modern|minimal|executive)$/.test(input?.baseTemplate)?input.baseTemplate:'classic',config:{
+ return {name:txt(input?.name,80)||'Untitled template',description:txt(input?.description,240),baseTemplate:/^t(?:[1-9]|1[0-9]|2[0-7])$/.test(input?.baseTemplate)?input.baseTemplate:'t1',config:{
   accent:color(c.accent),font:['Arial','Georgia','Helvetica','Verdana','Trebuchet MS','Times New Roman'].includes(c.font)?c.font:'Arial',
   bodySize:num(c.bodySize,9,12,10),nameSize:num(c.nameSize,20,32,24),spacing:num(c.spacing,8,22,15),
   headingStyle:['underline','plain','accent-block'].includes(c.headingStyle)?c.headingStyle:'underline',headerAlign:['left','center'].includes(c.headerAlign)?c.headerAlign:'center',

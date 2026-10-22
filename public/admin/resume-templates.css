@@ -90,4 +90,111 @@
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-entry{margin:0 0 1.1em}
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-entry-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.4em 1em}
 #resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-skill{display:inline-block;margin:.25em .3em .25em 0;padding:.4em .7em;border-radius:999px;background:#f7f0f2}
+/* PDF-reference core CV templates T1–T27. All styles are scoped to the resume sheet. */
+#resumeTab .rs-resume-paper.rs-template-t1{font-family:Arial,sans-serif;padding:5.5% 7% 6%;color:#222}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header{background:transparent!important;color:#222!important;text-align:center;margin:0 0 3%;padding:0 0 2%;border-bottom:1px solid #d5d5d5}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header h1{color:#222!important;font-size:1.5em;font-weight:700}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-section{display:grid;grid-template-columns:25% minmax(0,1fr);gap:3%;margin:0;padding:2.5% 0;border-bottom:1px solid #dedede}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-section h2{grid-column:1;grid-row:1 / span 99;border:0;color:#666;font-size:.85em;font-weight:500}
+#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-section>*:not(h2){grid-column:2}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header{background:#174879!important;color:#fff!important;margin:-6.5% -7.5% 4%;padding:6% 7.5% 4%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-header .rs-paper-contact{color:#fff!important}
+#resumeTab .rs-resume-paper.rs-template-t2 .rs-paper-section h2{border-bottom:1px solid #174879;color:#174879}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-header{border:0;border-bottom:1px solid #dedede;text-align:center;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-header h1{color:#a65f64}
+#resumeTab .rs-resume-paper.rs-template-t3 .rs-paper-section h2{border-bottom:1px solid #b47b7e;color:#a65f64}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header,#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header{background:#4f83bd!important;color:#fff!important;margin:-6.5% -7.5% 3%;padding:5% 7.5%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-contact,#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-contact{color:#fff!important}
+#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-section h2,#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-section h2{border-bottom:1px solid #4f83bd;color:#315f91}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-header{background:#f7eff1!important;margin:-6% -7.5% 2%;padding:5% 7.5%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-section{display:grid;grid-template-columns:22% minmax(0,1fr);gap:3%;margin-top:1%;padding:1.5% 0}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-section h2{grid-column:1;grid-row:1 / span 99;border:0;color:#a8445b}
+#resumeTab .rs-resume-paper.rs-template-t5 .rs-paper-section>*:not(h2){grid-column:2}
+#resumeTab .rs-resume-paper.rs-template-t6 .rs-paper-header{margin-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-header{display:grid;grid-template-columns:minmax(0,1fr) auto;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-header h1{grid-column:1}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-contact{grid-column:2;grid-row:1 / span 3;text-align:right}
+#resumeTab .rs-resume-paper.rs-template-t7 .rs-paper-section{border-left:1px solid #d6d6d6;padding-left:3%;margin-left:2%}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-header{text-align:left;border-bottom:1px solid #d8e0e4;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t8 .rs-paper-section h2{display:inline-block;background:#e9f0f3;border:0;padding:.25em .45em;color:#243b49;letter-spacing:0}
+#resumeTab .rs-resume-paper.rs-template-t9{padding:6% 7%;font-family:Arial,sans-serif}
+#resumeTab .rs-resume-paper.rs-template-t9 .rs-paper-header{text-align:left;border-bottom:1px solid #ddd;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t9 .rs-paper-header:after{content:"";float:right;width:12px;height:18px;background:#bd654f;border-radius:0 0 2px 2px}
+#resumeTab .rs-resume-paper.rs-template-t9 .rs-paper-section h2{border-bottom:1px solid #bbb;color:#202020}
+#resumeTab .rs-resume-paper.rs-template-t10{padding:6% 6% 6% 8%;font-size:.9em}
+#resumeTab .rs-resume-paper.rs-template-t10 .rs-paper-header{text-align:left;display:grid;grid-template-columns:24% 1fr;gap:3%;border-bottom:1px solid #ddd;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t10 .rs-paper-header h1{grid-column:1 / -1;color:#777}
+#resumeTab .rs-resume-paper.rs-template-t10 .rs-paper-section{display:grid;grid-template-columns:24% minmax(0,1fr);gap:3%;margin:0;padding:2% 0}
+#resumeTab .rs-resume-paper.rs-template-t10 .rs-paper-section h2{grid-column:1;grid-row:1 / span 99;border:0;color:#8b8b8b;font-size:.85em}
+#resumeTab .rs-resume-paper.rs-template-t10 .rs-paper-section>*:not(h2){grid-column:2}
+#resumeTab .rs-resume-paper.rs-template-t11{padding:6% 8%}
+#resumeTab .rs-resume-paper.rs-template-t11 .rs-paper-header{text-align:left;border-bottom:1px solid #ddd;padding-bottom:2%}
+#resumeTab .rs-resume-paper.rs-template-t11 .rs-paper-header h1{color:#3676a6}
+#resumeTab .rs-resume-paper.rs-template-t11 .rs-paper-section h2{color:#3676a6;border-bottom:1px solid #cddce6}
+#resumeTab .rs-resume-paper.rs-template-t12{padding:5% 5% 5% 34%;font-size:.9em}
+#resumeTab .rs-resume-paper.rs-template-t12:before{content:"";position:absolute;left:0;top:0;bottom:0;width:27%;background:#6197b5}
+#resumeTab .rs-resume-paper.rs-template-t12 .rs-paper-header{text-align:left;border-bottom:1px solid #ddd;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t12 .rs-paper-section h2{color:#477f9e;border-bottom:1px solid #d4e1e7}
+#resumeTab .rs-resume-paper.rs-template-t13{padding:5% 7% 5% 31%;font-size:.86em}
+#resumeTab .rs-resume-paper.rs-template-t13:before{content:"";position:absolute;left:0;top:0;bottom:0;width:25%;background:#f1f1f1;border-right:1px solid #ddd}
+#resumeTab .rs-resume-paper.rs-template-t13 .rs-paper-header{text-align:center;border-bottom:1px solid #aaa;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t13 .rs-paper-header h1{text-transform:uppercase;letter-spacing:.18em}
+#resumeTab .rs-resume-paper.rs-template-t14 .rs-paper-header{background:#913c50!important;color:#fff!important;margin:-6% -7.5% 4%;padding:5% 7.5%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t14 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t14 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t14 .rs-paper-contact{color:#fff!important}
+#resumeTab .rs-resume-paper.rs-template-t14 .rs-paper-section h2{color:#913c50;border-bottom:1px solid #d9c3c9}
+#resumeTab .rs-resume-paper.rs-template-t15{padding:5% 33% 5% 6%;font-size:.88em}
+#resumeTab .rs-resume-paper.rs-template-t15:after{content:"";position:absolute;right:0;top:0;bottom:0;width:27%;background:#5b9ab5}
+#resumeTab .rs-resume-paper.rs-template-t15 .rs-paper-header{text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t15 .rs-paper-section h2{border-bottom:1px solid #cddde4}
+#resumeTab .rs-resume-paper.rs-template-t16{padding:6% 6%}
+#resumeTab .rs-resume-paper.rs-template-t16 .rs-paper-header{text-align:center;border:1px solid #888;padding:4%;margin-bottom:5%}
+#resumeTab .rs-resume-paper.rs-template-t16 .rs-paper-section{display:inline-block;vertical-align:top;width:49%;padding:2%;margin:0}
+#resumeTab .rs-resume-paper.rs-template-t16 .rs-paper-section h2{border-bottom:1px solid #888;color:#333}
+#resumeTab .rs-resume-paper.rs-template-t17 .rs-paper-header{background:#e37c62!important;color:#fff!important;margin:-6% -7.5% 4%;padding:4% 7.5%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t17 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t17 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t17 .rs-paper-contact{color:#fff!important}
+#resumeTab .rs-resume-paper.rs-template-t17 .rs-paper-section h2{display:inline-block;background:#252525;color:#fff;padding:.25em .5em;border:0}
+#resumeTab .rs-resume-paper.rs-template-t18 .rs-paper-header{display:grid;grid-template-columns:1fr auto;text-align:left;border-bottom:1px solid #d8d8d8;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t18 .rs-paper-header h1{font-size:2em}
+#resumeTab .rs-resume-paper.rs-template-t18 .rs-paper-section h2{display:inline-block;background:#222;color:#fff;padding:.25em .45em;border:0}
+#resumeTab .rs-resume-paper.rs-template-t19 .rs-paper-header{background:#e8ddd3!important;margin:-6% -7.5% 4%;padding:5% 7.5%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t19 .rs-paper-section h2{color:#5c514a;border-bottom:1px solid #d8c9bd}
+#resumeTab .rs-resume-paper.rs-template-t20{background:#fbf5fa;padding:7% 8%;font-size:.9em}
+#resumeTab .rs-resume-paper.rs-template-t20:before{content:"";position:absolute;right:0;top:0;width:32%;height:28%;background:#f0e2ef;border-radius:0 0 0 45%}
+#resumeTab .rs-resume-paper.rs-template-t20 .rs-paper-header{text-align:left;position:relative}
+#resumeTab .rs-resume-paper.rs-template-t20 .rs-paper-section{display:inline-block;vertical-align:top;width:49%;padding-right:3%}
+#resumeTab .rs-resume-paper.rs-template-t20 .rs-paper-section h2{color:#8e7aa0;border-bottom:1px solid #ded3e5}
+#resumeTab .rs-resume-paper.rs-template-t21{padding:6% 6% 6% 34%;font-size:.88em}
+#resumeTab .rs-resume-paper.rs-template-t21:before{content:"";position:absolute;left:0;top:0;bottom:0;width:28%;background:#f2f2f2}
+#resumeTab .rs-resume-paper.rs-template-t21 .rs-paper-header{text-align:center;border-bottom:1px solid #ddd;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t21 .rs-paper-section h2{border-bottom:1px solid #bbb}
+#resumeTab .rs-resume-paper.rs-template-t22{padding:6% 6%}
+#resumeTab .rs-resume-paper.rs-template-t22 .rs-paper-header{text-align:left;border-bottom:1px solid #ddd;padding-bottom:4%}
+#resumeTab .rs-resume-paper.rs-template-t22 .rs-paper-header h1{font-size:2.5em;line-height:.95;text-transform:uppercase}
+#resumeTab .rs-resume-paper.rs-template-t22 .rs-paper-section{display:inline-block;vertical-align:top;width:49%;padding-right:3%}
+#resumeTab .rs-resume-paper.rs-template-t22 .rs-paper-section h2{color:#111;border-bottom:1px solid #aaa}
+#resumeTab .rs-resume-paper.rs-template-t23{padding:6% 32% 6% 7%;font-size:.9em}
+#resumeTab .rs-resume-paper.rs-template-t23:after{content:"";position:absolute;right:0;top:0;bottom:0;width:25%;background:#f0f0f0}
+#resumeTab .rs-resume-paper.rs-template-t23 .rs-paper-header{text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t23 .rs-paper-section h2{border-bottom:1px solid #ddd}
+#resumeTab .rs-resume-paper.rs-template-t24{padding:6% 7%}
+#resumeTab .rs-resume-paper.rs-template-t24 .rs-paper-header{text-align:left;display:grid;grid-template-columns:1fr auto;border-bottom:1px solid #ddd;padding-bottom:4%}
+#resumeTab .rs-resume-paper.rs-template-t24 .rs-paper-header h1{grid-column:1}
+#resumeTab .rs-resume-paper.rs-template-t24 .rs-paper-contact{grid-column:2;grid-row:1 / span 3;text-align:right}
+#resumeTab .rs-resume-paper.rs-template-t24 .rs-paper-section h2{letter-spacing:.1em;color:#56799b;border-bottom:1px solid #d5dfe7}
+#resumeTab .rs-resume-paper.rs-template-t25{padding:5% 7%}
+#resumeTab .rs-resume-paper.rs-template-t25 .rs-paper-header{text-align:left;border-bottom:2px solid #b9a6cb;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t25 .rs-paper-header h1{color:#8c77a5}
+#resumeTab .rs-resume-paper.rs-template-t25 .rs-paper-section h2{border-bottom:1px solid #cfc4d9;color:#6f5c86;letter-spacing:.06em}
+#resumeTab .rs-resume-paper.rs-template-t26{padding:6% 7%}
+#resumeTab .rs-resume-paper.rs-template-t26 .rs-paper-header{display:grid;grid-template-columns:1fr auto;text-align:left;border-bottom:1px solid #ddd;padding-bottom:3%}
+#resumeTab .rs-resume-paper.rs-template-t26 .rs-paper-header h1{font-size:1.8em}
+#resumeTab .rs-resume-paper.rs-template-t26 .rs-paper-section{display:grid;grid-template-columns:24% minmax(0,1fr);gap:3%;margin:0;padding:2% 0}
+#resumeTab .rs-resume-paper.rs-template-t26 .rs-paper-section h2{grid-column:1;grid-row:1 / span 99;border:0;color:#555;font-size:.85em}
+#resumeTab .rs-resume-paper.rs-template-t26 .rs-paper-section>*:not(h2){grid-column:2}
+#resumeTab .rs-resume-paper.rs-template-t27{padding:0 6% 6%;font-size:.9em}
+#resumeTab .rs-resume-paper.rs-template-t27 .rs-paper-header{background:#343840!important;color:#fff!important;margin:0 -6.8% 3%;padding:4% 6.8%;text-align:left}
+#resumeTab .rs-resume-paper.rs-template-t27 .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-t27 .rs-paper-header p,#resumeTab .rs-resume-paper.rs-template-t27 .rs-paper-contact{color:#fff!important}
+#resumeTab .rs-resume-paper.rs-template-t27 .rs-paper-section h2{border-bottom:1px solid #999;color:#343840}
+
+#resumeTab .rs-resume-paper .rs-paper-skill{border-radius:6px!important}
 @media print{#resumeTab .rs-resume-paper{box-sizing:border-box!important;box-shadow:none!important;border:0!important;overflow:visible!important;aspect-ratio:auto!important;width:100%!important;max-width:none!important;margin:0!important}#resumeTab .rs-resume-paper *{box-sizing:border-box}#resumeTab .rs-paper-header{break-inside:avoid;break-after:avoid-page}#resumeTab .rs-paper-section{break-inside:auto;orphans:3;widows:3}#resumeTab .rs-paper-entry{break-inside:avoid;page-break-inside:avoid}#resumeTab .rs-paper-entry-head,#resumeTab .rs-paper-subhead{break-inside:avoid}#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-header,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}#resumeTab .rs-resume-paper.rs-template-t1 .rs-paper-skill,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-skill,#resumeTab .rs-resume-paper.rs-template-t4 .rs-paper-section h2{border-radius:6px!important}
