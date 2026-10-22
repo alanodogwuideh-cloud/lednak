@@ -1358,22 +1358,98 @@ export async function handleCloudflareApi(request, env) {
             const body = await request.json().catch(() => ({}));
             const { template_id, resume_data, user_id } = body;
 
-            // Import Template #1 module dynamically from your source directory
-            const { renderLeftRailClassic } = await import('../src/templates/left-rail-classic.js');
-            const { renderBurgundyClassic } = await import('../src/templates/burgundy-classic.js');
-            const { renderLedger } = await import('../src/templates/ledger.js');
-            
-            const templatesRegistry = { 
+            // Master Batch Template Import Loop Engine
+            const [
+              { renderLeftRailClassic },
+              { renderBurgundyClassic },
+              { renderLedger },
+              { renderBlushBlocks },
+              { renderCharcoalSidebar },
+              { renderTealContemporary },
+              { renderBlueEditorial },
+              { renderMonochromeCompact },
+              { renderModernMinimalist },
+              { renderExecutiveSerif },
+              { renderNavyBanner },
+              { renderBurgundyBlockClassic },
+              { renderEmeraldContemporary },
+              { renderSlateMinimalist },
+              { renderCharcoalClassic },
+              { renderCorporateLedger },
+              { renderMinimalBlush },
+              { renderPremiumTealBanner },
+              { renderSlateEditorial },
+              { renderDenseMonochrome },
+              { renderSteelSidebar },
+              { renderMidnightMinimal },
+              { renderBoldExecutive },
+              { renderClassicNavy },
+              { renderBurgundyEditorial },
+              { renderPureCompact },
+              { renderBlueMinimalist }
+            ] = await Promise.all([
+              import('../src/templates/left-rail-classic.js'),
+              import('../src/templates/burgundy-classic.js'),
+              import('../src/templates/ledger.js'),
+              import('../src/templates/blush-blocks.js'),
+              import('../src/templates/charcoal-sidebar.js'),
+              import('../src/templates/teal-contemporary.js'),
+              import('../src/templates/blue-editorial.js'),
+              import('../src/templates/monochrome-compact.js'),
+              import('../src/templates/modern-minimalist.js'),
+              import('../src/templates/executive-serif.js'),
+              import('../src/templates/navy-banner.js'),
+              import('../src/templates/burgundy-block-classic.js'),
+              import('../src/templates/emerald-contemporary.js'),
+              import('../src/templates/slate-minimalist.js'),
+              import('../src/templates/charcoal-classic.js'),
+              import('../src/templates/corporate-ledger.js'),
+              import('../src/templates/minimal-blush.js'),
+              import('../src/templates/premium-teal-banner.js'),
+              import('../src/templates/slate-editorial.js'),
+              import('../src/templates/dense-monochrome.js'),
+              import('../src/templates/steel-sidebar.js'),
+              import('../src/templates/midnight-minimal.js'),
+              import('../src/templates/bold-executive.js'),
+              import('../src/templates/classic-navy.js'),
+              import('../src/templates/burgundy-editorial.js'),
+              import('../src/templates/pure-compact.js'),
+              import('../src/templates/blue-minimalist.js')
+            ]);
+
+            const templatesRegistry = {
               'left-rail-classic': renderLeftRailClassic,
-              'burgundy-classic': renderBurgundyClassic
-              'ledger': renderLedger
+              'burgundy-classic': renderBurgundyClassic,
+              'ledger': renderLedger,
+              'blush-blocks': renderBlushBlocks,
+              'charcoal-sidebar': renderCharcoalSidebar,
+              'teal-contemporary': renderTealContemporary,
+              'blue-editorial': renderBlueEditorial,
+              'monochrome-compact': renderMonochromeCompact,
+              'modern-minimalist': renderModernMinimalist,
+              'executive-serif': renderExecutiveSerif,
+              'navy-banner': renderNavyBanner,
+              'burgundy-block-classic': renderBurgundyBlockClassic,
+              'emerald-contemporary': renderEmeraldContemporary,
+              'slate-minimalist': renderSlateMinimalist,
+              'charcoal-classic': renderCharcoalClassic,
+              'corporate-ledger': renderCorporateLedger,
+              'minimal-blush': renderMinimalBlush,
+              'premium-teal-banner': renderPremiumTealBanner,
+              'slate-editorial': renderSlateEditorial,
+              'dense-monochrome': renderDenseMonochrome,
+              'steel-sidebar': renderSteelSidebar,
+              'midnight-minimal': renderMidnightMinimal,
+              'bold-executive': renderBoldExecutive,
+              'classic-navy': renderClassicNavy,
+              'burgundy-editorial': renderBurgundyEditorial,
+              'pure-compact': renderPureCompact,
+              'blue-minimalist': renderBlueMinimalist
             };
+
             const renderer = templatesRegistry[template_id] || templatesRegistry['left-rail-classic'];
-            
-            // Build the pixel-perfect HTML template with the injected data
             const finalHtml = renderer(resume_data || {});
 
-            // Optional transaction logging to your Turso DB database
             if (env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN) {
               try {
                 const recordId = crypto.randomUUID();
@@ -1385,7 +1461,6 @@ export async function handleCloudflareApi(request, env) {
               }
             }
 
-            // Optional static backup snapshot saved to your Cloudflare R2 Storage Bucket
             if (env.R2_BUCKET) {
               try {
                 const snapshotId = crypto.randomUUID();
@@ -1393,11 +1468,10 @@ export async function handleCloudflareApi(request, env) {
                   customMetadata: { "Content-Type": "text/html" }
                 });
               } catch (r2Err) {
-                console.error("R2 Storage snapshot write failed:", r2Err.message);
+                console.error("R2 Storage write failed:", r2Err.message);
               }
             }
 
-            // Return the compiled markup canvas straight back to the frontend frame
             return resumeStudioCors(new Response(finalHtml, {
               status: 200,
               headers: { "Content-Type": "text/html; charset=utf-8" }
