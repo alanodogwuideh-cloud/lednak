@@ -259,7 +259,7 @@
 /* Compact dropdowns to the same 30px portfolio field height. */
 #cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label>select{height:30px!important;min-height:30px!important;max-height:30px!important;padding:4px 26px 4px 9px!important;font:12px/1.2 'DM Sans',Arial,sans-serif!important;background-position:right 8px center!important;background-size:10px 10px!important;box-sizing:border-box!important}
 #cvTemplateWorkspace .cvte-inspector-content .cvte-inspector-grid>label>select option{font:12px 'DM Sans',Arial,sans-serif!important}
-#cvTemplateWorkspace .cvte-appearance-controls .cvte-radius-link{margin-right:-10px!important;margin-left:0!important;padding:0!important;border-radius:6px!important}
+#cvTemplateWorkspace .cvte-appearance-controls .cvte-radius-link{margin-right:1px!important;margin-left:0!important;padding:0!important;border-radius:6px!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input{padding-right:0!important;overflow:hidden!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input .cvte-radius-link{align-self:stretch!important;height:28px!important;min-height:28px!important;margin-top:0!important;margin-bottom:0!important;border-top-left-radius:6px!important;border-bottom-left-radius:6px!important;border-top-right-radius:6px!important;border-bottom-right-radius:6px!important}
 #cvTemplateWorkspace .cvte-appearance-controls .cvte-appearance-input select{font-size:12px!important}
