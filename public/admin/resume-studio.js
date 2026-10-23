@@ -58,6 +58,9 @@
   }
   const escHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const clean = value => String(value ?? '');
+  const isValidEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
+  const isProtectedEmail = value => /email\s*protected|protected\s*email|obfuscated|hidden email|email address protected/i.test(String(value || '').trim());
+  const normalizeEmail = value => isValidEmail(value) ? String(value).trim() : '';
   const splitTags = value => clean(value).split(',').map(item => item.trim()).filter(Boolean).slice(0, 100);
   const formatSaved = value => {
     if (!value) return 'Not saved yet';
@@ -286,6 +289,7 @@
     }
   }
   function renderResumeView() {
+    if (currentResume?.content?.contact && !isValidEmail(currentResume.content.contact.email)) currentResume.content.contact.email = '';
     const dirty = resumeIsDirty();
     const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" disabled>Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
@@ -380,7 +384,8 @@
     const esc=escHtml;
     const contact=c.contact||{};
     const links=(contact.links||[]).filter(x=>!x.hidden&&x.url);
-    const contactLine=[contact.email,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
+    const parsedEmail = normalizeEmail(contact.email);
+    const contactLine=[parsedEmail,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
     const linksLine=links.map(x=>esc(x.url)).join(' <span class="rs-preview-sep">|</span> ');
     const chosenCustom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===c.template);
     const customOrder=chosenCustom?.config?.documentLayout;
@@ -412,7 +417,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); currentResume.content ||= {}; currentResume.content.contact ||= {}; if (!isValidEmail(currentResume.content.contact.email)) currentResume.content.contact.email = ''; resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -805,6 +810,7 @@
       const result = await api('/admin-resume-profile');
       profile = result.profile || emptyProfile();
       profile.contact = profile.contact || emptyProfile().contact;
+      if (!isValidEmail(profile.contact.email)) profile.contact.email = '';
       for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
       profile.experience.forEach(item => { item.id ||= uid(); item.bullets = Array.isArray(item.bullets) ? item.bullets : []; item.bullets.forEach(b => { b.id ||= uid(); b.tags = Array.isArray(b.tags) ? b.tags : []; }); });
       profile.projects.forEach(item => { item.id ||= uid(); item.bullets = Array.isArray(item.bullets) ? item.bullets : []; item.bullets.forEach(b => { b.id ||= uid(); b.tags = Array.isArray(b.tags) ? b.tags : []; }); });
