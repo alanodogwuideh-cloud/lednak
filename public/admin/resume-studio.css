@@ -363,3 +363,138 @@
 @media(min-width:761px){#resumeTab .rs-editor-stepper{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){#resumeTab .rs-editor-stepper{grid-template-columns:minmax(0,1fr)}#resumeTab .rs-editor-step-navigation{gap:7px}#resumeTab .rs-editor-step-navigation button{padding:9px 10px;font-size:11px}#resumeTab .rs-editor-step-navigation>span{font-size:9px}}
 /* Force deployment update loop clear */
+
+/* Built-in hard-coded resume templates (27 IDs). Scoped to the preview/export paper only. */
+#resumeTab .rs-resume-paper[class*="rs-template-"]{--resume-template-accent:var(--resume-user-accent,#23395B);color:#25282d;background:#fff;font-family:Arial,Helvetica,sans-serif;line-height:1.32;padding:6.2%;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-header{color:#25282d;text-align:left;margin:0 0 1.15em;padding:0 0 .9em;border-bottom:1px solid #d8dde4;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-header h1{color:inherit;font-family:inherit;font-size:2.05em;line-height:1.05;letter-spacing:-.035em;margin:0 0 .28em;text-transform:none;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-headline{color:var(--resume-template-accent);font-size:1.02em;margin:.2em 0 .55em;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-contact{font-size:.78em;gap:.24em;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-contact-details,#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-contact-links{text-align:left;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-section{margin-top:1em;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-section h2{color:var(--resume-template-accent);font-size:.91em;letter-spacing:.075em;text-transform:uppercase;border-bottom:1px solid color-mix(in srgb,var(--resume-template-accent) 55%,white);padding:0 0 .28em;margin:0 0 .48em;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-entry{margin-bottom:.62em;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-entry-head strong,#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-subhead strong{color:#25282d;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-entry-head span,#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-subhead span{font-size:.88em;color:#5e6672;}
+#resumeTab .rs-resume-paper[class*="rs-template-"] .rs-paper-skill{line-height:1.45;}
+
+/* 01 Executive Left-Rail Classic */
+#resumeTab .rs-resume-paper.rs-template-left-rail-classic{--resume-template-accent:#23395b;padding:0 5.5% 5.5%;border-left:18px solid #23395b;}
+#resumeTab .rs-resume-paper.rs-template-left-rail-classic .rs-paper-header{padding-top:6%;border-bottom:3px solid #23395b;}
+#resumeTab .rs-resume-paper.rs-template-left-rail-classic .rs-paper-section h2{background:#eef2f8;padding:5px 7px;border:0;}
+/* 02 Burgundy Classic Professional */
+#resumeTab .rs-resume-paper.rs-template-burgundy-classic{--resume-template-accent:#762b3d;font-family:Georgia,'Times New Roman',serif;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-classic .rs-paper-header{text-align:center;border-bottom:3px double #762b3d;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-classic .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-burgundy-classic .rs-paper-contact-links{text-align:center;}
+/* 03 The Ledger Asymmetric Corporate */
+#resumeTab .rs-resume-paper.rs-template-ledger{--resume-template-accent:#1f3b4d;border-top:12px solid #1f3b4d;}
+#resumeTab .rs-resume-paper.rs-template-ledger .rs-paper-header{display:grid;grid-template-columns:minmax(0,1fr);border-bottom:3px solid #c6a76a;padding-top:4%;}
+#resumeTab .rs-resume-paper.rs-template-ledger .rs-paper-section h2{border-bottom:2px solid #c6a76a;}
+/* 04 Blush Blocks Contemporary */
+#resumeTab .rs-resume-paper.rs-template-blush-blocks{--resume-template-accent:#a95768;font-family:'Trebuchet MS',Arial,sans-serif;}
+#resumeTab .rs-resume-paper.rs-template-blush-blocks .rs-paper-header{background:#f8e9ec;padding:5%;border:0;border-left:7px solid #a95768;}
+#resumeTab .rs-resume-paper.rs-template-blush-blocks .rs-paper-section h2{background:#f8e9ec;padding:5px 7px;border:0;}
+/* 05 Charcoal Sidebar Tech */
+#resumeTab .rs-resume-paper.rs-template-charcoal-sidebar{--resume-template-accent:#343a40;border-top:8px solid #343a40;}
+#resumeTab .rs-resume-paper.rs-template-charcoal-sidebar .rs-paper-header{background:#343a40;color:#fff;padding:5%;margin:0 -6.5% 1em;}
+#resumeTab .rs-resume-paper.rs-template-charcoal-sidebar .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-charcoal-sidebar .rs-paper-headline{color:#fff;}
+#resumeTab .rs-resume-paper.rs-template-charcoal-sidebar .rs-paper-contact{color:#f1f3f5;}
+/* 06 Teal Contemporary Corporate */
+#resumeTab .rs-resume-paper.rs-template-teal-contemporary{--resume-template-accent:#087f83;font-family:Arial,Helvetica,sans-serif;}
+#resumeTab .rs-resume-paper.rs-template-teal-contemporary .rs-paper-header{border-bottom:4px solid #087f83;}
+#resumeTab .rs-resume-paper.rs-template-teal-contemporary .rs-paper-section h2{border-left:4px solid #087f83;padding-left:8px;}
+/* 07 Blue Editorial Serif */
+#resumeTab .rs-resume-paper.rs-template-blue-editorial{--resume-template-accent:#244a78;font-family:Georgia,'Times New Roman',serif;line-height:1.42;}
+#resumeTab .rs-resume-paper.rs-template-blue-editorial .rs-paper-header h1{font-size:2.35em;font-weight:500;}
+#resumeTab .rs-resume-paper.rs-template-blue-editorial .rs-paper-section h2{font-family:Arial,sans-serif;border-bottom:1px solid #244a78;}
+/* 08 Monochrome Space-Compact */
+#resumeTab .rs-resume-paper.rs-template-monochrome-compact{--resume-template-accent:#242424;padding:4.5%;font-size:.94em;line-height:1.22;}
+#resumeTab .rs-resume-paper.rs-template-monochrome-compact .rs-paper-header{margin-bottom:.65em;padding-bottom:.55em;}
+#resumeTab .rs-resume-paper.rs-template-monochrome-compact .rs-paper-section{margin-top:.58em;}
+#resumeTab .rs-resume-paper.rs-template-monochrome-compact .rs-paper-section h2{font-size:.84em;border-bottom:1px solid #444;}
+/* 09 Modern Geometric Minimalist */
+#resumeTab .rs-resume-paper.rs-template-modern-minimalist{--resume-template-accent:#f8831d;font-family:Arial,sans-serif;border-top:7px solid #f8831d;}
+#resumeTab .rs-resume-paper.rs-template-modern-minimalist .rs-paper-header h1{font-weight:800;letter-spacing:-.055em;}
+#resumeTab .rs-resume-paper.rs-template-modern-minimalist .rs-paper-section h2{border:0;border-left:5px solid #f8831d;padding-left:8px;}
+/* 10 Executive Centered Serif */
+#resumeTab .rs-resume-paper.rs-template-executive-serif{--resume-template-accent:#30343b;font-family:Georgia,'Times New Roman',serif;padding:7%;}
+#resumeTab .rs-resume-paper.rs-template-executive-serif .rs-paper-header{text-align:center;border-bottom:1px solid #30343b;}
+#resumeTab .rs-resume-paper.rs-template-executive-serif .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-executive-serif .rs-paper-contact-links{text-align:center;}
+#resumeTab .rs-resume-paper.rs-template-executive-serif .rs-paper-header h1{text-transform:uppercase;letter-spacing:.06em;font-weight:500;}
+/* 11 Navy Banner Block */
+#resumeTab .rs-resume-paper.rs-template-navy-banner{--resume-template-accent:#17365d;padding-top:0;}
+#resumeTab .rs-resume-paper.rs-template-navy-banner .rs-paper-header{background:#17365d;color:#fff;margin:0 -6.6% 1em;padding:6.5%;border:0;}
+#resumeTab .rs-resume-paper.rs-template-navy-banner .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-navy-banner .rs-paper-headline{color:#fff;}
+#resumeTab .rs-resume-paper.rs-template-navy-banner .rs-paper-contact{color:#eef3fb;}
+/* 12 Burgundy Block Editorial */
+#resumeTab .rs-resume-paper.rs-template-burgundy-block-classic{--resume-template-accent:#762b3d;font-family:Georgia,'Times New Roman',serif;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-block-classic .rs-paper-header{background:#762b3d;color:#fff;padding:5%;margin:0 -6.5% 1em;border:0;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-block-classic .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-burgundy-block-classic .rs-paper-headline{color:#fff;}
+/* 13 Emerald Modern Corporate */
+#resumeTab .rs-resume-paper.rs-template-emerald-contemporary{--resume-template-accent:#16745a;}
+#resumeTab .rs-resume-paper.rs-template-emerald-contemporary .rs-paper-header{border-bottom:3px solid #16745a;}
+#resumeTab .rs-resume-paper.rs-template-emerald-contemporary .rs-paper-section h2{background:#eaf5f0;padding:5px 7px;border:0;}
+/* 14 Slate Tone Minimalist */
+#resumeTab .rs-resume-paper.rs-template-slate-minimalist{--resume-template-accent:#536579;padding:7%;font-family:Arial,sans-serif;}
+#resumeTab .rs-resume-paper.rs-template-slate-minimalist .rs-paper-header h1{font-size:1.9em;font-weight:500;}
+#resumeTab .rs-resume-paper.rs-template-slate-minimalist .rs-paper-section h2{font-size:.82em;letter-spacing:.14em;border-bottom:1px solid #cbd3dc;}
+/* 15 Charcoal Traditional Serif */
+#resumeTab .rs-resume-paper.rs-template-charcoal-classic{--resume-template-accent:#333333;font-family:Georgia,'Times New Roman',serif;}
+#resumeTab .rs-resume-paper.rs-template-charcoal-classic .rs-paper-header{text-align:center;border-bottom:3px double #333;}
+#resumeTab .rs-resume-paper.rs-template-charcoal-classic .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-charcoal-classic .rs-paper-contact-links{text-align:center;}
+/* 16 Corporate Ledger Asymmetric */
+#resumeTab .rs-resume-paper.rs-template-corporate-ledger{--resume-template-accent:#27465a;border-top:5px solid #27465a;padding-top:5%;}
+#resumeTab .rs-resume-paper.rs-template-corporate-ledger .rs-paper-header{border-left:5px solid #c3a66b;padding-left:12px;}
+#resumeTab .rs-resume-paper.rs-template-corporate-ledger .rs-paper-section h2{border-bottom:2px solid #c3a66b;}
+/* 17 Boutique Minimal Blush */
+#resumeTab .rs-resume-paper.rs-template-minimal-blush{--resume-template-accent:#a86b79;font-family:Georgia,'Times New Roman',serif;padding:8%;}
+#resumeTab .rs-resume-paper.rs-template-minimal-blush .rs-paper-header{border:0;text-align:left;}
+#resumeTab .rs-resume-paper.rs-template-minimal-blush .rs-paper-header h1{font-weight:400;}
+#resumeTab .rs-resume-paper.rs-template-minimal-blush .rs-paper-section h2{border:0;border-bottom:1px solid #e4cbd1;}
+/* 18 Premium Teal Banner */
+#resumeTab .rs-resume-paper.rs-template-premium-teal-banner{--resume-template-accent:#086d70;padding-top:0;}
+#resumeTab .rs-resume-paper.rs-template-premium-teal-banner .rs-paper-header{background:#086d70;color:#fff;margin:0 -6.6% 1em;padding:6%;border:0;}
+#resumeTab .rs-resume-paper.rs-template-premium-teal-banner .rs-paper-header h1,#resumeTab .rs-resume-paper.rs-template-premium-teal-banner .rs-paper-headline{color:#fff;}
+/* 19 Slate Editorial Serif */
+#resumeTab .rs-resume-paper.rs-template-slate-editorial{--resume-template-accent:#475569;font-family:Georgia,'Times New Roman',serif;}
+#resumeTab .rs-resume-paper.rs-template-slate-editorial .rs-paper-header h1{font-size:2.25em;font-weight:500;}
+#resumeTab .rs-resume-paper.rs-template-slate-editorial .rs-paper-section h2{font-family:Arial,sans-serif;letter-spacing:.11em;border-bottom:2px solid #cbd5e1;}
+/* 20 Dense Monochrome One-Page */
+#resumeTab .rs-resume-paper.rs-template-dense-monochrome{--resume-template-accent:#111827;padding:4%;font-size:.9em;line-height:1.17;}
+#resumeTab .rs-resume-paper.rs-template-dense-monochrome .rs-paper-header{margin-bottom:.6em;padding-bottom:.5em;}
+#resumeTab .rs-resume-paper.rs-template-dense-monochrome .rs-paper-section{margin-top:.5em;}
+#resumeTab .rs-resume-paper.rs-template-dense-monochrome .rs-paper-section h2{font-size:.8em;border-bottom:1px solid #111827;}
+/* 21 Steel Blue Tech Sidebar */
+#resumeTab .rs-resume-paper.rs-template-steel-sidebar{--resume-template-accent:#41627d;border-top:8px solid #41627d;}
+#resumeTab .rs-resume-paper.rs-template-steel-sidebar .rs-paper-header{background:#edf2f6;padding:5%;margin:0 -6.5% 1em;border-bottom:4px solid #41627d;}
+#resumeTab .rs-resume-paper.rs-template-steel-sidebar .rs-paper-section h2{background:#edf2f6;padding:5px 7px;border:0;}
+/* 22 Midnight High-Contrast Minimal */
+#resumeTab .rs-resume-paper.rs-template-midnight-minimal{--resume-template-accent:#101827;background:#fff;padding:7%;}
+#resumeTab .rs-resume-paper.rs-template-midnight-minimal .rs-paper-header{border-bottom:4px solid #101827;}
+#resumeTab .rs-resume-paper.rs-template-midnight-minimal .rs-paper-header h1{font-weight:800;letter-spacing:-.045em;}
+#resumeTab .rs-resume-paper.rs-template-midnight-minimal .rs-paper-section h2{color:#101827;border-bottom:2px solid #101827;}
+/* 23 Bold Traditional Executive */
+#resumeTab .rs-resume-paper.rs-template-bold-executive{--resume-template-accent:#282828;font-family:Georgia,'Times New Roman',serif;border-top:6px solid #282828;}
+#resumeTab .rs-resume-paper.rs-template-bold-executive .rs-paper-header h1{font-weight:700;text-transform:uppercase;letter-spacing:.025em;}
+#resumeTab .rs-resume-paper.rs-template-bold-executive .rs-paper-section h2{font-weight:700;border-bottom:2px solid #282828;}
+/* 24 Classic Navy Professional */
+#resumeTab .rs-resume-paper.rs-template-classic-navy{--resume-template-accent:#1f4268;font-family:Georgia,'Times New Roman',serif;}
+#resumeTab .rs-resume-paper.rs-template-classic-navy .rs-paper-header{text-align:center;border-bottom:3px double #1f4268;}
+#resumeTab .rs-resume-paper.rs-template-classic-navy .rs-paper-contact-details,#resumeTab .rs-resume-paper.rs-template-classic-navy .rs-paper-contact-links{text-align:center;}
+/* 25 Burgundy Editorial Serif */
+#resumeTab .rs-resume-paper.rs-template-burgundy-editorial{--resume-template-accent:#7b263d;font-family:Georgia,'Times New Roman',serif;padding:7.5%;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-editorial .rs-paper-header h1{font-size:2.3em;font-weight:500;}
+#resumeTab .rs-resume-paper.rs-template-burgundy-editorial .rs-paper-section h2{border-bottom:1px solid #d8b5be;}
+/* 26 Pure Compact Grid */
+#resumeTab .rs-resume-paper.rs-template-pure-compact{--resume-template-accent:#343a40;padding:4.5%;font-size:.93em;}
+#resumeTab .rs-resume-paper.rs-template-pure-compact .rs-paper-header{display:grid;grid-template-columns:minmax(0,1fr);border-bottom:2px solid #343a40;padding-bottom:.55em;margin-bottom:.65em;}
+#resumeTab .rs-resume-paper.rs-template-pure-compact .rs-paper-section{margin-top:.65em;}
+#resumeTab .rs-resume-paper.rs-template-pure-compact .rs-paper-section h2{font-size:.86em;border-bottom:1px solid #aeb4bb;}
+/* 27 Royal Blue Minimalist */
+#resumeTab .rs-resume-paper.rs-template-blue-minimalist{--resume-template-accent:#2457a7;font-family:Arial,Helvetica,sans-serif;padding:7%;}
+#resumeTab .rs-resume-paper.rs-template-blue-minimalist .rs-paper-header{border-left:6px solid #2457a7;padding-left:12px;border-bottom:1px solid #d5dfef;}
+#resumeTab .rs-resume-paper.rs-template-blue-minimalist .rs-paper-section h2{border:0;color:#2457a7;letter-spacing:.1em;}
+
+@media print{
+ #resumeTab .rs-resume-paper[class*="rs-template-"]{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-shadow:none!important;}
+}
