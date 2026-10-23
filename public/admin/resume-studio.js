@@ -457,7 +457,10 @@
 
       const pageSize = currentResume.content?.pageSize === 'a4' ? 'A4' : 'Letter';
       const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
-        .map(node => node.outerHTML)
+        .map(node => {
+          if (node.tagName === 'LINK') return '<link rel="stylesheet" href="' + escHtml(node.href) + '">';
+          return node.outerHTML;
+        })
         .join('\n');
       const resumeMarkup = preview.outerHTML;
 
