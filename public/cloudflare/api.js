@@ -180,10 +180,24 @@ async function caseStudy(request, env) {
   const url = new URL(request.url);
   const slug = String(url.searchParams.get('slug') || '').trim();
   if (!slug) return json({ error: 'Missing case study slug.' }, 400);
-  const { rows } = await tursoQuery(env, "SELECT * FROM case_studies WHERE slug = $1 AND status = 'published' AND (deleted_at IS NULL OR deleted_at = '') LIMIT 1", [slug]);
+  const { rows } = await tursoQuery(env, "SELECT * FROM case_studies WHERE slug = $1 AND (deleted_at IS NULL OR deleted_at = '') LIMIT 1", [slug]);
   const project = rows[0];
   if (!project) return json({ error: 'Case study not found.' }, 404);
   const content = object(project.content);
+  // Published case studies remain public. Drafts and other unpublished records
+  // require the secret preview token minted by the authenticated admin endpoint.
+  if (String(project.status || 'draft') !== 'published') {
+    const suppliedToken = String(url.searchParams.get('preview') || '');
+    const storedToken = String(content.preview_token || '');
+    const expiresAt = Date.parse(String(content.preview_token_expires_at || ''));
+    if (!suppliedToken || !storedToken || suppliedToken !== storedToken ||
+        !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      return json({ error: 'Case study not found.' }, 404);
+    }
+  }
+  // Never expose the preview capability itself in the response payload.
+  if (content.preview_token) delete content.preview_token;
+  if (content.preview_token_expires_at) delete content.preview_token_expires_at;
   const sections = normalizeSections(content);
   const images = sections.flatMap((section, sectionIndex) => section.images.map((image, imageIndex) => ({
     ...image,
@@ -738,10 +752,20 @@ async function adminPreview(request, env) {
   const project = rows[0];
   if (!project) return json({ error: 'Case study not found.' }, 404);
   const content = object(project.content);
-  let token = String(content.preview_token || '').trim();
-  if (!token) {
-    token = crypto.randomUUID() + '-' + crypto.randomUUID();
-    await tursoQuery(env, 'UPDATE case_studies SET content=$1,updated_at=CURRENT_TIMESTAMP WHERE id=$2', [JSON.stringify({ ...content, preview_token: token }), id]);
+  const now = Date.now();
+  const existingToken = String(content.preview_token || '').trim();
+  const expiresAt = Date.parse(String(content.preview_token_expires_at || ''));
+  // Mint a fresh token when missing or expired; each link is valid for 30 minutes.
+  const token = existingToken && Number.isFinite(expiresAt) && expiresAt > now
+    ? existingToken
+    : crypto.randomUUID() + '-' + crypto.randomUUID();
+  const tokenExpiresAt = existingToken === token && Number.isFinite(expiresAt) && expiresAt > now
+    ? new Date(expiresAt).toISOString()
+    : new Date(now + 30 * 60 * 1000).toISOString();
+  if (token !== existingToken || tokenExpiresAt !== content.preview_token_expires_at) {
+    await tursoQuery(env, 'UPDATE case_studies SET content=$1,updated_at=CURRENT_TIMESTAMP WHERE id=$2', [
+      JSON.stringify({ ...content, preview_token: token, preview_token_expires_at: tokenExpiresAt }), id
+    ]);
   }
   return json({ preview_url: '/case-study.html?slug=' + encodeURIComponent(project.slug) + '&preview=' + encodeURIComponent(token) });
 }
@@ -1343,40 +1367,55 @@ async function resumePdf(request, env) {
     let resume;
     try { resume = normalizeCoreResume(body.resume); }
     catch (error) { return json({ error: error.message || 'Resume data is invalid.' }, Number(error.status) || 400); }
-    if (!env.BROWSER) return json({ error: 'Cloudflare Browser Rendering is not configured. Add the BROWSER binding before PDF export.' }, 503);
-    let browser;
+    const accountId = String(env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+    const apiToken = String(env.CLOUDFLARE_API_TOKEN || '').trim();
+    if (!accountId || !apiToken) {
+      return json({ error: 'Cloudflare Browser Run is not configured. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN as server-side Pages environment variables.' }, 503);
+    }
     try {
-      const puppeteerModule = await import('@cloudflare/puppeteer');
-      const puppeteer = puppeteerModule.default || puppeteerModule;
       const html = renderResume(template, resume);
-      browser = await puppeteer.launch(env.BROWSER);
-      const page = await browser.newPage();
-      await page.setViewport({ width: 794, height: 1122, deviceScaleFactor: 1 });
-      await page.setContent(html, { waitUntil: 'load' });
-      await page.emulateMediaType('print');
-      const fontCheck = await page.evaluate(() => ({
-        arial: document.fonts.check('12px Arial'),
-        liberationSans: document.fonts.check('12px "Liberation Sans"'),
-        arimo: document.fonts.check('12px Arimo')
-      }));
-      const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 }
+      const response = await fetch('https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(accountId) + '/browser-run/pdf', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer ' + apiToken,
+          'content-type': 'application/json',
+          accept: 'application/pdf'
+        },
+        body: JSON.stringify({
+          html,
+          pdfOptions: {
+            format: 'a4',
+            printBackground: true,
+            preferCSSPageSize: true,
+            margin: { top: 0, right: 0, bottom: 0, left: 0 }
+          },
+          viewport: { width: 794, height: 1122 }
+        })
       });
+      if (!response.ok) {
+        const detail = (await response.text().catch(() => '')).slice(0, 500);
+        console.error('Cloudflare Browser Run PDF request failed:', response.status, detail);
+        return json({
+          error: response.status === 401 || response.status === 403
+            ? 'Cloudflare Browser Run rejected the API token. Check the token and its Browser Run/Rendering write permission.'
+            : 'Cloudflare Browser Run could not generate the PDF. Check the Pages environment variables and try again.'
+        }, response.status === 401 || response.status === 403 ? 502 : 502);
+      }
+      const pdf = await response.arrayBuffer();
+      const signature = new Uint8Array(pdf.slice(0, 5));
+      if (signature.length !== 5 || String.fromCharCode(...signature) !== '%PDF-') {
+        console.error('Cloudflare Browser Run returned a non-PDF response.');
+        return json({ error: 'Cloudflare Browser Run returned an invalid PDF response.' }, 502);
+      }
       return new Response(pdf, { status: 200, headers: {
         'content-type': 'application/pdf',
         'content-disposition': 'attachment; filename="resume.pdf"',
         'cache-control': 'no-store',
-        'x-resume-template': template,
-        'x-resume-font-check': JSON.stringify(fontCheck)
+        'x-resume-template': template
       } });
     } catch (error) {
       console.error('Resume PDF generation failed:', String(error?.message || error));
-      return json({ error: 'PDF generation failed. Confirm the BROWSER binding and @cloudflare/puppeteer dependency are available.' }, 502);
-    } finally {
-      try { await browser?.close(); } catch {}
+      return json({ error: 'PDF generation failed while contacting Cloudflare Browser Run.' }, 502);
     }
   }
   const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
