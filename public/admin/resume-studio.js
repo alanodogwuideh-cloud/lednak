@@ -390,8 +390,10 @@
     const hidden=new Set(c.hiddenSections||[]);
     const esc=escHtml;
     const contact=c.contact||{};
+    // Normalize before either the built-in renderer or the custom-template renderer reads contact data.
+    contact.email = contactEmailOrDefault(contact.email);
     const links=(contact.links||[]).filter(x=>!x.hidden&&x.url);
-    const parsedEmail = contactEmailOrDefault(contact.email);
+    const parsedEmail = contact.email;
     const contactLine=[parsedEmail,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
     const linksLine=links.map(x=>esc(x.url)).join(' <span class="rs-preview-sep">|</span> ');
     const chosenCustom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===c.template);
