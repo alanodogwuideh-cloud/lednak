@@ -703,8 +703,19 @@
       const endpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/api/admin-resume-studio';
       const result = await api(endpoint, { method: 'POST', body: JSON.stringify({ action: 'import-profile', master_resume_text: text }) });
       if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
+      const importedProfile = result.profile;
+      importedProfile.contact = importedProfile.contact && typeof importedProfile.contact === 'object' ? importedProfile.contact : {};
+      const sourceEmail = (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [''])[0];
+      const importedEmail = String(importedProfile.contact.email || '').trim();
+      const validEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
+      const importWarnings = Array.isArray(result.warnings) ? result.warnings.slice() : [];
+      if (sourceEmail) importedProfile.contact.email = sourceEmail;
+      else if (!validEmail(importedEmail) || /email\s*protected|protected\s*email|obfuscated|hidden email/i.test(importedEmail)) {
+        importedProfile.contact.email = '';
+        if (!importWarnings.some(w => /email/i.test(String(w)))) importWarnings.push('The source document did not expose a readable email address. The email field was left blank instead of importing “email protected”; enter the address manually if it is protected in the source.');
+      }
       importStage = 'Preparing your review…'; render();
-      importReview = { profile: result.profile, warnings: result.warnings || [], fileName: file.name, sourceText: text };
+      importReview = { profile: importedProfile, warnings: importWarnings, fileName: file.name, sourceText: text };
       importError = '';
     } catch (error) {
       importError = error.message || 'Could not import this resume. Please try again.';

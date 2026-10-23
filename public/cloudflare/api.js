@@ -1096,7 +1096,17 @@ async function adminResumeStudio(request, env) {
     if (isProfileImport) {
       const imported = object(parsed.profile);
       if (!imported.contact || !Array.isArray(imported.experience) || !Array.isArray(imported.skills) || !Array.isArray(imported.education)) return json({ error: 'The extracted profile did not match the expected structure. Please try again with a clearer PDF or DOCX.' }, 502);
-      return json({ profile: imported, warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [], usage: nextUsage });
+      const warnings = Array.isArray(parsed.warnings) ? parsed.warnings.map(x => String(x).slice(0,300)).slice(0,30) : [];
+      const sourceEmail = (master.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [''])[0];
+      const modelEmail = String(imported.contact.email || '').trim();
+      const validEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
+      if (sourceEmail) {
+        imported.contact.email = sourceEmail;
+      } else if (!validEmail(modelEmail) || /email\s*protected|protected\s*email|obfuscated|hidden email/i.test(modelEmail)) {
+        imported.contact.email = '';
+        if (!warnings.some(w => /email/i.test(w))) warnings.push('The source document did not expose a readable email address. The email field was left blank instead of importing “email protected”; enter the address manually if it is protected in the source.');
+      }
+      return json({ profile: imported, warnings: warnings.slice(0,30), usage: nextUsage });
     }
     if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
     if (isSuggestion || isJobSuggestion) return json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0,8).map(item => ({ title:String(item?.title||(isJobSuggestion?'Job-specific improvement':'Resume improvement')).slice(0,160), reason:String(item?.reason||'').slice(0,800), text:String(item?.text||'').slice(0,4000) })).filter(item => item.text.trim()) : [], usage: nextUsage });
