@@ -5,6 +5,7 @@
  * credentials are supplied through Cloudflare Pages environment variables.
  */
 import { signR2Put, signR2Get, verifyR2Object, uploadR2Object, deleteR2Object, r2KeyFromPublicUrl } from './r2.js';
+import { renderResume, TEMPLATES } from './resume-templates/index.js';
 
 const PUBLIC_R2_BASE = 'https://pub-05b8c3177ce444d385936988156c52c2.r2.dev';
 
@@ -1255,7 +1256,119 @@ async function adminResumes(request,env) {
   return json({error:'Method not allowed.'},405);
 }
 
+function normalizeCoreResume(input) {
+  const source = object(input);
+  const p = object(source.personal_info || source.contact);
+  const rawJobs = Array.isArray(source.work_experience) ? source.work_experience : (Array.isArray(source.experience) ? source.experience : []);
+  const rawEducation = Array.isArray(source.education) ? source.education : [];
+  const rawSkills = Array.isArray(source.skills) ? source.skills : [];
+  const rawCertificates = Array.isArray(source.certificates) ? source.certificates : (Array.isArray(source.certifications) ? source.certifications : []);
+  const links = Array.isArray(p.links) ? p.links.map(link => typeof link === 'string' ? link : String(link?.url || link?.href || '')).filter(Boolean) : [];
+  const normalized = {
+    personal_info: {
+      name: profileText(p.name || p.fullName, 160),
+      location: profileText(p.location, 160),
+      phone: profileText(p.phone, 80),
+      email: profileText(p.email, 254),
+      links
+    },
+    summary: profileText(source.summary || (Array.isArray(source.summaries) ? source.summaries.find(x => x?.text)?.text : ''), 5000),
+    work_experience: rawJobs.map(job => ({
+      role: profileText(job?.role || job?.title, 180),
+      company: profileText(job?.company, 180),
+      location: profileText(job?.location, 160),
+      date_range: profileText(job?.date_range || [job?.startDate, job?.endDate || (job?.current ? 'Present' : '')].filter(Boolean).join(' – ') || job?.date, 100),
+      bullets: (Array.isArray(job?.bullets) ? job.bullets : []).map(b => typeof b === 'string' ? b : profileText(b?.text, 2000)).filter(Boolean)
+    })),
+    education: rawEducation.map(item => ({
+      institution: profileText(item?.institution, 180),
+      degree: profileText(item?.degree || item?.field, 180),
+      location: profileText(item?.location, 160),
+      date_range: profileText(item?.date_range || [item?.startDate, item?.endDate].filter(Boolean).join(' – ') || item?.date, 100)
+    })),
+    skills: rawSkills.flatMap(item => Array.isArray(item?.items) ? item.items : [typeof item === 'string' ? item : item?.name]).map(x => profileText(x, 100)).filter(Boolean),
+    certificates: rawCertificates.map(item => ({
+      title: profileText(item?.title || item?.name, 180),
+      issuer: profileText(item?.issuer, 180),
+      date: profileText(item?.date, 80)
+    }))
+  };
+  if (JSON.stringify(normalized).length > 250000) throw Object.assign(new Error('Resume data is too large.'), { status: 413 });
+  return normalized;
+}
+function coreTemplateSlug(value) {
+  const key = String(value || '').trim();
+  const found = TEMPLATES.find(t => t.id.toLowerCase() === key.toLowerCase() || t.slug === key.toLowerCase() || t.name.toLowerCase() === key.toLowerCase());
+  return found ? found.slug : 'new-york';
+}
+async function resumePreview(request, env) {
+  const url = new URL(request.url);
+  let template = url.searchParams.get('template') || 'new-york';
+  let resume;
+  if (request.method === 'GET') {
+    const sampleUrl = new URL('/cloudflare/resume-templates/sample.json', url.origin);
+    const sampleResponse = await env.ASSETS.fetch(new Request(sampleUrl));
+    if (!sampleResponse.ok) return json({ error: 'The template sample data could not be loaded.' }, 500);
+    resume = await sampleResponse.json();
+  } else if (request.method === 'POST') {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') return json({ error: 'Send a JSON object containing template and resume.' }, 400);
+    template = body.template || template;
+    try { resume = normalizeCoreResume(body.resume); }
+    catch (error) { return json({ error: error.message || 'Resume data is invalid.' }, Number(error.status) || 400); }
+  } else return json({ error: 'Method not allowed.' }, 405);
+  try {
+    const html = renderResume(coreTemplateSlug(template), normalizeCoreResume(resume));
+    return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-resume-template': coreTemplateSlug(template) } });
+  } catch (error) {
+    return json({ error: error.message || 'Resume template rendering failed.' }, 400);
+  }
+}
+
 async function resumePdf(request, env) {
+  if (request.method === 'POST') {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') return json({ error: 'Send a JSON object containing template and resume.' }, 400);
+    const template = coreTemplateSlug(body.template);
+    let resume;
+    try { resume = normalizeCoreResume(body.resume); }
+    catch (error) { return json({ error: error.message || 'Resume data is invalid.' }, Number(error.status) || 400); }
+    if (!env.BROWSER) return json({ error: 'Cloudflare Browser Rendering is not configured. Add the BROWSER binding before PDF export.' }, 503);
+    let browser;
+    try {
+      const puppeteerModule = await import('@cloudflare/puppeteer');
+      const puppeteer = puppeteerModule.default || puppeteerModule;
+      const html = renderResume(template, resume);
+      browser = await puppeteer.launch(env.BROWSER);
+      const page = await browser.newPage();
+      await page.setViewport({ width: 794, height: 1122, deviceScaleFactor: 1 });
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.emulateMediaType('print');
+      const fontCheck = await page.evaluate(() => ({
+        arial: document.fonts.check('12px Arial'),
+        liberationSans: document.fonts.check('12px "Liberation Sans"'),
+        arimo: document.fonts.check('12px Arimo')
+      }));
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 }
+      });
+      return new Response(pdf, { status: 200, headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': 'attachment; filename="resume.pdf"',
+        'cache-control': 'no-store',
+        'x-resume-template': template,
+        'x-resume-font-check': JSON.stringify(fontCheck)
+      } });
+    } catch (error) {
+      console.error('Resume PDF generation failed:', String(error?.message || error));
+      return json({ error: 'PDF generation failed. Confirm the BROWSER binding and @cloudflare/puppeteer dependency are available.' }, 502);
+    } finally {
+      try { await browser?.close(); } catch {}
+    }
+  }
   const { rows } = await tursoQuery(env, 'SELECT resume_key,resume_display_name FROM site_branding LIMIT 1');
   const branding = rows[0] || {};
   const key = String(branding.resume_key || '');
@@ -1305,7 +1418,7 @@ export async function handleCloudflareApi(request, env) {
   const route = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
   const method = request.method.toUpperCase();
 
-  if (route === 'admin-resume-studio' && method === 'OPTIONS') {
+  if (['admin-resume-studio','resume-preview','resume-pdf'].includes(route) && method === 'OPTIONS') {
     const origin = request.headers.get('Origin') || '';
     if (!RESUME_STUDIO_ALLOWED_ORIGINS.has(origin)) return json({ error: 'Origin is not allowed.' }, 403);
     return new Response(null, { status: 204, headers: {
@@ -1322,7 +1435,8 @@ export async function handleCloudflareApi(request, env) {
     if (route === 'portfolio' && method === 'GET') return await portfolio(request, env);
     if (route === 'case-study' && method === 'GET') return await caseStudy(request, env);
     if (route === 'favicon' && method === 'GET') return await favicon(request, env);
-    if (route === 'resume-pdf' && method === 'GET') return await resumePdf(request, env);
+    if (route === 'resume-preview' && ['GET','POST'].includes(method)) return await resumePreview(request, env);
+    if (route === 'resume-pdf' && ['GET','POST'].includes(method)) return await resumePdf(request, env);
     if (route === 'about-image' && method === 'GET') {
       const { rows } = await tursoQuery(env, 'SELECT about_image_url FROM portfolio_settings LIMIT 1');
       const savedUrl = String(rows[0]?.about_image_url || '');

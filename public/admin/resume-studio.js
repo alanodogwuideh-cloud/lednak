@@ -214,6 +214,77 @@
     if (!toolbar) return;
     toolbar.classList.toggle('is-stuck', toolbar.getBoundingClientRect().top <= 20);
   }
+  const CORE_TEMPLATE_OPTIONS = [
+    ['T1','New York'],['T2','Paris'],['T3','Toronto'],['T4','Chicago'],['T5','Madrid'],['T6','Santiago'],['T7','Istanbul'],['T8','London'],['T9','Karachi'],['T10','Mumbai'],['T11','Delhi'],['T12','San Francisco'],['T13','Boston'],['T14','Seattle'],['T15','Amsterdam'],['T16','Singapore'],['T17','Tokyo'],['T18','Stockholm'],['T19','Sydney'],['T20','São Paulo'],['T21','Seoul'],['T22','Berlin'],['T23','Zurich'],['T24','Vienna'],['T25','Mexico City'],['T26','Dubai'],['T27','Cape Town']
+  ];
+  function coreResumePayload(content) {
+    const c = content || {};
+    const contact = c.contact || {};
+    const dateRange = item => [item?.startDate, item?.endDate || (item?.current ? 'Present' : '')].filter(Boolean).join(' – ');
+    return {
+      personal_info: {
+        name: String(contact.fullName || ''),
+        location: String(contact.location || ''),
+        phone: String(contact.phone || ''),
+        email: String(contact.email || ''),
+        links: (Array.isArray(contact.links) ? contact.links : []).filter(x => !x?.hidden).map(x => String(x?.url || '')).filter(Boolean)
+      },
+      summary: String(c.summary || ''),
+      work_experience: (Array.isArray(c.experience) ? c.experience : []).filter(x => !x?.hidden).map(x => ({
+        role: String(x?.title || x?.role || ''), company: String(x?.company || ''), location: String(x?.location || ''),
+        date_range: String(x?.date_range || dateRange(x) || x?.date || ''),
+        bullets: (Array.isArray(x?.bullets) ? x.bullets : []).filter(b => !b?.hidden).map(b => typeof b === 'string' ? b : String(b?.text || '')).filter(Boolean)
+      })),
+      education: (Array.isArray(c.education) ? c.education : []).filter(x => !x?.hidden).map(x => ({
+        institution: String(x?.institution || ''), degree: String(x?.degree || x?.field || ''), location: String(x?.location || ''),
+        date_range: String(x?.date_range || dateRange(x) || x?.date || '')
+      })),
+      skills: (Array.isArray(c.skills) ? c.skills : []).filter(x => !x?.hidden).flatMap(x => Array.isArray(x?.items) ? x.items : [x?.name]).map(x => String(x || '')).filter(Boolean),
+      certificates: (Array.isArray(c.certifications) ? c.certifications : []).filter(x => !x?.hidden).map(x => ({ title: String(x?.name || x?.title || ''), issuer: String(x?.issuer || ''), date: String(x?.date || '') }))
+    };
+  }
+  function corePreviewEndpoint() {
+    return location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/resume-preview' : '/api/resume-preview';
+  }
+  async function renderCoreTemplatePreview(content) {
+    const paper = root.querySelector('#rsResumePreview');
+    if (!paper) return;
+    const selected = CORE_TEMPLATE_OPTIONS.some(([id]) => id === content?.template) ? content.template : 'T1';
+    content.template = selected;
+    const picker = root.querySelector('[data-resume-template]');
+    if (picker) {
+      picker.replaceChildren(...CORE_TEMPLATE_OPTIONS.map(([id, name]) => {
+        const option = document.createElement('option'); option.value = id; option.textContent = name; option.selected = id === selected; return option;
+      }));
+    }
+    paper.className = 'rs-resume-paper rs-core-template-preview';
+    if (paper.parentElement) paper.parentElement.style.cssText += ';padding:0!important;margin:0!important;border:0!important;';
+    paper.style.cssText = 'padding:0!important;border:0!important;margin:0!important;box-shadow:none!important;background:transparent!important;width:100%;max-width:100%;overflow:visible;';
+    paper.innerHTML = '<div class="rs-core-preview-scale" style="width:794px;margin:0;padding:0;border:0;transform-origin:top left"><iframe title="Resume template preview" style="display:block;width:794px;height:1122px;border:0;margin:0;padding:0;background:#fff" sandbox="allow-same-origin" loading="eager"></iframe></div>';
+    const iframe = paper.querySelector('iframe');
+    try {
+      const response = await fetch(corePreviewEndpoint(), {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ template: selected, resume: coreResumePayload(content) })
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'The template preview could not be rendered.');
+      }
+      iframe.srcdoc = await response.text();
+      iframe.addEventListener('load', () => {
+        const doc = iframe.contentDocument;
+        const height = Math.max(1122, doc?.documentElement?.scrollHeight || 1122, doc?.body?.scrollHeight || 1122);
+        iframe.style.height = height + 'px';
+        const available = paper.parentElement?.clientWidth || 794;
+        const scale = Math.min(1, available / 794);
+        const scaleWrap = paper.querySelector('.rs-core-preview-scale');
+        if (scaleWrap) { scaleWrap.style.transform = 'scale(' + scale + ')'; scaleWrap.style.height = (height * scale) + 'px'; }
+      }, { once: true });
+    } catch (error) {
+      paper.textContent = error.message || 'The template preview could not be rendered.';
+    }
+  }
   function renderResumeView() {
     const dirty = resumeIsDirty();
     const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
@@ -247,7 +318,7 @@
       }
       if (resumePreviewMode) {
         root.innerHTML=head+'<section class="rs-resume-complete"><div class="rs-resume-complete-intro"><span class="rs-resume-complete-mark" aria-hidden="true">✓</span><p class="eyebrow">RESUME CREATION COMPLETE</p><h2>Your resume is ready to preview</h2><p>Review your finished resume below. You can return to your resumes list whenever you are ready.</p></div><div class="rs-resume-complete-toolbar"><button type="button" class="secondary" data-resume-action="back">← Back to resumes</button><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span><label class="rs-template-picker"><span>Resume template</span><select data-resume-template aria-label="Choose resume template" style="font-size: 12px; padding: 6px; border-radius: 6px; border: 1px solid #dfe3e9;"><option value="left-rail-classic" '+(c.template === 'left-rail-classic' ? 'selected' : '')+'>Executive Left-Rail Classic</option><option value="burgundy-classic" '+(c.template === 'burgundy-classic' ? 'selected' : '')+'>Burgundy Classic Professional</option><option value="ledger" '+(c.template === 'ledger' ? 'selected' : '')+'>The Ledger Asymmetric Corporate</option><option value="blush-blocks" '+(c.template === 'blush-blocks' ? 'selected' : '')+'>Blush Blocks Contemporary</option><option value="charcoal-sidebar" '+(c.template === 'charcoal-sidebar' ? 'selected' : '')+'>Charcoal Sidebar Tech</option><option value="teal-contemporary" '+(c.template === 'teal-contemporary' ? 'selected' : '')+'>Teal Contemporary Corporate</option><option value="blue-editorial" '+(c.template === 'blue-editorial' ? 'selected' : '')+'>Blue Editorial Serif</option><option value="monochrome-compact" '+(c.template === 'monochrome-compact' ? 'selected' : '')+'>Monochrome Space-Compact</option><option value="modern-minimalist" '+(c.template === 'modern-minimalist' ? 'selected' : '')+'>Modern Geometric Minimalist</option><option value="executive-serif" '+(c.template === 'executive-serif' ? 'selected' : '')+'>Executive Centered Serif</option><option value="navy-banner" '+(c.template === 'navy-banner' ? 'selected' : '')+'>Navy Banner Block</option><option value="burgundy-block-classic" '+(c.template === 'burgundy-block-classic' ? 'selected' : '')+'>Burgundy Block Editorial</option><option value="emerald-contemporary" '+(c.template === 'emerald-contemporary' ? 'selected' : '')+'>Emerald Modern Corporate</option><option value="slate-minimalist" '+(c.template === 'slate-minimalist' ? 'selected' : '')+'>Slate Tone Minimalist</option><option value="charcoal-classic" '+(c.template === 'charcoal-classic' ? 'selected' : '')+'>Charcoal Traditional Serif</option><option value="corporate-ledger" '+(c.template === 'corporate-ledger' ? 'selected' : '')+'>Corporate Ledger Asymmetric</option><option value="minimal-blush" '+(c.template === 'minimal-blush' ? 'selected' : '')+'>Boutique Minimal Blush</option><option value="premium-teal-banner" '+(c.template === 'premium-teal-banner' ? 'selected' : '')+'>Premium Teal Banner</option><option value="slate-editorial" '+(c.template === 'slate-editorial' ? 'selected' : '')+'>Slate Editorial Serif</option><option value="dense-monochrome" '+(c.template === 'dense-monochrome' ? 'selected' : '')+'>Dense Monochrome One-Page</option><option value="steel-sidebar" '+(c.template === 'steel-sidebar' ? 'selected' : '')+'>Steel Blue Tech Sidebar</option><option value="midnight-minimal" '+(c.template === 'midnight-minimal' ? 'selected' : '')+'>Midnight High-Contrast Minimal</option><option value="bold-executive" '+(c.template === 'bold-executive' ? 'selected' : '')+'>Bold Traditional Executive</option><option value="classic-navy" '+(c.template === 'classic-navy' ? 'selected' : '')+'>Classic Navy Professional</option><option value="burgundy-editorial" '+(c.template === 'burgundy-editorial' ? 'selected' : '')+'>Burgundy Editorial Serif</option><option value="pure-compact" '+(c.template === 'pure-compact' ? 'selected' : '')+'>Pure Compact Grid</option><option value="blue-minimalist" '+(c.template === 'blue-minimalist' ? 'selected' : '')+'>Royal Blue Minimalist</option></select></label><label class="rs-template-picker"><span>Accent</span><input type="color" data-resume-accent value="'+escHtml(c.accent||'#23395B')+'" aria-label="Template accent color"></label><label class="rs-template-picker"><span>Page size</span><select class="rs-template-page-size" data-resume-page-size aria-label="Page size"><option value="letter" '+((c.pageSize||'letter')==='letter'?'selected':'')+'>US Letter</option><option value="a4" '+(c.pageSize==='a4'?'selected':'')+'>A4</option></select></label><div class="rs-resume-complete-actions">'+(dirty?'<button type="button" class="primary" data-resume-action="save" '+(resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button>':'')+'<button type="button" class="secondary" data-resume-action="print">Download PDF</button></div></div><div class="rs-resume-complete-preview"><div class="rs-preview-label"><span>RESUME PREVIEW</span><span>'+(c.pageSize==='a4'?'A4 · 210 × 297 mm':'US LETTER · 8.5 × 11 in')+'</span></div><div id="rsResumePreview" class="rs-resume-paper rs-template-'+escHtml(c.template||'classic')+'" style="--resume-user-accent:'+escHtml(c.accent||'#23395B')+';--resume-page-size:'+(c.pageSize==='a4'?'210mm 297mm':'8.5in 11in')+'">'+resumePreviewHtml(c)+'</div></div></section>';
-        applyCustomTemplatePreview(c);
+        renderCoreTemplatePreview(c);
         return;
       }
       const editorHeader='<div class="rs-editor-toolbar"><button class="secondary" type="button" data-resume-action="back">← All resumes</button><div class="rs-editor-toolbar-actions"><span class="rs-resume-save-status">'+escHtml(resumeMessage||(dirty?'Unsaved changes':'Saved'))+'</span>'+(resumeAnalysis?'<button class="secondary" type="button" data-resume-action="view-analysis">Resume review</button>':'<button class="secondary" type="button" data-resume-action="analyze" '+(resumeAnalyzing?'disabled':'')+'>'+(resumeAnalyzing?'Analyzing…':'Analyze resume')+'</button>')+'<button class="secondary" type="button" data-resume-action="print">Download PDF</button><button class="primary" type="button" data-resume-action="save" '+(!dirty||resumeSaving?'disabled':'')+'>'+(resumeSaving?'Saving…':'Save resume')+'</button></div></div>'+
@@ -465,6 +536,36 @@
     if(action==='open') return openResume(id);
     if(action==='save') return saveResume();
     if(action==='print') {
+      if (!currentResume) return;
+      const pdfEndpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/resume-pdf' : '/api/resume-pdf';
+      resumeMessage = 'Generating PDF…';
+      renderResumeView();
+      try {
+        const pdfResponse = await fetch(pdfEndpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ template: currentResume.content?.template || 'T1', resume: coreResumePayload(currentResume.content) })
+        });
+        if (!pdfResponse.ok) {
+          const failure = await pdfResponse.json().catch(() => ({}));
+          throw new Error(failure.error || 'PDF generation failed.');
+        }
+        const pdfBlob = await pdfResponse.blob();
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = (String(currentResume.title || 'Resume').replace(/[^a-z0-9 _.-]/gi, '').trim() || 'Resume') + '.pdf';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+        resumeMessage = 'PDF downloaded.';
+      } catch (error) {
+        resumeMessage = error.message || 'PDF generation failed.';
+        alert(resumeMessage);
+      }
+      renderResumeView();
+      return;
+    }
+    if(false && action==='print') {
       if (!currentResume) return;
 
       const preview = root.querySelector('#rsResumePreview');
@@ -775,13 +876,18 @@
         'burgundy-editorial', 'pure-compact', 'blue-minimalist'
       ];
 
-      currentResume.content.template = custom ? 'custom:' + custom.id : (validStudioTemplates.includes(picker.value) ? picker.value : 'left-rail-classic');
+      currentResume.content.template = CORE_TEMPLATE_OPTIONS.some(([id]) => id === picker.value) ? picker.value : 'T1';
+      renderCoreTemplatePreview(currentResume.content);
+      const templateStatus = root.querySelector('.rs-resume-save-status'); if (templateStatus) templateStatus.textContent = resumeIsDirty() ? 'Unsaved changes' : 'Saved';
+      const templateSave = root.querySelector('[data-resume-action="save"]'); if (templateSave) templateSave.disabled = !resumeIsDirty() || resumeSaving;
+      return;
     }
     if (picker.matches('[data-resume-accent]')) currentResume.content.accent = /^#[0-9a-fA-F]{6}$/.test(picker.value)?picker.value:'#23395B';
     if (picker.matches('[data-resume-page-size]')) currentResume.content.pageSize = picker.value==='a4'?'a4':'letter';
     const paper = root.querySelector('#rsResumePreview');
     if (paper) { paper.className = 'rs-resume-paper rs-template-' + (currentResume.content.template||'classic'); paper.style.setProperty('--resume-user-accent',currentResume.content.accent||'#23395B'); paper.style.setProperty('--resume-page-size',currentResume.content.pageSize==='a4'?'210mm 297mm':'8.5in 11in'); paper.innerHTML = resumePreviewHtml(currentResume.content); const ct=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===currentResume.content.template); paper.style.padding=ct?.config?.useCustomDocumentLayout?'0':''; paper.classList.toggle('rs-custom-document-mode',!!ct?.config?.useCustomDocumentLayout); if(ct){const c=ct.config||{};paper.style.fontFamily=c.font||'Arial';paper.style.fontSize=(c.bodySize||10)+'pt';paper.querySelector('.paper-header h1')?.style.setProperty('font-size',(c.nameSize||24)+'pt');paper.querySelector('.paper-header')?.style.setProperty('text-align',c.headerAlign||'center');paper.querySelectorAll('.paper-section').forEach(s=>{s.style.marginTop=(c.spacing||15)+'pt';const h=s.querySelector('h2');if(h){h.style.color=c.accent||'#F8831D';h.style.borderBottom=c.headingStyle==='underline'?'1px solid '+(c.accent||'#F8831D'):'none';if(c.headingStyle==='accent-block'){h.style.background=c.accent||'#F8831D';h.style.color='#fff';h.style.padding='4pt 6pt';}}});paper.querySelectorAll('.paper-skill').forEach(s=>{s.style.borderRadius=c.skillStyle==='pills'?'12pt':'0';s.style.background=c.skillStyle==='pills'?'#eef0f3':'transparent';});if(!c.useCustomDocumentLayout&&window.CVTEAdvanced?.exportHtml&&Array.isArray(c.layout)&&c.layout.length){paper.insertAdjacentHTML('beforeend','<div class="rs-custom-layout-layer" aria-hidden="true">'+window.CVTEAdvanced.exportHtml(c.layout,currentResume.content)+'</div>');}} }
-    const sizeLabel=root.querySelector('.rs-preview-label span:last-child'); if(sizeLabel) sizeLabel.textContent=(currentResume.content.pageSize==='a4'?'A4 · 210 × 297 mm':'US LETTER · 8.5 × 11 in');
+    renderCoreTemplatePreview(currentResume.content);
+    const sizeLabel=root.querySelector('.rs-preview-label span:last-child'); if(sizeLabel) sizeLabel.textContent='A4 · 210 × 297 mm';
     const status = root.querySelector('.rs-resume-save-status'); if (status) status.textContent = resumeIsDirty() ? 'Unsaved changes' : 'Saved';
     const save = root.querySelector('[data-resume-action="save"]'); if (save) save.disabled = !resumeIsDirty() || resumeSaving;
   });
@@ -792,7 +898,7 @@
       const path = target.dataset.resumePath;
       const value = path === 'title' ? target.value : (path.endsWith('.items') ? splitTags(target.value) : target.value);
       if (path === 'title') currentResume.title = value; else { if (path.startsWith('content.contact.links.0.') && !currentResume.content.contact.links.length) currentResume.content.contact.links.push({label:'Portfolio',url:'',hidden:false}); rpathSet(currentResume, path, value); }
-      const preview = root.querySelector('#rsResumePreview'); if (preview) preview.innerHTML = resumePreviewHtml(currentResume.content);
+      renderCoreTemplatePreview(currentResume.content);
       const status = root.querySelector('.rs-resume-save-status'); if (status) status.textContent = resumeIsDirty() ? 'Unsaved changes' : 'Saved';
       const save = root.querySelector('[data-resume-action=\"save\"]'); if (save) save.disabled = !resumeIsDirty() || resumeSaving;
       return;
