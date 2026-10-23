@@ -296,7 +296,10 @@
     }
   }
   function renderResumeView() {
-    if (currentResume?.content?.contact && !isValidEmail(currentResume.content.contact.email)) currentResume.content.contact.email = '';
+    if (currentResume?.content) {
+      currentResume.content.contact ||= {};
+      currentResume.content.contact.email = contactEmailOrDefault(currentResume.content.contact.email);
+    }
     const dirty = resumeIsDirty();
     const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" disabled>Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
