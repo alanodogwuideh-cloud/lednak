@@ -60,7 +60,9 @@
   const clean = value => String(value ?? '');
   const isValidEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
   const isProtectedEmail = value => /email\s*protected|protected\s*email|obfuscated|hidden email|email address protected/i.test(String(value || '').trim());
+  const DEFAULT_CONTACT_EMAIL = 'alanodogwuideh@gmail.com';
   const normalizeEmail = value => isValidEmail(value) ? String(value).trim() : '';
+  const contactEmailOrDefault = value => isValidEmail(value) ? String(value).trim() : DEFAULT_CONTACT_EMAIL;
   const extractEmailFromResumeText = value => {
     const source = String(value || '').replace(/[\\u200B-\\u200D\\uFEFF]/g, '').replace(/\\s*([@.])\\s*/g, '$1');
     const matches = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig) || [];
@@ -389,7 +391,7 @@
     const esc=escHtml;
     const contact=c.contact||{};
     const links=(contact.links||[]).filter(x=>!x.hidden&&x.url);
-    const parsedEmail = String(contact.email || '').trim();
+    const parsedEmail = contactEmailOrDefault(contact.email);
     const contactLine=[parsedEmail,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
     const linksLine=links.map(x=>esc(x.url)).join(' <span class="rs-preview-sep">|</span> ');
     const chosenCustom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===c.template);
@@ -422,7 +424,7 @@
   }
   async function openResume(id) {
     resumeLoading=true; renderResumeView();
-    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); currentResume.content ||= {}; currentResume.content.contact ||= {}; if (!isValidEmail(currentResume.content.contact.email)) currentResume.content.contact.email = ''; resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
+    try { currentResume=await api('/admin-resumes?id='+encodeURIComponent(id)); currentResume.content ||= {}; currentResume.content.contact ||= {}; currentResume.content.contact.email = contactEmailOrDefault(currentResume.content.contact.email); resumeSavedJson=JSON.stringify(currentResume.content); resumeSavedTitle=currentResume.title; resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; restoreResumeReview(currentResume.id); resumeMessage=''; renderResumeView(); }
     catch(error) { currentResume=null; resumeMessage=error.message||'Could not open this resume.'; await loadResumeList(); }
     finally { resumeLoading=false; }
   }
@@ -815,7 +817,7 @@
       const result = await api('/admin-resume-profile');
       profile = result.profile || emptyProfile();
       profile.contact = profile.contact || emptyProfile().contact;
-      if (!isValidEmail(profile.contact.email)) profile.contact.email = '';
+      profile.contact.email = contactEmailOrDefault(profile.contact.email);
       for (const key of ['summaries','experience','projects','skills','education','certifications']) if (!Array.isArray(profile[key])) profile[key] = [];
       profile.experience.forEach(item => { item.id ||= uid(); item.bullets = Array.isArray(item.bullets) ? item.bullets : []; item.bullets.forEach(b => { b.id ||= uid(); b.tags = Array.isArray(b.tags) ? b.tags : []; }); });
       profile.projects.forEach(item => { item.id ||= uid(); item.bullets = Array.isArray(item.bullets) ? item.bullets : []; item.bullets.forEach(b => { b.id ||= uid(); b.tags = Array.isArray(b.tags) ? b.tags : []; }); });
@@ -832,6 +834,7 @@
         savedJson = JSON.stringify(result.profile || emptyProfile());
         saveError = 'Recovered browser draft — save to store these edits on the server';
       } else if (localDraft && JSON.stringify(localDraft.profile) === savedJson) clearLocalDraft();
+      profile.contact.email = contactEmailOrDefault(profile.contact.email);
       render();
     } catch (error) {
       root.innerHTML = '<div class="panel rs-error"><h3>Could not load Master Profile</h3><p>' + escHtml(error.message || 'Please try again.') + '</p><button type="button" class="secondary" id="rsRetryLoad">Retry</button></div>';
