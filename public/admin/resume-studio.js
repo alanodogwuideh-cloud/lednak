@@ -61,6 +61,11 @@
   const isValidEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
   const isProtectedEmail = value => /email\s*protected|protected\s*email|obfuscated|hidden email|email address protected/i.test(String(value || '').trim());
   const normalizeEmail = value => isValidEmail(value) ? String(value).trim() : '';
+  const extractEmailFromResumeText = value => {
+    const source = String(value || '').replace(/[\\u200B-\\u200D\\uFEFF]/g, '').replace(/\\s*([@.])\\s*/g, '$1');
+    const matches = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig) || [];
+    return matches.find(isValidEmail) || '';
+  };
   const splitTags = value => clean(value).split(',').map(item => item.trim()).filter(Boolean).slice(0, 100);
   const formatSaved = value => {
     if (!value) return 'Not saved yet';
@@ -384,7 +389,7 @@
     const esc=escHtml;
     const contact=c.contact||{};
     const links=(contact.links||[]).filter(x=>!x.hidden&&x.url);
-    const parsedEmail = normalizeEmail(contact.email);
+    const parsedEmail = String(contact.email || '').trim();
     const contactLine=[parsedEmail,contact.phone,contact.location].filter(Boolean).map(esc).join(' <span class="rs-preview-sep">|</span> ');
     const linksLine=links.map(x=>esc(x.url)).join(' <span class="rs-preview-sep">|</span> ');
     const chosenCustom=window.CustomResumeTemplates?.find(t=>'custom:'+t.id===c.template);
@@ -710,7 +715,7 @@
       if (!result?.profile) throw new Error('The AI service returned no structured profile. Please retry with a text-based PDF or DOCX.');
       const importedProfile = result.profile;
       importedProfile.contact = importedProfile.contact && typeof importedProfile.contact === 'object' ? importedProfile.contact : {};
-      const sourceEmail = (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [''])[0];
+      const sourceEmail = (String(text || '').replace(/[\u200B-\u200D\uFEFF]/g, '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [''])[0];
       const importedEmail = String(importedProfile.contact.email || '').trim();
       const validEmail = value => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
       const importWarnings = Array.isArray(result.warnings) ? result.warnings.slice() : [];
