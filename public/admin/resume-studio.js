@@ -462,7 +462,23 @@
           return node.outerHTML;
         })
         .join('\n');
-      const resumeMarkup = preview.outerHTML;
+      // Freeze the selected template's rendered typography and spacing before opening the print window.
+      // The print window has a different viewport, so responsive CSS (for example clamp() font sizes)
+      // must not recalculate the template at a smaller size during export.
+      const printPreview = preview.cloneNode(true);
+      const preserveProps = ['font-family','font-size','font-weight','font-style','line-height','letter-spacing','text-transform','text-decoration','color','text-align','vertical-align','margin-top','margin-right','margin-bottom','margin-left','padding-top','padding-right','padding-bottom','padding-left','border-top-width','border-top-style','border-top-color','border-right-width','border-right-style','border-right-color','border-bottom-width','border-bottom-style','border-bottom-color','border-left-width','border-left-style','border-left-color','background-color','background-image','background-size','background-position','background-repeat','display','align-items','justify-content','gap','column-gap','row-gap','grid-template-columns','grid-template-rows','flex-direction','flex-wrap'];
+      const previewNodes = [preview, ...preview.querySelectorAll('*')];
+      const printNodes = [printPreview, ...printPreview.querySelectorAll('*')];
+      previewNodes.forEach((source, index) => {
+        const target = printNodes[index];
+        if (!target) return;
+        const computed = window.getComputedStyle(source);
+        preserveProps.forEach(prop => {
+          const value = computed.getPropertyValue(prop);
+          if (value) target.style.setProperty(prop, value);
+        });
+      });
+      const resumeMarkup = printPreview.outerHTML;
 
       printWindow.document.open();
       const paperWidth = pageSize === 'A4' ? '210mm' : '8.5in';
