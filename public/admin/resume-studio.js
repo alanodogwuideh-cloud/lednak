@@ -736,6 +736,7 @@
       ];
 
       currentResume.content.template = custom ? 'custom:' + custom.id : (validStudioTemplates.includes(picker.value) ? picker.value : 'left-rail-classic');
+    }
     if (picker.matches('[data-resume-accent]')) currentResume.content.accent = /^#[0-9a-fA-F]{6}$/.test(picker.value)?picker.value:'#23395B';
     if (picker.matches('[data-resume-page-size]')) currentResume.content.pageSize = picker.value==='a4'?'a4':'letter';
     const paper = root.querySelector('#rsResumePreview');
