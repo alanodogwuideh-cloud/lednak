@@ -17,9 +17,27 @@ const object = value => value && typeof value === 'object' && !Array.isArray(val
 const skillItems = value => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(item => String(item ?? '').trim().slice(0,100)).filter(Boolean).slice(0,100);
 const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 const normalizeR2Url = value => {
-  const raw = String(value || '');
+  const raw = String(value || '').trim();
   if (!raw) return '';
   if (raw.startsWith(PUBLIC_R2_BASE + '/')) return raw;
+  // Older CMS records may store the internal media-proxy URL rather than the
+  // public R2 URL. Resolve its object key to the same public bucket URL used by
+  // newly uploaded assets, so case-study previews can load the image directly.
+  const marker = '/api/r2-media?key=';
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex >= 0) {
+    try {
+      const encodedKey = raw.slice(markerIndex + marker.length).split('&')[0];
+      const key = decodeURIComponent(encodedKey);
+      if (key.startsWith('portfolio/')) return PUBLIC_R2_BASE + '/' + key.split('/').map(encodeURIComponent).join('/');
+    } catch {}
+  }
+  if (raw.startsWith('api/r2-media?key=')) {
+    try {
+      const key = decodeURIComponent(raw.slice('api/r2-media?key='.length).split('&')[0]);
+      if (key.startsWith('portfolio/')) return PUBLIC_R2_BASE + '/' + key.split('/').map(encodeURIComponent).join('/');
+    } catch {}
+  }
   if (raw.startsWith('portfolio/')) return PUBLIC_R2_BASE + '/' + raw.split('/').map(encodeURIComponent).join('/');
   return raw;
 };
