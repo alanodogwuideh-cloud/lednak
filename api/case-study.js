@@ -110,14 +110,21 @@ export default async function (req, res) {
     const requestedPreviewToken = String(req.query?.preview || '').trim();
     const contentForAccess = object(project.content);
     const storedPreviewToken = String(contentForAccess.preview_token || '').trim();
-    const isPreview = Boolean(requestedPreviewToken && storedPreviewToken && requestedPreviewToken === storedPreviewToken);
+    const previewExpiresAt = Date.parse(String(contentForAccess.preview_token_expires_at || ''));
+    const isPreview = Boolean(
+      requestedPreviewToken &&
+      storedPreviewToken &&
+      requestedPreviewToken === storedPreviewToken &&
+      Number.isFinite(previewExpiresAt) &&
+      previewExpiresAt > Date.now()
+    );
     if (String(project.status || 'draft') !== 'published' && !isPreview) {
       return res.status(404).json({ error: 'Case study not found' });
     }
 
     res.setHeader('Cache-Control', 'no-store, max-age=0');
     const rawContent = object(project.content);
-    const { preview_token: _previewToken, ...content } = rawContent;
+    const { preview_token: _previewToken, preview_token_expires_at: _previewTokenExpiresAt, ...content } = rawContent;
     const caseMeta = object(content.case_meta);
     const sections = normalizeSections(content);
 

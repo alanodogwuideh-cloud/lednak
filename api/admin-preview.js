@@ -22,11 +22,18 @@ export default async function (req, res) {
     if (!project) return res.status(404).json({ error: 'Case study not found.' });
 
     const content = object(project.content);
-    let token = String(content.preview_token || '').trim();
+    const now = Date.now();
+    const existingToken = String(content.preview_token || '').trim();
+    const existingExpiry = Date.parse(String(content.preview_token_expires_at || ''));
+    const token = existingToken && Number.isFinite(existingExpiry) && existingExpiry > now
+      ? existingToken
+      : `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+    const tokenExpiresAt = token === existingToken && Number.isFinite(existingExpiry) && existingExpiry > now
+      ? new Date(existingExpiry).toISOString()
+      : new Date(now + 30 * 60 * 1000).toISOString();
 
-    if (!token) {
-      token = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
-      const nextContent = { ...content, preview_token: token };
+    if (token !== existingToken || tokenExpiresAt !== content.preview_token_expires_at) {
+      const nextContent = { ...content, preview_token: token, preview_token_expires_at: tokenExpiresAt };
       await tursoQuery(`UPDATE case_studies SET content = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(nextContent), project.id]);
     }
 
