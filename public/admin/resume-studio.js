@@ -443,52 +443,49 @@
     if(action==='print') {
       if (!currentResume) return;
 
-      // 1. Gather active layout configuration states from your application model variables
-      const templateId = currentResume.content?.template || 'left-rail-classic';
-      const resumePayload = currentResume.content || {};
-      const activeUserUuid = currentResume.user_id || 'anonymous';
+      const preview = root.querySelector('#rsResumePreview');
+      if (!preview) {
+        alert('The resume preview is not ready yet. Please wait for it to appear, then try Download PDF again.');
+        return;
+      }
 
-      if (typeof cmsToast === 'function') cmsToast('Connecting to your design layout engine...');
+      const printWindow = window.open('', '_blank', 'width=1000,height=900');
+      if (!printWindow) {
+        alert('Your browser blocked the print window. Allow pop-ups for this site, then try Download PDF again.');
+        return;
+      }
 
-      try {
-        // 2. Query your unified Cloudflare Pages serverless endpoint directly
-        const response = await fetch("https://pages.dev", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            template_id: templateId,
-            resume_data: resumePayload,
-            user_id: activeUserUuid
-          })
-        });
+      const pageSize = currentResume.content?.pageSize === 'a4' ? 'A4' : 'Letter';
+      const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
+        .map(node => node.outerHTML)
+        .join('\n');
+      const resumeMarkup = preview.outerHTML;
 
-        if (!response.ok) throw new Error("Serverless functions failed compiling markup asset.");
+      printWindow.document.open();
+      const paperWidth = pageSize === 'A4' ? '210mm' : '8.5in';
+      const paperHeight = pageSize === 'A4' ? '297mm' : '11in';
+      printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="' + escHtml(document.baseURI) + '"><title>' +
+        escHtml(currentResume.title || 'Resume') + '</title>' + styles +
+        '<style>@page{size:' + pageSize + ';margin:0}html,body{margin:0!important;padding:0!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{display:block!important;width:' + paperWidth + '!important;min-width:0!important}#resumeTab{display:block!important;width:' + paperWidth + '!important;max-width:none!important;margin:0!important;padding:0!important;color:#111!important}#resumeTab .rs-resume-paper{box-sizing:border-box!important;width:' + paperWidth + '!important;max-width:none!important;min-height:' + paperHeight + '!important;height:auto!important;aspect-ratio:auto!important;overflow:visible!important;margin:0!important;border-radius:0!important;box-shadow:none!important;break-after:page;page-break-after:always;font-size:10pt!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}#resumeTab .rs-resume-paper:last-child{break-after:auto;page-break-after:auto}#resumeTab .rs-resume-paper *{overflow-wrap:anywhere}button{display:none!important}@media print{body{background:#fff!important}}</style>' +
+        '</head><body><div id="resumeTab">' + resumeMarkup + '</div></body></html>');
+      printWindow.document.close();
 
-        // 3. Extract the pristine HTML code block returned from the Pages backend
-        const compiledHtmlAsset = await response.text();
-
-        // 4. Initialize an isolated sandboxed print preview popup container window
-        const printWindow = window.open('', '_blank', 'width=1000,height=900');
-        if (!printWindow) {
-          alert("Pop-up blocker intercepted the printing frame. Please allow pop-ups for this domain to download your PDF.");
-          return;
-        }
-
-        // 5. Ingress the markup asset stream directly into the popup container document
-        printWindow.document.write(compiledHtmlAsset);
-        printWindow.document.close();
-
-        // 6. Execute native print dialog menu once asset parsing is completely initialized
-        printWindow.onload = () => {
-          printWindow.focus();
-          printWindow.print();
-        };
-
-      } catch (err) {
-        console.error("Studio render pipeline runtime exception:", err);
-        alert("Failed communicating with the layout engine. Check your connection and try again.");
+      const startPrint = async () => {
+        try {
+          if (printWindow.document.fonts?.ready) await printWindow.document.fonts.ready;
+          const images = [...printWindow.document.images];
+          await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => {
+            image.onload = resolve;
+            image.onerror = resolve;
+          })));
+        } catch (_) {}
+        printWindow.focus();
+        printWindow.print();
+      };
+      if (printWindow.document.readyState === 'complete') {
+        startPrint();
+      } else {
+        printWindow.addEventListener('load', startPrint, { once: true });
       }
       return;
     }
