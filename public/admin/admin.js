@@ -627,9 +627,9 @@ document.addEventListener('change',e=>{
  const select=e.target?.closest?.('.nested-content-type');
  if(!select||!select.closest('#sectionEditor')||select.value!=='card')return;
  e.preventDefault();e.stopImmediatePropagation();
- const card=select.closest('.section-card'),section=resolveEditorSection(card);if(!section)return;
+ const card=select.closest('.section-card'),section=resolveEditorSection(card),blockEl=select.closest('.nested-content-item');if(!section||!blockEl)return;
  syncNestedContentBlocks(card,section);
- const index=Number(select.dataset.block),old=section.metadata.content_blocks[index];if(!old)return;
+ const index=Number(blockEl.dataset.block),old=section.metadata.content_blocks[index];if(!Number.isInteger(index)||index<0||!old)return;
  section.metadata.content_blocks[index]={id:old.id||crypto.randomUUID(),type:'card',position:old.position||'after_content',title:'Card subsection'};
  renderSections();void persistEditorMutation();
 },true);
