@@ -60,7 +60,7 @@ function normalizePrototypeButtons(metadata) {
   }).sort((a,b) => a.order - b.order).map((x,i) => ({...x, order:i+1}));
   return meta;
 }
-const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','analytic_card']);
+const STYLE_VALUES = new Set(['card1','card2','card3','card4','card5','card7','analytic_card']);
 const DESCRIPTION_CAPTION_COLORS = new Set(['#167C3A','#B42318','#175CD3','#8A5A00','#6941C6']);
 function normalizeDescriptionSections(item) {
   const x = metadataObject(item);
@@ -88,7 +88,7 @@ function inferPresentation(section) {
   if (Array.isArray(meta.prototype_buttons) || meta.presentation_type === 'prototype_buttons' || style === 'prototype_buttons') return 'prototype_buttons';
   if(PRESENTATIONS.has(old)) return old;
   if(old==='quote') return 'quote';
-  if(['card2','card4','card3','cards','card1','card5','analytic_card'].includes(old)) return 'card';
+  if(['card2','card4','card3','cards','card1','card5','card7','analytic_card'].includes(old)) return 'card';
   if(old==='list') return 'list';
   if(PRESENTATIONS.has(meta.presentation_type) && meta.presentation_type!=='text_box') return meta.presentation_type;
   if(STYLE_VALUES.has(style)) return 'card';
