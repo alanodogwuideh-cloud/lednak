@@ -322,4 +322,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);letter-spacing:-.01em
 .site-file-drop-zone.has-file{border-style:solid;border-color:#f3c18e;background:#fffdf9}
 .site-file-drop-zone.has-file .media-file-details{color:#9b4a06;font-weight:600}
 @media(max-width:560px){.site-file-drop-zone{min-height:155px;padding:16px}.site-file-drop-zone .media-drop-title{font-size:13px}}/* Case-study editor: one clean orange focus stroke, without layered outlines or shadows. */#editor #projectForm input:not([type=hidden]):focus,#editor #projectForm textarea:focus,#editor #projectForm select:focus,#editor #projectForm .cms-dd-trigger:focus,#editor #projectForm .cms-dd-trigger:focus-visible{outline:0!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}#editor #projectForm input:not([type=hidden]):focus-visible,#editor #projectForm textarea:focus-visible,#editor #projectForm select:focus-visible{outline:0!important;box-shadow:none!important;border:1px solid #F8831D!important}/* Media upload form dropdowns use the same restrained focus treatment. */#mediaForm input:not([type=file]):focus,#mediaForm textarea:focus,#mediaForm select:focus,#mediaForm .cms-dd-trigger:focus,#mediaForm .cms-dd-trigger:focus-visible{outline:0!important;box-shadow:none!important;border:1px solid #F8831D!important;border-color:#F8831D!important}
+/* Case-study sections: clear hierarchy without changing field names, data shape, or event targets. */
+#sectionEditor{display:grid;gap:18px}
+#sectionEditor .section-card{display:grid;gap:12px;padding:20px;background:#fff;border:1px solid #dedfd9;border-radius:16px;box-shadow:0 2px 8px #17181608}
+#sectionEditor .section-card>.section-top:first-child{padding-bottom:13px;margin:0;border-bottom:1px solid #e8e9e4}
+#sectionEditor .section-card>.section-top:first-child>strong{font-size:14px;color:#171816}
+#sectionEditor .section-card>label{margin:0;gap:7px;color:#60645d;font-size:11px}
+#sectionEditor .section-card .sec-asset-type,#sectionEditor .section-card .sec-type,#sectionEditor .section-card .sec-presentation-style{background-color:#fbfbfa}
+#sectionEditor .section-card .sec-style-wrap{padding:12px;border:1px solid #e6e7e1;border-radius:11px;background:#f8f9f6}
+#sectionEditor .section-subeditor,#sectionEditor .nested-content-editor,#sectionEditor .image-subsections-editor,#sectionEditor .image-layout-controls{min-width:0;padding:16px;border:1px solid #e2e4dd;border-radius:12px;background:#f8f9f6}
+#sectionEditor .nested-content-editor{display:grid;gap:12px;margin-top:4px}
+#sectionEditor .nested-content-editor>.section-top{align-items:flex-start;padding-bottom:10px;margin:0;border-bottom:1px solid #e2e4dd}
+#sectionEditor .nested-content-editor>.section-top strong{font-size:13px;color:#20221e}
+#sectionEditor .nested-content-item{display:grid;gap:10px;padding:14px;border:1px solid #dedfd9;border-radius:10px;background:#fff}
+#sectionEditor .nested-content-item>.section-top{align-items:center;padding-bottom:9px;margin:0;border-bottom:1px solid #eeefe9}
+#sectionEditor .nested-content-item>.section-top>strong{font-size:12px;color:#30332d}
+#sectionEditor .nested-content-item label{margin:0}
+#sectionEditor .nested-content-item .nested-metric-item{padding:12px;border:1px solid #e5e6df;border-radius:9px;background:#fbfbfa}
+#sectionEditor .nested-content-editor .section-actions{gap:5px}
+#sectionEditor .nested-content-editor .section-actions button{padding:7px 10px}
+#sectionEditor .section-card .muted{font-weight:400}
+@media(max-width:640px){#sectionEditor .section-card{padding:13px}#sectionEditor .section-subeditor,#sectionEditor .nested-content-editor,#sectionEditor .image-subsections-editor,#sectionEditor .image-layout-controls{padding:11px}#sectionEditor .nested-content-item{padding:10px}#sectionEditor .section-card>.section-top:first-child{align-items:flex-start}}
 }
