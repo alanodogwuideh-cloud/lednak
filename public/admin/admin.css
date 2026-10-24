@@ -330,6 +330,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);letter-spacing:-.01em
 #sectionEditor .section-card>label{margin:0;gap:7px;color:#60645d;font-size:11px}
 #sectionEditor .section-card .sec-asset-type,#sectionEditor .section-card .sec-type,#sectionEditor .section-card .sec-presentation-style{background-color:#fbfbfa}
 #sectionEditor .section-card .sec-style-wrap{padding:12px;border:1px solid #e6e7e1;border-radius:11px;background:#f8f9f6}
+#sectionEditor .main-card-editor{display:grid;gap:10px;padding:14px;border:1px solid #d9e5f2;border-radius:12px;background:#f5f9fd;margin:8px 0 14px}
+#sectionEditor .main-card-editor .section-top{display:grid;gap:4px}
+#sectionEditor .main-card-editor .section-top strong{font-size:13px;color:#172b42}
+#sectionEditor .main-card-style-actions{display:flex;flex-wrap:wrap;gap:7px}
+#sectionEditor .main-card-style-actions button{min-height:34px;padding:7px 11px}
+#sectionEditor .nested-content-editor>.section-top{align-items:flex-start}
+#sectionEditor .nested-content-editor>.section-top strong{font-size:13px}
 #sectionEditor .section-subeditor,#sectionEditor .nested-content-editor,#sectionEditor .image-subsections-editor,#sectionEditor .image-layout-controls{min-width:0;padding:16px;border:1px solid #e2e4dd;border-radius:12px;background:#f8f9f6}
 #sectionEditor .nested-content-editor{display:grid;gap:12px;margin-top:4px}
 #sectionEditor .nested-content-editor>.section-top{align-items:flex-start;padding-bottom:10px;margin:0;border-bottom:1px solid #e2e4dd}
