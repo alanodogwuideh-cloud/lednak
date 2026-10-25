@@ -1,4 +1,4 @@
-import { tursoQuery, ensureTrashSchema } from 'lib/turso';
+import { tursoQuery } from 'lib/turso';
 import { normalizeR2Url } from 'lib/r2';
 
 export const access = 'public';
@@ -101,7 +101,7 @@ export default async function (req, res) {
   const perfStart = Date.now();
   try {
     const schemaStart = Date.now();
-    await ensureTrashSchema();
+    // Trash schema is initialized by the admin Trash workflow, not public reads.
     const schemaMs = Date.now() - schemaStart;
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
