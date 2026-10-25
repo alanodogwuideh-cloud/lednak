@@ -98,14 +98,22 @@ function normalizeSections(content) {
 }
 
 export default async function (req, res) {
+  const perfStart = Date.now();
   try {
+    const schemaStart = Date.now();
     await ensureTrashSchema();
+    const schemaMs = Date.now() - schemaStart;
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).json({ error: 'Missing slug' });
     const lookup = aliases[slug] || slug;
+    const queryStart = Date.now();
     const { rows } = await tursoQuery(`SELECT * FROM case_studies WHERE slug = $1 LIMIT 1`, [lookup]);
+    const queryMs = Date.now() - queryStart;
     const project = rows?.[0];
-    if (!project || project.deleted_at) return res.status(404).json({ error: 'Case study not found' });
+    if (!project || project.deleted_at) {
+      console.log('case-study-perf', JSON.stringify({ route: 'case-study', stage: 'not_found', schema_ms: schemaMs, query_ms: queryMs, total_ms: Date.now() - perfStart }));
+      return res.status(404).json({ error: 'Case study not found' });
+    }
 
     const requestedPreviewToken = String(req.query?.preview || '').trim();
     const contentForAccess = object(project.content);
@@ -126,9 +134,11 @@ export default async function (req, res) {
     const rawContent = object(project.content);
     const { preview_token: _previewToken, preview_token_expires_at: _previewTokenExpiresAt, ...content } = rawContent;
     const caseMeta = object(content.case_meta);
+    const normalizeStart = Date.now();
     const sections = normalizeSections(content);
+    const normalizeMs = Date.now() - normalizeStart;
 
-    return res.json({
+    const payload = {
       id: project.id,
       slug: project.slug,
       title: project.title || '',
@@ -149,9 +159,12 @@ export default async function (req, res) {
       cover_image_url: normalizeR2Url(project.cover_image_url || ''),
       hero_image_url: normalizeR2Url(project.hero_image_url || ''),
       content: { ...content, sections },
-    });
+    };
+    console.log('case-study-perf', JSON.stringify({ route: 'case-study', stage: 'complete', schema_ms: schemaMs, query_ms: queryMs, normalize_ms: normalizeMs, sections: sections.length, images: sections.reduce((sum, section) => sum + (Array.isArray(section.images) ? section.images.length : 0), 0), content_bytes: JSON.stringify(project.content || {}).length, total_ms: Date.now() - perfStart }));
+    return res.json(payload);
   } catch (error) {
     console.error('case-study error', error.message);
+    console.log('case-study-perf', JSON.stringify({ route: 'case-study', stage: 'error', total_ms: Date.now() - perfStart }));
     return res.status(500).json({ error: 'Case study could not be loaded' });
   }
 }

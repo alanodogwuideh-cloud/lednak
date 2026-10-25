@@ -269,15 +269,32 @@ async function saveSections(project, incoming, caseMeta) {
 function response(project) { const content = normalizeContent(project.content); const sections = content.sections; const images = sections.flatMap((section, sectionIndex) => (Array.isArray(section.images) ? section.images : []).map((image, imageIndex) => ({ ...image, image_url: normalizeR2Url(image.image_url || ''), id: image.id || `${section.id}-image-${imageIndex + 1}`, project_id: project.id, section_id: section.id, section_title: section.title || '', display_order: Number(image.display_order ?? imageIndex) }))); return { ...project, cover_image_url: normalizeR2Url(project.cover_image_url || ''), hero_image_url: normalizeR2Url(project.hero_image_url || ''), content, sections, images }; }
 
 export default async function (req, res) {
+  const perfStart = Date.now();
+  const authStart = Date.now();
   const auth = await requireSupabaseAdmin(req);
-  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+  const authMs = Date.now() - authStart;
+  if (!auth.ok) {
+    console.log('case-study-perf', JSON.stringify({ route: 'admin-case-study', method: req.method, stage: 'auth_rejected', auth_ms: authMs, total_ms: Date.now() - perfStart, status: auth.status }));
+    return res.status(auth.status).json({ error: auth.error });
+  }
   try {
     const body = req.body || {};
     const projectId = req.query?.project_id || body.project_id || body.id;
     if (!projectId) return res.status(400).json({ error: 'Missing project_id.' });
+    const queryStart = Date.now();
     const project = await getProject(projectId);
-    if (!project) return res.status(404).json({ error: 'Case study not found.' });
-    if (req.method === 'GET') return res.json(response(project));
+    const queryMs = Date.now() - queryStart;
+    if (!project) {
+      console.log('case-study-perf', JSON.stringify({ route: 'admin-case-study', method: req.method, stage: 'not_found', auth_ms: authMs, query_ms: queryMs, total_ms: Date.now() - perfStart }));
+      return res.status(404).json({ error: 'Case study not found.' });
+    }
+    if (req.method === 'GET') {
+      const normalizeStart = Date.now();
+      const payload = response(project);
+      const normalizeMs = Date.now() - normalizeStart;
+      console.log('case-study-perf', JSON.stringify({ route: 'admin-case-study', method: req.method, stage: 'complete', auth_ms: authMs, query_ms: queryMs, normalize_ms: normalizeMs, sections: payload.sections.length, images: payload.images.length, content_bytes: JSON.stringify(project.content || {}).length, total_ms: Date.now() - perfStart }));
+      return res.json(payload);
+    }
     const current = normalizeContent(project.content);
     if (req.method === 'PUT' && body.replace_all === true) return res.json(response(await saveSections(project, body.sections, body.case_meta)));
     if (req.method === 'POST') {
