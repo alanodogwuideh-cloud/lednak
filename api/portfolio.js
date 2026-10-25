@@ -1,4 +1,4 @@
-import { tursoQuery, ensureTrashSchema } from 'lib/turso';
+import { tursoQuery } from 'lib/turso';
 import { r2PublicUrl, normalizeR2Url } from 'lib/r2';
 
 export const access = 'public';
@@ -6,7 +6,7 @@ export const methods = ['GET'];
 
 export default async function (req, res) {
   try {
-    await ensureTrashSchema();
+    // Trash schema is maintained by authenticated admin project/trash routes.
     try { await tursoQuery('ALTER TABLE site_branding ADD COLUMN resume_key TEXT'); } catch (e) { if (!/duplicate column|already exists/i.test(e.message || '')) throw e; }
     const [{ rows: settingsRows }, { rows: projectRows }, { rows: brandingRows }] = await Promise.all([
       tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`),
