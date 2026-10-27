@@ -206,6 +206,17 @@ button:not(:disabled):active{transform:translateY(0)!important}
 @media(max-width:900px){#editor .section-card .card2-row{padding:16px!important;gap:12px!important}#editor .section-card .card2-row .card2-description-sections{padding:12px!important}#editor .section-card .card2-row .card2-description-part{padding:12px!important}}
 @media(max-width:640px){#editor .section-card .card2-row{padding:12px!important;gap:10px!important;margin-bottom:12px!important}#editor .section-card .card2-row .card2-description-sections{padding:10px!important;gap:10px!important}#editor .section-card .card2-row .card2-description-part{padding:10px!important}}
 #editor .nested-content-editor .section-top{margin-bottom:14px!important;padding-bottom:12px!important;border-color:#deded8!important}
+/* Keep Additional Content card inputs visually aligned with the Main Section card editors. */
+#editor .nested-card-full-fields{display:grid!important;gap:14px!important;margin-top:12px!important;padding:16px!important;border:1px solid #e4e0d9!important;border-radius:12px!important;background:#f5f3ee!important}
+#editor .nested-card-items{display:grid!important;gap:12px!important}
+#editor .nested-card-item{display:grid!important;gap:10px!important;padding:16px!important;margin:0!important;border:1px solid #e4e0d9!important;border-radius:12px!important;background:#fff!important;min-width:0!important}
+#editor .nested-card-item .section-top{margin:0!important;padding-bottom:10px!important;border-bottom:1px solid #e4e0d9!important}
+#editor .nested-card-description-part{display:grid!important;gap:10px!important;padding:14px!important;margin:0 0 10px!important;border:1px solid #e4e0d9!important;border-radius:10px!important;background:#f8f7f4!important}
+#editor .nested-card-description-part label{margin:0!important}
+#editor .nested-card-description-part textarea{min-height:90px!important}
+#editor .nested-card-add-item,#editor .nested-card-add-part{justify-self:start!important}
+#editor .nested-card-part-color-button{width:28px!important;height:28px!important;padding:0!important;border-radius:50%!important}
+#editor .nested-card-item input,#editor .nested-card-item textarea{margin:0!important}
 #editor .nested-content-editor select,#editor .nested-content-item input,#editor .nested-content-item textarea{border-radius:9px!important}
 @media(max-width:900px){#editor>#projectForm{gap:20px!important}#editor .editor-grid{gap:16px!important}#editor .editor-grid>.panel,#editor .sections-panel{padding:20px!important}#editor .section-card{padding:18px!important}#editor .nested-content-editor{padding:15px!important}}
 @media(max-width:640px){#editor>#projectForm{gap:16px!important}#editor .editor-grid>.panel,#editor .sections-panel{padding:16px!important;border-radius:14px!important}#editor .section-editor{gap:14px!important}#editor .section-card{padding:14px!important;border-radius:12px!important}#editor .nested-content-editor{padding:12px!important;border-radius:10px!important}#editor .nested-content-item{padding:11px!important}}
