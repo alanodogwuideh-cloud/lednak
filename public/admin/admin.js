@@ -718,7 +718,7 @@ document.addEventListener('click',e=>{
  const style=button.closest('.nested-card-add-controls')?.querySelector('.nested-card-style')?.value||'card1';
  if(!['card1','card2','card3','card4','card5','card7','analytic_card'].includes(style))return;
  const snapshot={id:crypto.randomUUID(),title:'',subtitle:'',body:'',type:'card',section_type:'card',presentation_style:style,metadata:{presentation_type:'card',presentation_style:style,card_variant:style,content_blocks:[]},items:[]};
- if(style==='card2')snapshot.metadata.card2_items=[{id:crypto.randomUUID(),caption:'',description:''}];
+ if(style==='card2')snapshot.metadata.card2_items=[{id:crypto.randomUUID(),caption:'',description:'',description_sections:[{caption:'',description:''}]}];
  if(style==='card4')snapshot.metadata.card4_items=[{id:crypto.randomUUID(),caption:'',description_sections:[{caption:'',description:''}]}];
  if(style==='card5')snapshot.items=[''];
  if(style==='card7'){snapshot.items=[{id:crypto.randomUUID(),icon:'sparkles',title:'',description:''}];snapshot.metadata.items=snapshot.items;}
