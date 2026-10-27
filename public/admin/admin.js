@@ -316,7 +316,8 @@ function syncNestedContentBlocks(card,s){
   s.metadata={...(s.metadata||{})};
   const blocks=[...card.querySelectorAll('.nested-content-item')].map((el,i)=>{
     const selectedType=el.querySelector('.nested-content-type')?.value||'quote';
-    const prior=s.metadata.content_blocks?.[i]||{};
+    const blockIndex=Number(el.dataset.block);
+    const prior=s.metadata.content_blocks?.[Number.isInteger(blockIndex)&&blockIndex>=0?blockIndex:i]||{};
     const position=el.querySelector('.nested-content-block-position')?.value||prior.position||'after_body';
     if(prior.type==='card')return {...prior,id:String(prior.id||crypto.randomUUID()),type:'card',position};
     if(selectedType==='list'){const items=[...el.querySelectorAll('.nested-list-item-text')].map(input=>input.value);const source=prior.type==='list'?prior.items:(Array.isArray(prior.metadata?.items)?prior.metadata.items:[]);const values=items.length?items:(Array.isArray(source)?source:[]);const marker=el.querySelector('.nested-list-marker')?.value||prior.metadata?.list_marker||'bullet';return {...prior,id:String(prior.id||crypto.randomUUID()),type:'list',position,title:(el.querySelector('.nested-list-title')||el.querySelector('.nested-content-title')||el.querySelector('.nested-list-editor input'))?.value??prior.title??'',items:values,metadata:{...(prior.metadata||{}),list_marker:marker,items:[...values]}};}
