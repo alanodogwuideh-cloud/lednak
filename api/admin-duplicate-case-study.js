@@ -44,7 +44,13 @@ async function copyMediaUrl(url, newProjectId, copiedKeys) {
 }
 
 async function duplicateMedia(value, projectId, copiedKeys) {
-  if (Array.isArray(value)) return Promise.all(value.map(item => duplicateMedia(item, projectId, copiedKeys)));
+  // Copy media sequentially to avoid buffering multiple full-resolution assets
+  // concurrently in the worker isolate during case-study duplication.
+  if (Array.isArray(value)) {
+    const items = [];
+    for (const item of value) items.push(await duplicateMedia(item, projectId, copiedKeys));
+    return items;
+  }
   if (!value || typeof value !== 'object') return value;
   const out = {};
   for (const [key, child] of Object.entries(value)) {
