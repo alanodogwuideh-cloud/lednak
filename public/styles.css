@@ -52,7 +52,7 @@ body.motion-leaving .site-shell{opacity:.98;transform:translateY(-4px);transitio
 .case-content{--soft:#f3f1ed;--card:#faf9f6}
 .case-content .case-list-card,.case-content .card5-card,.case-content .case-metric-card,.case-content .info-card,.case-content .decision-card,.case-content .testing-card,.case-content .learned-card,.case-content .next-step-card,.case-content .insight-card,.case-content .stat-card,.case-content .card7-card,.case-content .card4-card,.case-content .card3-card,.case-content .case-metric-progress,.case-content .case-metric{background-color:var(--soft)}
 .case-content .nested-content-quote{background-color:var(--soft)}
-.case-content .case-metric-bar,.case-content .case-metric-track{background:#d1d5db}
+.case-content .case-metric-bar,.case-content .case-metric-track{background:#e6e4df}
 
 /* Existing Metrics component: theme-aware progress track and fill. */
 .case-metrics-section .case-metrics-block,.case-metrics-block{width:100%;min-width:0}
