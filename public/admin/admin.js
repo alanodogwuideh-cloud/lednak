@@ -664,7 +664,7 @@ function bindNestedCardControls(){
    select.value='card';
    if(!el.querySelector('.nested-card-add-controls')){
     const controls=document.createElement('div');controls.className='nested-card-add-controls';
-    controls.innerHTML='<label>Card presentation style<select class="nested-card-style"><option value="card1">Default / Card Style 1</option><option value="card2">Card Style 2</option><option value="card3">Card Style 3</option><option value="card4">Card Style 4</option><option value="card5">Card Style 5</option><option value="card7">Card Style 7 · Icon Cards</option><option value="analytic_card">Analytic Cards</option></select></label><p class="muted">Choose the style, then add the card. Fields will match the selected card type.</p><div class="section-actions"><button type="button" class="secondary add-nested-card-style" data-style="card1">+ Add Card 1</button><button type="button" class="secondary add-nested-card-style" data-style="card2">+ Add Card 2</button><button type="button" class="secondary add-nested-card-style" data-style="card3">+ Add Card 3</button><button type="button" class="secondary add-nested-card-style" data-style="card4">+ Add Card 4</button><button type="button" class="secondary add-nested-card-style" data-style="card5">+ Add Card 5</button><button type="button" class="secondary add-nested-card-style" data-style="card7">+ Add Card 7</button><button type="button" class="secondary add-nested-card-style" data-style="analytic_card">+ Analytic Cards</button></div>';
+    controls.innerHTML='<label>Presentation Style<select class="nested-card-style"><option value="card1">Card Style 1</option><option value="card2">Card Style 2</option><option value="card3">Card Style 3</option><option value="card4">Card Style 4</option><option value="card5">Card Style 5</option><option value="card7">Card Style 7 · Icon Cards</option><option value="analytic_card">Analytic Card</option></select></label><p class="muted">Choose a style for this card. Use the button below to add another independent card.</p><div class="section-actions"><button type="button" class="secondary add-nested-card-style">+ Add another card</button></div>';
     select.closest('label')?.after(controls);
    }
    if(block.card){
@@ -715,7 +715,7 @@ document.addEventListener('click',e=>{
  e.preventDefault();e.stopImmediatePropagation();
  const card=button.closest('.section-card'),section=resolveEditorSection(card);if(!section)return;
  syncNestedContentBlocks(card,section);
- const style=button.dataset.style;
+ const style=button.closest('.nested-card-add-controls')?.querySelector('.nested-card-style')?.value||'card1';
  if(!['card1','card2','card3','card4','card5','card7','analytic_card'].includes(style))return;
  const snapshot={id:crypto.randomUUID(),title:'',subtitle:'',body:'',type:'card',section_type:'card',presentation_style:style,metadata:{presentation_type:'card',presentation_style:style,card_variant:style,content_blocks:[]},items:[]};
  if(style==='card2')snapshot.metadata.card2_items=[{id:crypto.randomUUID(),caption:'',description:''}];

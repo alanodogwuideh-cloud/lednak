@@ -340,7 +340,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);letter-spacing:-.01em
 #sectionEditor .section-subeditor,#sectionEditor .nested-content-editor,#sectionEditor .image-subsections-editor,#sectionEditor .image-layout-controls{min-width:0;padding:16px;border:1px solid #e2e4dd;border-radius:12px;background:#f8f9f6}
 #sectionEditor .nested-content-editor{display:grid;gap:12px;margin-top:4px}
 #sectionEditor .nested-content-editor>.section-top{align-items:flex-start;padding-bottom:10px;margin:0;border-bottom:1px solid #e2e4dd}
-#sectionEditor .nested-content-editor>.section-top strong{font-size:13px;color:#20221e}
+#sectionEditor .nested-content-editor>.section-top strong{font-size:12px;font-weight:600;color:#20221e}
 #sectionEditor .nested-content-item{display:grid;gap:10px;padding:14px;border:1px solid #dedfd9;border-radius:10px;background:#fff}
 #sectionEditor .nested-content-item>.section-top{align-items:center;padding-bottom:9px;margin:0;border-bottom:1px solid #eeefe9}
 #sectionEditor .nested-content-item>.section-top>strong{font-size:12px;color:#30332d}
