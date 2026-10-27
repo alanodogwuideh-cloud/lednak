@@ -662,6 +662,9 @@ function bindNestedCardControls(){
   const block=section?.metadata?.content_blocks?.[index];if(!block)return;
   if(block.type==='card'){
    select.value='card';
+   // Card blocks use their own title/subtitle/content editor; remove only the redundant generic subsection fields.
+   el.querySelector('.nested-content-title')?.closest('label')?.remove();
+   el.querySelector('.nested-content-body')?.closest('label')?.remove();
    if(!el.querySelector('.nested-card-add-controls')){
     const controls=document.createElement('div');controls.className='nested-card-add-controls';
     controls.innerHTML='<label>Presentation Style<select class="nested-card-style"><option value="card1">Card Style 1</option><option value="card2">Card Style 2</option><option value="card3">Card Style 3</option><option value="card4">Card Style 4</option><option value="card5">Card Style 5</option><option value="card7">Card Style 7 · Icon Cards</option><option value="analytic_card">Analytic Card</option></select></label><p class="muted">Choose a style for this card. Use the button below to add another independent card.</p><div class="section-actions"><button type="button" class="secondary add-nested-card-style">+ Add another card</button></div>';
