@@ -580,6 +580,7 @@ document.addEventListener('change',e=>{const nestedType=e.target?.closest?.('.ne
       const items=[...card.querySelectorAll('.refining-item-text')].map(input=>input.value);
       if(items.length)s.metadata.refining_design.items=items;
     }
+    if(card.querySelector('.nested-content-item'))syncNestedContentBlocks(card,s);
   });
 }
 function syncCard4ColorsFromEditor(){const cards=[...document.querySelectorAll('#sectionEditor .section-card')];cards.forEach((card,si)=>{const s=editing.sections[si];if(!s)return;const style=s.presentation_style||s.metadata?.presentation_style||'';const isCard4=style==='card4'||s.section_type==='card4'||s.type==='card4';if(!isCard4)return;s.metadata={...(s.metadata||{})};s.metadata.card4_items=Array.isArray(s.metadata.card4_items)?s.metadata.card4_items:[];card.querySelectorAll('.card4-color-control').forEach(control=>{const picker=control.querySelector('.card4-color-input');const hex=control.querySelector('.card4-current-hex');if(!picker||!hex)return;const i=Number(picker.dataset.card2),k=Number(picker.dataset.part);const value=String(hex.value||picker.value||'').trim().toUpperCase();if(!/^#[0-9A-F]{6}$/.test(value))return;const item=s.metadata.card4_items[i]||{};item.description_sections=Array.isArray(item.description_sections)?item.description_sections:[];item.description_sections[k]={...(item.description_sections[k]||{}),caption_color:value};s.metadata.card4_items[i]=item;picker.value=value.toLowerCase();hex.value=value})})}
