@@ -34,6 +34,19 @@
   let masterProfileAnalysisError = '';
   let openAfterRender = '';
   let activeView = 'profile';
+  let jobTitle = '';
+  let jobCompany = '';
+  let jobDescription = '';
+  let jobCompanyDetails = '';
+  let jobCoverTone = 'professional';
+  let jobCoverLength = 'standard';
+  let jobGenerating = false;
+  let jobSaving = false;
+  let jobError = '';
+  let jobResult = null;
+  let jobDraftResume = '';
+  let jobDraftCover = '';
+  let jobSavedMessage = '';
   let resumeEditorStep = 0;
   let resumeEditorResumeId = null;
   let resumePreviewMode = false;
@@ -325,7 +338,7 @@
     }
     const dirty = resumeIsDirty();
     const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Resumes</h2><p class="muted">Create editable resumes from your Master Profile. Each resume is its own saved snapshot.</p></div><button type="button" class="primary" data-resume-action="new">+ New resume</button></div>'+
-      '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" disabled>Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
+      '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="resumes" aria-selected="true">Resumes</button><button type="button" class="rs-tab" data-resume-view="jobs">Jobs</button><button type="button" class="rs-tab" disabled>Cover Letters <span>Coming soon</span></button></div>';
     if (resumeLoading && !currentResume) { root.innerHTML=head+'<div class="panel rs-loading"><span class="rs-spinner"></span><p>Loading resumes…</p></div>'; return; }
     if (currentResume) {
       if (resumeEditorResumeId !== currentResume.id) { resumeEditorResumeId=currentResume.id; resumeEditorStep=0; resumePreviewMode=false; }
@@ -796,13 +809,24 @@
     const certHtml = '<section class="rs-import-section"><h4>Certifications</h4>'+((p.certifications||[]).length ? p.certifications.map((x,i)=>'<div class="rs-import-card"><div class="rs-form-grid">'+input('Certification','certifications.'+i+'.name',x.name)+input('Issuer','certifications.'+i+'.issuer',x.issuer)+input('Date','certifications.'+i+'.date',x.date)+'</div></div>').join('') : '<p class="rs-import-empty">No certifications were detected.</p>')+'</section>';
     return '<div class="rs-import-backdrop" data-import-action="dismiss"><section class="rs-import-modal" role="dialog" aria-modal="true" aria-labelledby="rsImportTitle"><header><div><span class="eyebrow">MASTER PROFILE IMPORT</span><h3 id="rsImportTitle">Review extracted information</h3><p>Review the information in normal form fields. Correct anything that is misplaced before applying it.</p></div><button type="button" class="rs-analysis-close" data-import-action="dismiss" aria-label="Close import review">×</button></header><div class="rs-import-modal-body"><div class="rs-import-counts">' + counts.map(([label,count]) => '<div><strong>' + count + '</strong><span>' + label + '</span></div>').join('') + '</div>' + ((importReview.warnings || []).length ? '<div class="rs-import-warnings"><strong>Items to verify</strong><ul>' + importReview.warnings.map(w => '<li>' + escHtml(w) + '</li>').join('') + '</ul></div>' : '<p class="rs-import-ok">Still verify the extracted details below.</p>') + contactHtml + summariesHtml + experienceHtml + projectsHtml + skillsHtml + educationHtml + certHtml + '<p class="rs-import-note">Applying these details only updates the unsaved Master Profile form. Nothing is saved until you click Save Master Profile.</p></div><footer><button type="button" class="secondary" data-import-action="dismiss">Cancel</button><button type="button" class="primary" data-import-action="apply">Apply imported profile</button></footer></section></div>';
   }
+  function renderJobsView() {
+    const dirty = JSON.stringify(profile) !== savedJson;
+    const head = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Jobs</h2><p class="muted">Compare a role with your verified Master Profile, then review a separate tailored resume and cover letter draft.</p></div></div>' +
+      '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab" data-resume-view="profile">Master Profile</button><button type="button" class="rs-tab is-active" data-resume-view="jobs" aria-selected="true">Jobs</button><button type="button" class="rs-tab" data-resume-view="resumes">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>';
+    root.innerHTML = head + (dirty ? '<div class="rs-notice rs-import-error"><p>Save your Master Profile before generating job-specific documents. This keeps the source of truth accurate.</p><button type="button" class="primary" data-job-action="save-profile">Save Master Profile</button></div>' : '') +
+      '<section class="rs-section rs-job-form"><div class="rs-section-body"><h3>Job details</h3><p>Paste the job description to identify relevant evidence and gaps.</p><div class="rs-form-grid"><label class="rs-field"><span>Job title</span><input data-job-field="title" maxlength="160" value="'+escHtml(jobTitle)+'" placeholder="Product Designer"></label><label class="rs-field"><span>Company</span><input data-job-field="company" maxlength="160" value="'+escHtml(jobCompany)+'" placeholder="Company name"></label><label class="rs-field rs-wide"><span>Company context (optional)</span><textarea data-job-field="companyDetails" rows="2" maxlength="5000" placeholder="Verified details about the company or team">'+escHtml(jobCompanyDetails)+'</textarea></label><label class="rs-field rs-wide"><span>Job description</span><textarea data-job-field="description" rows="10" maxlength="20000" placeholder="Paste the full job description here">'+escHtml(jobDescription)+'</textarea><small>Maximum 20,000 characters. Missing requirements will be flagged, not invented.</small></label><label class="rs-field"><span>Cover letter tone</span><select data-job-field="tone"><option value="professional" '+(jobCoverTone==='professional'?'selected':'')+'>Professional</option><option value="enthusiastic" '+(jobCoverTone==='enthusiastic'?'selected':'')+'>Enthusiastic</option><option value="confident" '+(jobCoverTone==='confident'?'selected':'')+'>Confident</option></select></label><label class="rs-field"><span>Cover letter length</span><select data-job-field="length"><option value="concise" '+(jobCoverLength==='concise'?'selected':'')+'>Concise</option><option value="standard" '+(jobCoverLength==='standard'?'selected':'')+'>Standard</option><option value="detailed" '+(jobCoverLength==='detailed'?'selected':'')+'>Detailed</option></select></label></div><div class="rs-resume-complete-actions"><button type="button" class="primary" data-job-action="generate" '+(jobGenerating||dirty?'disabled':'')+'>'+(jobGenerating?'Analyzing and drafting…':'Analyze job and generate drafts')+'</button></div></div></section>' +
+      (jobError ? '<div class="rs-notice rs-import-error" role="alert"><p>'+escHtml(jobError)+'</p><button type="button" class="secondary" data-job-action="generate" '+(jobGenerating||dirty?'disabled':'')+'>Try again</button></div>' : '') +
+      (jobGenerating ? '<div class="rs-notice" role="status"><span class="rs-spinner" aria-hidden="true"></span><p>Cloudflare Workers AI is comparing the job description with your verified profile. Your Master Profile will not be changed.</p></div>' : '') +
+      (jobResult ? '<section class="rs-section"><div class="rs-section-body"><h3>Job match analysis</h3><p>'+escHtml(jobResult.analysis?.role_summary||'Role analysis generated.')+'</p><h4>Matching evidence</h4><ul>'+((jobResult.analysis?.matched_requirements||[]).map(x=>'<li>'+escHtml(x)+'</li>').join('')||'<li>No matching requirements were returned.</li>')+'</ul><h4>Gaps or unproven requirements</h4><ul>'+((jobResult.analysis?.gaps_or_unproven||[]).map(x=>'<li>'+escHtml(x)+'</li>').join('')||'<li>No gaps were returned. Review the job requirements carefully.</li>')+'</ul><h4>Tailoring strategy</h4><p>'+escHtml(jobResult.analysis?.tailoring_strategy||'')+'</p><p class="muted">Generated content is a draft. Verify every statement before using it.</p></div></section><section class="rs-section"><div class="rs-section-body"><h3>Tailored resume draft</h3><label class="rs-field"><span>Editable draft</span><textarea data-job-field="draftResume" rows="18" maxlength="40000">'+escHtml(jobDraftResume)+'</textarea></label><h3>Cover letter draft</h3><label class="rs-field"><span>Editable draft</span><textarea data-job-field="draftCover" rows="12" maxlength="20000">'+escHtml(jobDraftCover)+'</textarea></label><div class="rs-resume-complete-actions"><button type="button" class="secondary" data-job-action="copy-resume">Copy resume</button><button type="button" class="secondary" data-job-action="copy-cover">Copy cover letter</button><button type="button" class="primary" data-job-action="save-drafts" '+(jobSaving?'disabled':'')+'>'+(jobSaving?'Saving drafts…':'Save drafts')+'</button></div>'+(jobSavedMessage?'<p class="muted" role="status">'+escHtml(jobSavedMessage)+'</p>':'')+'</div></section>' : '');
+  }
   function render() {
+    if (activeView === 'jobs') { renderJobsView(); return; }
     if (activeView === 'resumes') { renderResumeView(); return; }
     const wasOpen = currentOpenSections();
     if (openAfterRender) wasOpen.add(openAfterRender);
     const dirty = JSON.stringify(profile) !== savedJson;
     root.innerHTML = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2 id="resumeStudioHeading">Resume Studio</h2><p class="muted">Build one accurate master profile, then reuse it across tailored resumes and cover letters.</p></div><div class="rs-header-status"><span class="rs-status-dot ' + (dirty ? 'is-dirty' : '') + '"></span><span id="rsSaveState">' + (dirty ? 'Unsaved changes' : formatSaved(lastSavedAt)) + '</span></div></div>' +
-      '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab is-active" data-resume-view="profile" role="tab" aria-selected="true">Master Profile</button><button type="button" class="rs-tab" disabled title="Coming soon">Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" data-resume-view="resumes" role="tab" aria-selected="false">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>' +
+      '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab is-active" data-resume-view="profile" role="tab" aria-selected="true">Master Profile</button><button type="button" class="rs-tab" data-resume-view="jobs" role="tab" aria-selected="false">Jobs</button><button type="button" class="rs-tab" data-resume-view="resumes" role="tab" aria-selected="false">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>' +
       '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Analyze the saved profile to identify evidence gaps and improvement opportunities.</p></div><div class="rs-import-actions"><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div><input id="rsImportFile" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden><button type="button" class="secondary" data-action="analyze-master-profile" ' + (masterProfileAnalysisLoading || dirty || importBusy ? 'disabled' : '') + '>' + (masterProfileAnalysisLoading ? 'Analyzing…' : 'Analyze Master Profile') + '</button><button type="button" class="secondary" data-action="import-resume" ' + (importBusy ? 'disabled' : '') + '>' + (importBusy ? 'Importing…' : 'Import existing resume') + '</button></div></div>' +
       masterProfileAnalysisHtml() +
       (importError ? '<div class="rs-notice rs-import-error"><p>' + escHtml(importError) + '</p></div>' : '') +
@@ -1026,10 +1050,50 @@
     if (viewTab) {
       const view=viewTab.dataset.view||viewTab.dataset.resumeView;
       if (view==='resumes') { if (activeView==='resumes' && currentResume && resumeIsDirty() && !await confirmDialog('This resume has unsaved changes. Discard them and return to the resume list?',{title:'Discard resume changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson && !await confirmDialog('Your Master Profile has unsaved changes. Discard them and open Resumes?',{title:'Discard Master Profile changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson) { profile=JSON.parse(savedJson); render(); } activeView='resumes'; currentResume=null; await loadResumeList(); return; }
+      if (view==='jobs') { if (currentResume && resumeIsDirty() && !await confirmDialog('This resume has unsaved changes. Discard them and open Jobs?',{title:'Discard resume changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson && !await confirmDialog('Your Master Profile has unsaved changes. Discard them and open Jobs?',{title:'Discard Master Profile changes',confirmLabel:'Discard',tone:'danger'})) return; if (JSON.stringify(profile)!==savedJson) profile=JSON.parse(savedJson); activeView='jobs'; currentResume=null; render(); return; }
       if (view==='profile') { if (currentResume && resumeIsDirty() && !await confirmDialog('This resume has unsaved changes. Discard them and return to Master Profile?',{title:'Discard resume changes',confirmLabel:'Discard',tone:'danger'})) return; activeView='profile'; currentResume=null; render(); return; }
     }
     const resumeButton=event.target.closest('[data-resume-action]');
     if (resumeButton) { await resumeAction(resumeButton, event); return; }
+    const jobButton = event.target.closest('[data-job-action]');
+    if (jobButton) {
+      const action = jobButton.dataset.jobAction;
+      if (action === 'save-profile') { await saveProfile(); activeView='jobs'; render(); return; }
+      if (action === 'generate') {
+        if (jobGenerating || JSON.stringify(profile)!==savedJson) { jobError='Save your Master Profile before generating job-specific documents.'; renderJobsView(); return; }
+        if (jobDescription.trim().length < 80) { jobError='Paste a complete job description (at least 80 characters) before generating drafts.'; renderJobsView(); return; }
+        if (jobDescription.length > 20000) { jobError='The job description must be 20,000 characters or fewer.'; renderJobsView(); return; }
+        const masterText=masterProfileAnalysisText(profile);
+        if (masterText.replace(/\s/g,'').length < 80) { jobError='Add more verified information to your Master Profile before generating drafts.'; renderJobsView(); return; }
+        jobGenerating=true; jobError=''; jobSavedMessage=''; jobResult=null; jobDraftResume=''; jobDraftCover=''; renderJobsView();
+        try {
+          const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+          const result=await api(endpoint,{method:'POST',body:JSON.stringify({action:'generate',master_resume_text:masterText,job_description:jobDescription.trim(),job_title:jobTitle.trim(),company_name:jobCompany.trim(),company_details:jobCompanyDetails.trim(),cover_tone:jobCoverTone,cover_length:jobCoverLength})});
+          if(!String(result?.tailored_resume||'').trim() || !String(result?.cover_letter||'').trim()) throw new Error('The service returned an incomplete draft. Please try again.');
+          jobResult=result; jobDraftResume=String(result.tailored_resume); jobDraftCover=String(result.cover_letter);
+        } catch(error) { jobError=error.message||'Could not generate job-specific drafts. Please try again.'; }
+        finally { jobGenerating=false; renderJobsView(); }
+        return;
+      }
+      if (action === 'copy-resume' || action === 'copy-cover') {
+        const content=action==='copy-resume'?jobDraftResume:jobDraftCover;
+        try { await navigator.clipboard.writeText(content); jobSavedMessage=action==='copy-resume'?'Tailored resume copied. Verify all claims before using it.':'Cover letter copied. Verify all claims before using it.'; }
+        catch (_) { jobSavedMessage='Clipboard access was blocked. Select the draft text and copy it manually.'; }
+        renderJobsView(); return;
+      }
+      if (action === 'save-drafts') {
+        if (jobSaving || !jobResult) return;
+        jobSaving=true; jobSavedMessage=''; renderJobsView();
+        try {
+          const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+          const documents=[{document_type:'resume',title:(jobTitle.trim()||'Tailored Resume')+' — '+(jobCompany.trim()||'Target Role'),job_title:jobTitle,company_name:jobCompany,content:jobDraftResume,analysis:jobResult.analysis},{document_type:'cover',title:'Cover Letter — '+(jobCompany.trim()||jobTitle.trim()||'Target Role'),job_title:jobTitle,company_name:jobCompany,content:jobDraftCover,analysis:jobResult.analysis}];
+          const result=await api(endpoint,{method:'POST',body:JSON.stringify({action:'save-documents',documents,job_title:jobTitle,company_name:jobCompany,analysis:jobResult.analysis})});
+          jobSavedMessage='Saved '+(result.saved?.length||documents.length)+' draft documents. They remain separate from your Master Profile.';
+        } catch(error) { jobSavedMessage='Could not save drafts: '+(error.message||'Please try again.'); }
+        finally { jobSaving=false; renderJobsView(); }
+        return;
+      }
+    }
     const save = event.target.closest('#rsSaveButton');
     if (save) { await saveProfile(); return; }
     const button = event.target.closest('[data-action]');
@@ -1096,12 +1160,25 @@
     markDirty(); render();
   });
   root.addEventListener('input', event => {
+    const jobField=event.target.closest('[data-job-field]');
+    if (jobField) {
+      const key=jobField.dataset.jobField;
+      if(key==='title') jobTitle=jobField.value;
+      else if(key==='company') jobCompany=jobField.value;
+      else if(key==='description') jobDescription=jobField.value;
+      else if(key==='companyDetails') jobCompanyDetails=jobField.value;
+      else if(key==='draftResume') jobDraftResume=jobField.value;
+      else if(key==='draftCover') jobDraftCover=jobField.value;
+      return;
+    }
     const field=event.target.closest('[data-suggestion-index]');
     if (!field) return;
     const index=Number(field.dataset.suggestionIndex);
     if (resumeSuggestions[index]) { resumeSuggestions[index].text=field.value; persistResumeReview(); }
   });
   root.addEventListener('change', event => {
+    const jobField=event.target.closest('[data-job-field]');
+    if(jobField){if(jobField.dataset.jobField==='tone')jobCoverTone=jobField.value;if(jobField.dataset.jobField==='length')jobCoverLength=jobField.value;return;}
     if (event.target.matches('#rsImportFile')) {
       const file = event.target.files?.[0];
       if (file) void startResumeImport(file);
