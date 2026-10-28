@@ -202,7 +202,7 @@
       'SKILLS', ...(p.skills || []).map(x => [x.category, (x.items || []).join(', ')].filter(Boolean).join(': ')),
       'EDUCATION', ...(p.education || []).flatMap(x => [x.institution, x.degree, x.field, [x.startDate, x.endDate].filter(Boolean).join(' – '), x.notes]),
       'CERTIFICATIONS', ...(p.certifications || []).flatMap(x => [x.name, x.issuer, x.date])];
-    return lines.map(x => String(x ?? '').trim()).filter(Boolean).join('\\n').slice(0,40000);
+    return lines.map(x => String(x ?? '').trim()).filter(Boolean).join('\n').slice(0,40000);
   }
   function masterProfileAnalysisHtml() {
     if (masterProfileAnalysisLoading) return '<div class="rs-notice" role="status"><span class="rs-spinner" aria-hidden="true"></span><p>Reviewing your saved Master Profile with Cloudflare Workers AI. Your profile will not be changed.</p></div>';
