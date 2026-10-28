@@ -1088,7 +1088,7 @@
       if (action === 'load-history') {
         const id=jobButton.dataset.documentId;
         const type=jobButton.dataset.documentType;
-        if(!id)return;
+        if(!id || !['resume','cover'].includes(type)) { jobHistoryError='This saved-history entry is invalid. Refresh the history and try again.'; jobHistoryVisible=true; renderJobsView(); return; }
         const currentDraft = type === 'cover' ? jobDraftCover : jobDraftResume;
         if (currentDraft.trim()) {
           const accepted = await confirmDialog(
@@ -1101,11 +1101,14 @@
           const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
           const response=await api(endpoint+'?view=document&id='+encodeURIComponent(id));
           const doc=response.document||{};
+          if (!doc.id || String(doc.id)!==String(id)) throw new Error('The server returned a different saved document than the one selected.');
+          if (doc.document_type !== type) throw new Error('The saved document type does not match the selected history entry. Refresh history and try again.');
+          if (typeof doc.content !== 'string' || !doc.content.trim()) throw new Error('This saved document has no readable content. Your current draft was left unchanged.');
           if (type === 'cover') {
-            jobDraftCover=String(doc.content||'');
+            jobDraftCover=doc.content;
             jobSavedMessage='Saved cover letter loaded into the current draft editor.';
           } else {
-            jobDraftResume=String(doc.content||'');
+            jobDraftResume=doc.content;
             jobSavedMessage='Saved resume loaded into the current draft editor.';
           }
           if(!jobResult)jobResult={analysis:doc.analysis||{}};
