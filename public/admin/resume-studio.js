@@ -29,6 +29,9 @@
   let saving = false;
   let lastSavedAt = null;
   let saveError = '';
+  let masterProfileAnalysis = null;
+  let masterProfileAnalysisLoading = false;
+  let masterProfileAnalysisError = '';
   let openAfterRender = '';
   let activeView = 'profile';
   let resumeEditorStep = 0;
@@ -175,6 +178,26 @@
       }
     }
     return lines.filter(Boolean).join('\n').slice(0,40000);
+  }
+  function masterProfileAnalysisText(value) {
+    const p = value || {};
+    const lines = ['MASTER PROFILE REVIEW', 'CONTACT', p.contact?.fullName, p.contact?.email, p.contact?.phone, p.contact?.location,
+      ...(p.contact?.links || []).map(x => [x.label, x.url].filter(Boolean).join(': ')),
+      'PROFESSIONAL SUMMARIES', ...(p.summaries || []).flatMap(x => [x.label, x.text]),
+      'WORK EXPERIENCE', ...(p.experience || []).flatMap(x => [x.title, x.company, x.location, [x.startDate, x.endDate || (x.current ? 'Present' : '')].filter(Boolean).join(' – '), ...(x.bullets || []).map(b => typeof b === 'string' ? b : b.text)]),
+      'PROJECTS', ...(p.projects || []).flatMap(x => [x.name, x.url, x.description, ...(x.bullets || []).map(b => typeof b === 'string' ? b : b.text)]),
+      'SKILLS', ...(p.skills || []).map(x => [x.category, (x.items || []).join(', ')].filter(Boolean).join(': ')),
+      'EDUCATION', ...(p.education || []).flatMap(x => [x.institution, x.degree, x.field, [x.startDate, x.endDate].filter(Boolean).join(' – '), x.notes]),
+      'CERTIFICATIONS', ...(p.certifications || []).flatMap(x => [x.name, x.issuer, x.date])];
+    return lines.map(x => String(x ?? '').trim()).filter(Boolean).join('\\n').slice(0,40000);
+  }
+  function masterProfileAnalysisHtml() {
+    if (masterProfileAnalysisLoading) return '<div class="rs-notice" role="status"><span class="rs-spinner" aria-hidden="true"></span><p>Reviewing your saved Master Profile with Cloudflare Workers AI. Your profile will not be changed.</p></div>';
+    if (masterProfileAnalysisError) return '<div class="rs-notice rs-import-error" role="alert"><p>' + escHtml(masterProfileAnalysisError) + '</p><button type="button" class="secondary" data-action="analyze-master-profile">Try again</button></div>';
+    if (!masterProfileAnalysis) return '';
+    const a = masterProfileAnalysis;
+    const groups = [['Strengths',a.strengths],['Issues to address',a.issues],['Missing information to verify',a.missing_information],['Structure recommendations',a.structure_recommendations],['Evidence warnings',a.evidence_warnings],['Next steps',a.next_steps]];
+    return '<section class="rs-notice" aria-labelledby="rsMasterAnalysisTitle"><div><h3 id="rsMasterAnalysisTitle">Master Profile analysis</h3><p>' + escHtml(a.overall_assessment || 'Review complete. Use these findings to improve your profile manually.') + '</p></div>' + groups.filter(g => g[1]?.length).map(g => '<div class="rs-analysis-group"><strong>' + escHtml(g[0]) + '</strong><ul>' + g[1].map(item => '<li>' + escHtml(item) + '</li>').join('') + '</ul></div>').join('') + '<p class="muted">Analysis is advisory only. Nothing has been edited or saved automatically.</p><button type="button" class="secondary" data-action="analyze-master-profile" ' + (masterProfileAnalysisLoading ? 'disabled' : '') + '>Analyze again</button></section>';
   }
   function normalizeResumeAnalysis(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -780,7 +803,8 @@
     const dirty = JSON.stringify(profile) !== savedJson;
     root.innerHTML = '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2 id="resumeStudioHeading">Resume Studio</h2><p class="muted">Build one accurate master profile, then reuse it across tailored resumes and cover letters.</p></div><div class="rs-header-status"><span class="rs-status-dot ' + (dirty ? 'is-dirty' : '') + '"></span><span id="rsSaveState">' + (dirty ? 'Unsaved changes' : formatSaved(lastSavedAt)) + '</span></div></div>' +
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button type="button" class="rs-tab is-active" data-resume-view="profile" role="tab" aria-selected="true">Master Profile</button><button type="button" class="rs-tab" disabled title="Coming soon">Jobs <span>Coming soon</span></button><button type="button" class="rs-tab" data-resume-view="resumes" role="tab" aria-selected="false">Resumes</button><button type="button" class="rs-tab" disabled title="Coming soon">Cover Letters <span>Coming soon</span></button></div>' +
-      '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Future AI features will use this information as their source of truth.</p></div><div class="rs-import-actions"><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div><input id="rsImportFile" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden><button type="button" class="secondary" data-action="import-resume" ' + (importBusy ? 'disabled' : '') + '>' + (importBusy ? 'Importing…' : 'Import existing resume') + '</button></div></div>' +
+      '<div class="rs-intro-row"><div><h3>Master Profile</h3><p>Store verified career facts here. Analyze the saved profile to identify evidence gaps and improvement opportunities.</p></div><div class="rs-import-actions"><div class="rs-profile-count">' + profile.experience.length + ' roles <span>·</span> ' + profile.projects.length + ' projects</div><input id="rsImportFile" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden><button type="button" class="secondary" data-action="analyze-master-profile" ' + (masterProfileAnalysisLoading || dirty || importBusy ? 'disabled' : '') + '>' + (masterProfileAnalysisLoading ? 'Analyzing…' : 'Analyze Master Profile') + '</button><button type="button" class="secondary" data-action="import-resume" ' + (importBusy ? 'disabled' : '') + '>' + (importBusy ? 'Importing…' : 'Import existing resume') + '</button></div></div>' +
+      masterProfileAnalysisHtml() +
       (importError ? '<div class="rs-notice rs-import-error"><p>' + escHtml(importError) + '</p></div>' : '') +
       '<div class="rs-notice"><span class="rs-notice-icon" aria-hidden="true">i</span><p>Enter only information you can verify. You can leave fields blank and complete the profile over time. Nothing is published to your public portfolio by saving here.</p></div>' +
       section('contact','Contact details','Name, email, location and professional links', '<div class="rs-form-grid">' + field('contact.fullName','Full name',profile.contact.fullName,{max:160}) + field('contact.email','Email address',profile.contact.email,{kind:'email',max:254}) + field('contact.phone','Phone number',profile.contact.phone,{kind:'tel',max:80}) + field('contact.location','Location',profile.contact.location,{max:160}) + '</div><div class="rs-list-head"><div><strong>Professional links</strong><p>Portfolio, LinkedIn, case studies or other relevant links.</p></div><button type="button" class="rs-small-button" data-action="add-link">+ Add link</button></div>' + (profile.contact.links.length ? profile.contact.links.map((link,i) => '<div class="rs-link-row">' + field('contact.links.'+i+'.label','Link label',link.label,{max:80,placeholder:'LinkedIn'}) + field('contact.links.'+i+'.url','URL',link.url,{kind:'url',max:500,placeholder:'https://...'}) + '<button type="button" class="rs-remove" data-action="remove-link" data-index="'+i+'">Remove</button></div>').join('') : emptyState('No links added yet.')) ,wasOpen.has('contact') || wasOpen.size === 0) +
@@ -1011,6 +1035,20 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+    if (action === 'analyze-master-profile') {
+      if (JSON.stringify(profile) !== savedJson) { masterProfileAnalysisError = 'Save your Master Profile before analyzing it. This ensures the review uses the saved source of truth.'; render(); return; }
+      const profileText = masterProfileAnalysisText(profile);
+      if (profileText.replace(/\\s/g,'').length < 80) { masterProfileAnalysisError = 'Add more verified details to your Master Profile before running an analysis.'; render(); return; }
+      masterProfileAnalysisLoading = true; masterProfileAnalysisError = ''; render();
+      try {
+        const analysisEndpoint = location.hostname.endsWith('.hatchable.site') ? 'https://alanodogwuideh.com/api/admin-resume-studio' : '/api/admin-resume-studio';
+        const result = await api(analysisEndpoint, { method: 'POST', body: JSON.stringify({ action: 'analyze-resume', master_resume_text: profileText }) });
+        masterProfileAnalysis = normalizeResumeAnalysis(result?.analysis);
+      } catch (error) {
+        masterProfileAnalysisError = (error?.message || 'The analysis request failed.') + ' Your saved profile is unchanged. You can retry.';
+      } finally { masterProfileAnalysisLoading = false; render(); }
+      return;
+    }
     if (action === 'import-resume') { root.querySelector('#rsImportFile')?.click(); return; }
     const index = Number(button.dataset.index);
     const group = button.dataset.group;
