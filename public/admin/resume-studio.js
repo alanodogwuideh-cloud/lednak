@@ -1085,7 +1085,39 @@
         return;
       }
       if (action === 'toggle-history') { jobHistoryVisible=!jobHistoryVisible; if(jobHistoryVisible){jobHistoryLoading=true;jobHistoryError='';renderJobsView();try{const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';const result=await api(endpoint+'?view=documents');jobHistory=Array.isArray(result.documents)?result.documents:[];}catch(error){jobHistoryError=error.message||'Could not load saved draft history.';}finally{jobHistoryLoading=false;renderJobsView();}}else renderJobsView();return; }
-      if (action === 'load-history') { const id=jobButton.dataset.documentId; const type=jobButton.dataset.documentType; if(!id)return; try{const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';const response=await api(endpoint+'?view=document&id='+encodeURIComponent(id));const doc=response.document||{};if(type==='cover'){jobDraftCover=String(doc.content||'');jobSavedMessage='Saved cover letter loaded into the current draft editor.';}else{jobDraftResume=String(doc.content||'');jobSavedMessage='Saved resume loaded into the current draft editor.';}if(!jobResult)jobResult={analysis:doc.analysis||{}};else jobResult={...jobResult,analysis:doc.analysis||jobResult.analysis};renderJobsView();}catch(error){jobHistoryError=error.message||'Could not load this saved version.';jobHistoryVisible=true;renderJobsView();}return; }
+      if (action === 'load-history') {
+        const id=jobButton.dataset.documentId;
+        const type=jobButton.dataset.documentType;
+        if(!id)return;
+        const currentDraft = type === 'cover' ? jobDraftCover : jobDraftResume;
+        if (currentDraft.trim()) {
+          const accepted = await confirmDialog(
+            'Loading this saved version will replace the current ' + (type === 'cover' ? 'cover letter' : 'resume') + ' draft in the editor. Save or copy your current draft first if you need to keep it.',
+            { title: 'Replace current draft?', confirmLabel: 'Load saved version', tone: 'danger' }
+          );
+          if (!accepted) return;
+        }
+        try {
+          const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
+          const response=await api(endpoint+'?view=document&id='+encodeURIComponent(id));
+          const doc=response.document||{};
+          if (type === 'cover') {
+            jobDraftCover=String(doc.content||'');
+            jobSavedMessage='Saved cover letter loaded into the current draft editor.';
+          } else {
+            jobDraftResume=String(doc.content||'');
+            jobSavedMessage='Saved resume loaded into the current draft editor.';
+          }
+          if(!jobResult)jobResult={analysis:doc.analysis||{}};
+          else jobResult={...jobResult,analysis:doc.analysis||jobResult.analysis};
+          renderJobsView();
+        } catch(error) {
+          jobHistoryError=error.message||'Could not load this saved version.';
+          jobHistoryVisible=true;
+          renderJobsView();
+        }
+        return;
+      }
       if (action === 'discard-proposal') { jobProposal=null; jobProposalResume=''; jobProposalCover=''; jobSavedMessage='Proposal discarded. Your current draft is unchanged.'; renderJobsView(); return; }
       if (action === 'accept-proposal') { if (!jobProposal) return; jobResult=jobProposal; jobDraftResume=jobProposalResume; jobDraftCover=jobProposalCover; jobProposal=null; jobProposalResume=''; jobProposalCover=''; jobSavedMessage='Proposal accepted as the current draft. Save drafts to persist this version.'; renderJobsView(); return; }
       if (action === 'copy-resume' || action === 'copy-cover') {
