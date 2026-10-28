@@ -1128,13 +1128,24 @@
       }
       if (action === 'save-drafts') {
         if (jobSaving || !jobResult) return;
+        if (!jobDraftResume.trim() || !jobDraftCover.trim()) {
+          jobSavedMessage='Both the resume and cover letter must contain text before they can be saved.';
+          renderJobsView();
+          return;
+        }
         jobSaving=true; jobSavedMessage=''; renderJobsView();
         try {
           const endpoint=location.hostname.endsWith('.hatchable.site')?'https://alanodogwuideh.com/api/admin-resume-studio':'/api/admin-resume-studio';
           const documents=[{document_type:'resume',title:(jobTitle.trim()||'Tailored Resume')+' — '+(jobCompany.trim()||'Target Role'),job_title:jobTitle,company_name:jobCompany,content:jobDraftResume,analysis:jobResult.analysis},{document_type:'cover',title:'Cover Letter — '+(jobCompany.trim()||jobTitle.trim()||'Target Role'),job_title:jobTitle,company_name:jobCompany,content:jobDraftCover,analysis:jobResult.analysis}];
           const result=await api(endpoint,{method:'POST',body:JSON.stringify({action:'save-documents',documents,job_title:jobTitle,company_name:jobCompany,analysis:jobResult.analysis})});
-          jobSavedMessage='Saved '+(result.saved?.length||documents.length)+' draft documents. They remain separate from your Master Profile.'; jobHistory=Array.isArray(result.documents)?result.documents:jobHistory; jobHistoryVisible=true; jobHistoryError='';
-        } catch(error) { jobSavedMessage='Could not save drafts: '+(error.message||'Please try again.'); }
+          if (result?.ok !== true || !Array.isArray(result.saved) || result.saved.length !== documents.length) {
+            throw new Error('The server did not confirm that both draft documents were saved. Please check saved history before retrying.');
+          }
+          jobSavedMessage='Saved '+result.saved.length+' draft documents. They remain separate from your Master Profile.';
+          jobHistory=Array.isArray(result.documents)?result.documents:jobHistory;
+          jobHistoryVisible=true;
+          jobHistoryError='';
+        } catch(error) { jobSavedMessage='Could not confirm draft saving: '+(error.message||'Please try again.'); }
         finally { jobSaving=false; renderJobsView(); }
         return;
       }
