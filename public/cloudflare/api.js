@@ -847,6 +847,23 @@ async function ensureSavedDocumentsSchema(env) {
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 }
+async function ensureStandaloneCoverLettersSchema(env) {
+  await tursoQuery(env, `CREATE TABLE IF NOT EXISTS resume_studio_cover_letters (
+    id TEXT PRIMARY KEY,
+    resume_id TEXT,
+    source_type TEXT NOT NULL DEFAULT 'resume',
+    source_label TEXT NOT NULL DEFAULT '',
+    job_title TEXT NOT NULL DEFAULT '',
+    company TEXT NOT NULL DEFAULT '',
+    job_description TEXT NOT NULL DEFAULT '',
+    company_details TEXT NOT NULL DEFAULT '',
+    tone TEXT NOT NULL DEFAULT 'professional',
+    length TEXT NOT NULL DEFAULT 'standard',
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+}
 async function listSavedDocuments(env) {
   await ensureSavedDocumentsSchema(env);
   const { rows } = await tursoQuery(env, 'SELECT id,document_type,title,job_title,company_name,created_at,updated_at FROM resume_studio_documents ORDER BY created_at DESC');
@@ -993,11 +1010,41 @@ async function adminResumeStudio(request, env) {
     const usage = await resumeStudioUsage(env, record);
     if (url.searchParams.get('view') === 'usage') return json(usage);
     if (url.searchParams.get('view') === 'documents') return json({ documents: await listSavedDocuments(env) });
+    if (url.searchParams.get('view') === 'cover-letters') {
+      await ensureStandaloneCoverLettersSchema(env);
+      const { rows } = await tursoQuery(env, `SELECT s.id,s.resume_id,s.content,s.created_at,s.updated_at,s.job_title,s.company,r.title AS resume_title,s.source_type AS source_type,s.source_label AS source_label FROM resume_studio_cover_letters s LEFT JOIN resumes r ON r.id=s.resume_id
+        UNION ALL SELECT cl.id,cl.resume_id,cl.content,cl.created_at,cl.updated_at,j.title AS job_title,j.company,r.title AS resume_title,'linked' AS source_type,'' AS source_label FROM cover_letters cl JOIN resumes r ON r.id=cl.resume_id LEFT JOIN jobs j ON j.id=r.job_id
+        ORDER BY updated_at DESC,created_at DESC`);
+      return json({ cover_letters: rows });
+    }
+    if (url.searchParams.get('view') === 'cover-letter' || url.searchParams.get('view') === 'cover-letter-pdf') {
+      const coverId=String(url.searchParams.get('id')||'').trim();
+      if(!coverId)return json({error:'A cover-letter ID is required.'},400);
+      await ensureStandaloneCoverLettersSchema(env);
+      const {rows:standaloneRows}=await tursoQuery(env,'SELECT s.id,s.resume_id,s.content,s.created_at,s.updated_at,s.job_title,s.company,s.job_description,s.company_details,s.tone,s.length,s.source_type,s.source_label,r.title AS resume_title FROM resume_studio_cover_letters s LEFT JOIN resumes r ON r.id=s.resume_id WHERE s.id=$1 LIMIT 1',[coverId]);
+      let cover=standaloneRows[0];
+      if(!cover){const {rows}=await tursoQuery(env,'SELECT cl.id,cl.resume_id,cl.content,cl.created_at,cl.updated_at,r.title AS resume_title,j.title AS job_title,j.company FROM cover_letters cl JOIN resumes r ON r.id=cl.resume_id LEFT JOIN jobs j ON j.id=r.job_id WHERE cl.id=$1 LIMIT 1',[coverId]);cover=rows[0];}
+      if(!cover)return json({error:'Saved cover letter not found.'},404);
+      if(url.searchParams.get('view')==='cover-letter')return json({cover_letter:cover});
+      const accountId=String(env.CLOUDFLARE_ACCOUNT_ID||'').trim(),apiToken=String(env.CLOUDFLARE_API_TOKEN||'').trim();
+      if(!accountId||!apiToken)return json({error:'Cover-letter PDF export requires the existing Cloudflare Browser Run credentials.'},503);
+      const safe=value=>String(value||'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+      const paragraphs=String(cover.content||'').trim().split(/\n\s*\n/).filter(Boolean).map(part=>'<p>'+safe(part).replace(/\n/g,'<br>')+'</p>').join('');
+      const html='<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:25mm}*{box-sizing:border-box}body{font:11pt/1.7 Georgia,serif;color:#252525;margin:0}header{padding-bottom:14mm;margin-bottom:13mm;border-bottom:1px solid #d8d8d8}h1{font:600 22pt/1.2 Arial,sans-serif;letter-spacing:-.3pt;margin:0 0 5mm}.meta{font:10pt/1.5 Arial,sans-serif;color:#555;margin:0}main{font-size:11pt}p{margin:0 0 5mm;white-space:normal;orphans:3;widows:3}br{line-height:1.7}</style></head><body><header><h1>Cover Letter</h1><p class="meta">'+safe(cover.job_title||'')+(cover.company?' · '+safe(cover.company):'')+'</p></header><main>'+paragraphs+'</main></body></html>';
+      try{const response=await fetch('https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(accountId)+'/browser-run/pdf',{method:'POST',headers:{authorization:'Bearer '+apiToken,'content-type':'application/json',accept:'application/pdf'},body:JSON.stringify({html,pdfOptions:{format:'a4',printBackground:true,preferCSSPageSize:true},viewport:{width:794,height:1122}})});if(!response.ok)return json({error:'Cloudflare Browser Run could not generate the cover-letter PDF.'},502);const pdf=await response.arrayBuffer();if(String.fromCharCode(...new Uint8Array(pdf.slice(0,5)))!=='%PDF-')return json({error:'Cloudflare Browser Run returned an invalid PDF.'},502);return new Response(pdf,{status:200,headers:{'content-type':'application/pdf','content-disposition':'attachment; filename="Cover-Letter.pdf"','cache-control':'no-store'}});}catch(error){return json({error:'Cover-letter PDF export failed. Please retry.'},502);}
+    }
     if (url.searchParams.get('view') === 'document') {
       const id = String(url.searchParams.get('id') || '').slice(0,80);
       if (!id) return json({ error: 'A saved document ID is required.' }, 400);
-      const document = await readSavedDocument(env, id);
-      return document ? json({ document }) : json({ error: 'Saved document not found.' }, 404);
+      try {
+        const document = await readSavedDocument(env, id);
+        return document ? json({ document }) : json({ error: 'Saved document not found.' }, 404);
+      } catch (_) {
+        // Keep the history metadata intact and avoid exposing storage URLs or credentials.
+        return json({
+          error: 'Saved document content is temporarily unavailable. Its history record has been preserved; try again later or use the linked resume or cover-letter record.'
+        }, 502);
+      }
     }
     return json({
       master_resume_text: String(record.master_resume_text || ''),
@@ -1009,6 +1056,16 @@ async function adminResumeStudio(request, env) {
   }
   if (method === 'PUT') {
     const body = await request.json().catch(() => ({}));
+    if(body.action==='update-cover-letter'){
+      const id=String(body.id||'').trim(),content=String(body.content||'').trim();
+      if(!id||!content||content.length>20000)return json({error:'A cover-letter ID and non-empty content (maximum 20,000 characters) are required.'},400);
+      await ensureStandaloneCoverLettersSchema(env);
+      const standalone=await tursoQuery(env,'UPDATE resume_studio_cover_letters SET content=$1,job_title=$2,company=$3,job_description=$4,company_details=$5,tone=$6,length=$7,updated_at=CURRENT_TIMESTAMP WHERE id=$8 RETURNING id,resume_id,source_type,source_label,job_title,company,job_description,company_details,tone,length,content,created_at,updated_at',[content,String(body.job_title||'').trim().slice(0,160),String(body.company_name||'').trim().slice(0,160),String(body.job_description||'').trim().slice(0,20000),String(body.company_details||'').trim().slice(0,5000),['professional','enthusiastic','confident'].includes(body.tone)?body.tone:'professional',['concise','standard','detailed'].includes(body.length)?body.length:'standard',id]);
+      if(standalone.rows[0])return json({ok:true,cover_letter:standalone.rows[0]});
+      const saved=await tursoQuery(env,'UPDATE cover_letters SET content=$1,updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING id,resume_id,content,created_at,updated_at',[content,id]);
+      if(!saved.rows[0])return json({error:'Saved cover letter not found.'},404);
+      return json({ok:true,cover_letter:saved.rows[0]});
+    }
     if (body.action === 'publish-master') {
       const key = String(record.master_resume_source_key || '');
       if (!key) return json({ error: 'Upload the master resume PDF first.' }, 400);
@@ -1044,24 +1101,68 @@ async function adminResumeStudio(request, env) {
     }
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || 'generate');
+    if (action === 'save-cover-letter') {
+      const sourceType = body.source_type === 'master-profile' ? 'master-profile' : 'resume';
+      const resumeId = String(body.resume_id || '').trim();
+      const content = String(body.content || '').trim();
+      const jobTitle = String(body.job_title || '').trim().slice(0,160);
+      const company = String(body.company_name || '').trim().slice(0,160);
+      const description = String(body.job_description || '').trim().slice(0,20000);
+      const details = String(body.company_details || '').trim().slice(0,5000);
+      const tone = ['professional','enthusiastic','confident'].includes(body.tone) ? body.tone : 'professional';
+      const length = ['concise','standard','detailed'].includes(body.length) ? body.length : 'standard';
+      if ((sourceType === 'resume' && !resumeId) || !content || content.length > 20000) return json({ error: 'Select a source and provide a cover letter of 20,000 characters or fewer.' }, 400);
+      let sourceLabel = 'Master Profile';
+      if (sourceType === 'resume') {
+        const source = await tursoQuery(env, 'SELECT id,title FROM resumes WHERE id=$1 LIMIT 1', [resumeId]);
+        if (!source.rows[0]) return json({ error: 'The selected source resume could not be found. Refresh the resume list and try again.' }, 404);
+        sourceLabel = String(source.rows[0].title || 'Saved resume');
+      } else {
+        const source = await tursoQuery(env, 'SELECT id FROM master_profile WHERE id=1 LIMIT 1');
+        if (!source.rows[0]) return json({ error: 'Save your Master Profile before using it as the source for a cover letter.' }, 400);
+      }
+      await ensureStandaloneCoverLettersSchema(env);
+      const id = crypto.randomUUID();
+      const saved = await tursoQuery(env, 'INSERT INTO resume_studio_cover_letters (id,resume_id,source_type,source_label,job_title,company,job_description,company_details,tone,length,content,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id,resume_id,source_type,source_label,job_title,company,job_description,company_details,tone,length,content,created_at,updated_at', [id,sourceType === 'resume' ? resumeId : null,sourceType,sourceLabel,jobTitle,company,description,details,tone,length,content]);
+      if (!saved.rows[0]) return json({ error: 'The cover letter could not be saved.' }, 500);
+      return json({ ok: true, cover_letter: { ...saved.rows[0], title: 'Cover Letter' + (company ? ' — ' + company : jobTitle ? ' — ' + jobTitle : ''), resume_title: String(body.resume_title || '') } }, 201);
+    }
     if (action === 'save-documents') {
       if (!Array.isArray(body.documents) || !body.documents.length || body.documents.length > 2) return json({ error: 'Provide a tailored resume and/or cover letter to save.' }, 400);
+      const invalidDocument = body.documents.find(document => !document || !['resume','cover'].includes(document.document_type) || typeof document.content !== 'string' || !document.content.trim() || document.content.length > 50000);
+      if (invalidDocument) return json({ error: 'Each saved draft must have a valid document type and non-empty content of 50,000 characters or fewer. No documents were saved.' }, 400);
+      if (new Set(body.documents.map(document => document.document_type)).size !== body.documents.length) return json({ error: 'A save request cannot contain duplicate document types. No documents were saved.' }, 400);
+      const saved = [];
       try {
-        const saved = [];
         for (const document of body.documents) saved.push(await saveDocument(env, { ...object(document), job_title: body.job_title, company_name: body.company_name, analysis: body.analysis }));
         return json({ ok: true, saved, documents: await listSavedDocuments(env) });
-      } catch (error) { return json({ error: String(error?.message || 'Could not save your documents.').slice(0,300) }, 500); }
+      } catch (error) {
+        const partial = saved.length > 0;
+        return json({
+          ok: false,
+          error: partial ? 'Only part of this save request completed. Do not retry yet; open Saved draft history and verify which documents were saved.' : 'The save request could not be completed. Check Saved draft history before retrying.',
+          recovery_required: true,
+          partial_save: partial,
+          saved: saved.map(document => ({ id: document.id, document_type: document.document_type, title: document.title })),
+          requested_types: body.documents.map(document => document.document_type),
+          request_id: String(body.request_id || '').slice(0,100)
+        }, 500);
+      }
     }
     const usage = await resumeStudioUsage(env, record);
     if (usage.requests >= usage.request_limit) return json({ error: 'You have reached the Resume Studio daily request safety limit. It resets at midnight UTC. Check Cloudflare AI analytics for your actual Neurons usage.' }, 429);
     if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'Cloudflare Workers AI is not bound to this Pages project yet. Add the AI binding named AI in Cloudflare Pages Settings → Functions → Workers AI.' }, 503);
-    const master = String(body.master_resume_text || record.master_resume_text || '').trim();
+    let master = String(body.master_resume_text || record.master_resume_text || '').trim();
     const job = String(body.job_description || '').trim();
     const isAnalysis = action === 'analyze-resume';
     const isSuggestion = action === 'suggest-resume-fixes';
     const isJobSuggestion = action === 'suggest-job-specific-fixes';
+    const isQuickAnalyze = action === 'quick-preview-analyze';
+    const isQuickGenerate = action === 'quick-preview-generate';
+    const isStandaloneCover = action === 'generate-cover-letter';
     const isProfileImport = action === 'import-profile';
-    const isGeneralReviewAction = isAnalysis || isSuggestion || isProfileImport;
+    const isGeneralReviewAction = isAnalysis || isSuggestion || isProfileImport || isQuickAnalyze;
+    if (isStandaloneCover && ((body.source_type !== 'master-profile' && !String(body.resume_id || '').trim()) || !job)) return json({ error: 'Select a source resume or Master Profile and provide the job description before generating a cover letter.' }, 400);
     if (!master) return json({ error: isProfileImport ? 'Extracted resume text is required.' : 'Add resume content before running an analysis.' }, 400);
     if (master.length > 40000) return json({ error: 'Resume content is too long (maximum 40,000 characters).' }, 400);
     // Only job-specific suggestions and job-tailoring/cover-letter actions require a job description.
@@ -1071,11 +1172,43 @@ async function adminResumeStudio(request, env) {
     const jobTitle = String(body.job_title || '').slice(0,160);
     const company = String(body.company_name || '').slice(0,160);
     const companyDetails = String(body.company_details || '').slice(0,5000);
-    const tone = ['professional','enthusiastic','confident'].includes(body.cover_tone) ? body.cover_tone : 'professional';
-    const length = ['concise','standard','detailed'].includes(body.cover_length) ? body.cover_length : 'standard';
+    const requestedTone = isStandaloneCover ? body.tone : body.cover_tone;
+    const requestedLength = isStandaloneCover ? body.length : body.cover_length;
+    const tone = ['professional','enthusiastic','confident'].includes(requestedTone) ? requestedTone : 'professional';
+    const length = ['concise','standard','detailed'].includes(requestedLength) ? requestedLength : 'standard';
     const system = 'You are a meticulous career-document editor. Use only facts explicitly supported by the master resume. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. You may improve clarity, reorder relevant evidence, and identify gaps without claiming the candidate has them. Return valid JSON only, no markdown fences.';
     let prompt;
-    if (isProfileImport) {
+    let originalContent = null;
+    if (isQuickAnalyze) {
+      prompt = 'Analyze this saved resume against the job description. Return JSON only with fields: analysis (object with role_summary string, matched_requirements array of strings, gaps_or_unproven array of strings, tailoring_strategy string), missing_skills (array of concise skill/competency labels only for explicit must-have requirements not evidenced in the resume). Do not label a skill missing if the resume clearly demonstrates it. Do not invent qualifications or suggest that the candidate has a missing skill. Keep missing_skills to at most 12. JOB TITLE: ' + jobTitle + '\\nCOMPANY: ' + company + '\\nCOMPANY CONTEXT: ' + companyDetails + '\\nJOB DESCRIPTION:\\n' + job + '\\nEXACT SAVED RESUME:\\n' + master;
+    } else if (isQuickGenerate) {
+      const sourceResumeId = String(body.resume_id || '').trim();
+      if (!sourceResumeId) return json({ error: 'Select a saved source resume before tailoring.' }, 400);
+      const { rows: sourceResumeRows } = await tursoQuery(env, 'SELECT id,content FROM resumes WHERE id=$1 LIMIT 1', [sourceResumeId]);
+      if (!sourceResumeRows[0]) return json({ error: 'The selected saved source resume could not be found.' }, 404);
+      try { originalContent = normalizeResumeContent(parseStoredJson(sourceResumeRows[0].content, {})); }
+      catch (_) { return json({ error: 'The saved source resume is invalid. Open and save it before tailoring.' }, 409); }
+      const approvedSkills = Array.isArray(body.approved_skills) ? body.approved_skills.map(x => String(x).trim()).filter(Boolean).slice(0,16) : [];
+      if (!Object.keys(originalContent).length) return json({ error: 'The selected saved resume content is required.' }, 400);
+      const approvedText = approvedSkills.length ? approvedSkills.join(', ') : '(none approved)';
+      prompt = 'Return JSON only with fields tailored_resume_content (an object using the exact same structure and keys as the original resume JSON), cover_letter (string), and analysis (object). Tailor the supplied saved resume for the role, keeping its current content schema, sectionOrder, sectionTitles, contact information, dates, credentials, and template compatibility. Improve wording and ordering only where supported by original evidence. Preserve every factual detail. Never invent employers, dates, qualifications, metrics, tools, certifications, responsibilities, or outcomes. CRITICAL SKILL RULE: only the following skills have been explicitly approved by the user for addition: ' + approvedText + '. Add only those approved skills to the skills section, and only as skill labels, never as claimed experience or outcomes. Do not add any other skills or qualifications. If no skills were approved, do not add skills. Keep all other content evidence-backed. Write a ' + length + ' cover letter in a ' + tone + ' tone for ' + (jobTitle || 'the advertised role') + ' at ' + (company || 'the company') + '. Use only facts supported by the original resume and approved skills. Company context: ' + companyDetails + '. JOB DESCRIPTION:\\n' + job + '\\nORIGINAL SAVED RESUME JSON:\\n' + JSON.stringify(originalContent).slice(0,25000) + '\\nJOB ANALYSIS:\\n' + JSON.stringify(object(body.analysis)).slice(0,8000);
+    } else if (isStandaloneCover) {
+      if (body.source_type === 'master-profile') {
+        const { rows: profileRows } = await tursoQuery(env, 'SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');
+        if (!profileRows[0]?.profile_json) return json({ error: 'Save your Master Profile before using it as the source for a cover letter.' }, 400);
+        const p = normalizeMasterProfile(parseStoredJson(profileRows[0].profile_json, {}));
+        master = [p.contact.fullName,p.contact.email,p.contact.phone,p.contact.location,'PROFESSIONAL SUMMARIES',...p.summaries.flatMap(x=>[x.label,x.text]),'WORK EXPERIENCE',...p.experience.flatMap(x=>[x.title,x.company,x.location,x.startDate,x.endDate,...x.bullets.map(b=>b.text)]),'PROJECTS',...p.projects.flatMap(x=>[x.name,x.description,...x.bullets.map(b=>b.text)]),'SKILLS',...p.skills.map(x=>[x.category,x.items.join(', ')]),'EDUCATION',...p.education.flatMap(x=>[x.degree,x.field,x.institution,x.startDate,x.endDate,x.notes]),'CERTIFICATIONS',...p.certifications.flatMap(x=>[x.name,x.issuer,x.date])].filter(Boolean).join(String.fromCharCode(10)).slice(0,40000);
+      } else {
+        const sourceId = String(body.resume_id || '').trim();
+        const { rows: sourceRows } = await tursoQuery(env, 'SELECT id,title,content FROM resumes WHERE id=$1 LIMIT 1', [sourceId]);
+        if (!sourceRows[0]) return json({ error: 'The selected saved source resume could not be found. Refresh the resume list and try again.' }, 404);
+        try { master = JSON.stringify(normalizeResumeContent(parseStoredJson(sourceRows[0].content, {}))).slice(0,40000); }
+        catch (_) { return json({ error: 'The selected saved resume could not be read safely. Open and save it before generating a cover letter.' }, 409); }
+      }
+      if (!master || master.replace(/\s/g,'').length < 80) return json({ error: 'The selected source does not contain enough verified information to write a cover letter.' }, 400);
+      const requestedTone = tone === 'enthusiastic' ? 'warm and enthusiastic' : tone === 'confident' ? 'confident and direct' : 'professional and measured';
+      prompt = 'Write a complete, ready-to-edit cover letter only. Return valid JSON with one string field named cover_letter. Write a ' + length + ' letter in a ' + requestedTone + ' tone for ' + (jobTitle || 'the advertised role') + ' at ' + (company || 'the company') + '. Address the hiring team naturally; do not invent a recipient name. Use the candidate name and contact details only when present in the source resume. Build a specific opening, 2–3 evidence-led body paragraphs connecting the candidate’s verified experience to the role, and a concise closing. Avoid generic claims, clichés, unsupported enthusiasm, fabricated achievements, and repeating the CV as a list. Do not include markdown fences, labels such as “Cover Letter”, or commentary. Company context: ' + companyDetails + '. JOB DESCRIPTION:\\n' + job + '\\nVERIFIED SOURCE RESUME:\\n' + master;
+    } else if (isProfileImport) {
       prompt = 'Convert the resume into the exact JSON schema below. Do not explain your work or repeat the source text outside the fields. Completeness is more important than brevity: preserve every distinct employment role, project, achievement bullet, skill, skill category, education item, certification, date, contact detail and link from the source. Keep roles in source order. Do not merge separate bullets, summarize multiple achievements into one, discard older roles, or reduce a skill list to a generic label. Transfer every substantive source bullet as its own concise factual bullet, retaining all supported numbers and named tools. Before returning JSON, internally compare each source section against the output and ensure no entries or bullets were dropped. Remove only exact duplicates. Never infer missing facts. Use empty arrays for genuinely absent sections and empty strings for unknown values. No IDs or tags. Add warnings only for genuinely ambiguous or unreadable details. Schema: {"profile":{"contact":{"fullName":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},"summaries":[{"label":"Professional summary","text":""}],"experience":[{"company":"","title":"","location":"","startDate":"","endDate":"","current":false,"bullets":[{"text":""}]}],"projects":[{"name":"","url":"","description":"","bullets":[{"text":""}]}],"skills":[{"category":"","items":[]}],"education":[{"institution":"","degree":"","field":"","startDate":"","endDate":"","notes":""}],"certifications":[{"name":"","issuer":"","date":""}]},"warnings":[]}. Return valid JSON only. RESUME TEXT:\\n' + master;
     } else if (isAnalysis) {
       prompt = 'Review the supplied resume as a career-document quality auditor. Return JSON only with fields: overall_assessment (string), strengths (array of strings), issues (array of strings), missing_information (array of strings), structure_recommendations (array of strings), evidence_warnings (array of strings), next_steps (array of strings). Identify formatting/content risks and unsupported or unclear claims. Do not rewrite the resume, invent facts, or assume missing details. Keep recommendations specific and actionable. RESUME CONTENT:\\n' + master;
@@ -1150,8 +1283,78 @@ async function adminResumeStudio(request, env) {
       }
       return json({ profile: imported, warnings: warnings.slice(0,30), usage: nextUsage });
     }
+    if (isQuickAnalyze) {
+      const a = object(parsed.analysis);
+      const missing = Array.isArray(parsed.missing_skills) ? parsed.missing_skills.map(x => String(x || '').trim().slice(0,120)).filter(Boolean).slice(0,12) : [];
+      return json({ analysis: a, missing_skills: missing, usage: nextUsage });
+    }
+    if (isQuickGenerate) {
+      let tailored;
+      try { tailored = normalizeResumeContent(parsed.tailored_resume_content); }
+      catch (error) { return json({ error: 'The generated resume did not match the saved resume structure. Please retry.' }, 502); }
+      const original = normalizeResumeContent(originalContent);
+      // Preserve source identity, credentials and chronology; generated prose must not change these records.
+      for (const section of ['experience','projects','education','certifications']) {
+        if (tailored[section].length !== original[section].length) return json({ error: 'Tailoring changed the number of saved ' + section + ' records. Please retry without adding or removing records.' }, 422);
+      }
+      for (const section of ['experience','projects']) if (tailored[section].some((entry,i) => !Array.isArray(entry.bullets) || entry.bullets.length !== original[section][i].bullets.length)) return json({ error: 'Tailoring changed the number of saved achievement bullets. Please retry.' }, 422);
+      // Prevent generated records from being reordered or attached to a different source record before source metadata is restored.
+      for (const [section, keys] of [['experience',['company','title']],['projects',['name']]]) {
+        const changedIdentity = tailored[section].some((entry,index) => keys.some(key => String(entry?.[key] || '').trim().toLocaleLowerCase() !== String(original[section][index]?.[key] || '').trim().toLocaleLowerCase()));
+        if (changedIdentity) return json({ error: 'Tailoring changed or reordered a saved ' + (section === 'experience' ? 'work experience' : 'project') + ' record. Please retry so each achievement stays attached to its original record.' }, 422);
+      }
+      tailored.contact = original.contact;
+      tailored.sectionOrder = original.sectionOrder;
+      tailored.sectionTitles = original.sectionTitles;
+      tailored.hiddenSections = original.hiddenSections;
+      for (const section of ['experience','projects','education','certifications']) {
+        tailored[section] = tailored[section].map((entry,index) => {
+          const source = original[section][index];
+          if (section === 'education' || section === 'certifications') return source;
+          const safe = {...entry};
+          for (const key of ['id','company','title','name','location','startDate','endDate','current','url','hidden']) if (key in source) safe[key] = source[key];
+          if (Array.isArray(source.bullets) && Array.isArray(safe.bullets) && safe.bullets.length !== source.bullets.length) throw Object.assign(new Error('Tailoring changed the number of saved achievement bullets. Please retry.'), {status:422});
+          if (Array.isArray(source.bullets)) safe.bullets = source.bullets.map((bullet,i) => ({...safe.bullets[i],id:bullet.id,hidden:bullet.hidden}));
+          return safe;
+        });
+      }
+      const collectVisibleText = content => [
+        content.summary,
+        ...content.experience.flatMap(entry => [entry.title, ...(entry.bullets || []).map(b => b.text)]),
+        ...content.projects.flatMap(entry => [entry.name, entry.description, ...(entry.bullets || []).map(b => b.text)])
+      ].filter(value => typeof value === 'string').join(' ');
+      const sourceVisibleText = collectVisibleText(original);
+      const sourceNumbers = new Set((sourceVisibleText.match(/[0-9]+(?:[.,][0-9]+)*%?/g) || []).map(x => x.replace(/,/g,'')));
+      const proposedVisibleText = collectVisibleText(tailored) + ' ' + String(parsed.cover_letter || '');
+      const newNumbers = [...new Set((proposedVisibleText.match(/[0-9]+(?:[.,][0-9]+)*%?/g) || []).map(x => x.replace(/,/g,'')))].filter(x => !sourceNumbers.has(x));
+      if (newNumbers.length) return json({ error: 'The generated documents contain numerical claims not found in the saved source resume. Please review the source facts and retry.', unsupported_numbers:newNumbers.slice(0,12) }, 422);
+      const allowedMissing = new Set((Array.isArray(body.missing_skills) ? body.missing_skills : []).map(x => String(x).trim().toLowerCase()).filter(Boolean));
+      const originalSkills = new Set(original.skills.flatMap(group => group.items || []).map(x => String(x).trim().toLowerCase()));
+      const jobTextForSkillCheck = job.toLowerCase();
+      const approvedLabels = (Array.isArray(body.approved_skills) ? body.approved_skills : []).map(x => String(x).trim()).filter(x => x && allowedMissing.has(x.toLowerCase()) && !originalSkills.has(x.toLowerCase()) && jobTextForSkillCheck.includes(x.toLowerCase()));
+      const approved = new Set(approvedLabels.map(x => x.toLowerCase()));
+      // Do not let the model introduce unapproved skills into the structured skills section.
+      tailored.skills = tailored.skills.map(group => ({...group, items:(group.items || []).filter(skill => originalSkills.has(String(skill).trim().toLowerCase()) || approved.has(String(skill).trim().toLowerCase()))}));
+      const knownSkillItems = new Set(tailored.skills.flatMap(group => group.items || []).map(x => String(x).trim().toLowerCase()));
+      for (const skill of approved) {
+        const label = approvedLabels.find(x => x.toLowerCase() === skill);
+        if (label && !knownSkillItems.has(skill)) {
+          if (!tailored.skills.length) tailored.skills.push({id:crypto.randomUUID(),category:'Additional skills',items:[],hidden:false});
+          tailored.skills[0].items.push(label);
+          knownSkillItems.add(skill);
+        }
+      }
+      const cover = String(parsed.cover_letter || '').trim();
+      if (!cover) return json({ error: 'The generated cover letter was empty. Please retry.' }, 502);
+      return json({ tailored_resume_content: tailored, cover_letter: cover.slice(0,20000), analysis: object(parsed.analysis), usage: nextUsage });
+    }
     if (isAnalysis) return json({ analysis: object(parsed), usage: nextUsage });
     if (isSuggestion || isJobSuggestion) return json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0,8).map(item => ({ title:String(item?.title||(isJobSuggestion?'Job-specific improvement':'Resume improvement')).slice(0,160), reason:String(item?.reason||'').slice(0,800), text:String(item?.text||'').slice(0,4000) })).filter(item => item.text.trim()) : [], usage: nextUsage });
+    if (isStandaloneCover) {
+      const cover = String(parsed.cover_letter || '').trim();
+      if (!cover) return json({ error: 'The generated cover letter was empty. Please retry.' }, 502);
+      return json({ cover_letter: cover.slice(0,20000), usage: nextUsage });
+    }
     if (action === 'cover-only') return json({ cover_letter: String(parsed.cover_letter || ''), usage: nextUsage });
     return json({
       analysis: object(parsed.analysis),
@@ -1162,6 +1365,16 @@ async function adminResumeStudio(request, env) {
   }
   if (method === 'DELETE') {
     const body = await request.json().catch(() => ({}));
+    if (body.action === 'delete-cover-letter') {
+      const id = String(body.id || '').trim();
+      if (!id) return json({ error: 'A cover-letter ID is required.' }, 400);
+      await ensureStandaloneCoverLettersSchema(env);
+      const standalone = await tursoQuery(env, 'DELETE FROM resume_studio_cover_letters WHERE id=$1 RETURNING id', [id]);
+      if (standalone.rows[0]) return json({ ok: true, deleted_id: standalone.rows[0].id });
+      const deleted = await tursoQuery(env, 'DELETE FROM cover_letters WHERE id=$1 RETURNING id', [id]);
+      if (!deleted.rows[0]) return json({ error: 'Saved cover letter not found.' }, 404);
+      return json({ ok: true, deleted_id: deleted.rows[0].id });
+    }
     try {
       const deleted = await deleteSavedDocuments(env, body.ids || body.id);
       return json({ ok: true, deleted, documents: await listSavedDocuments(env) });
@@ -1289,6 +1502,59 @@ async function adminResumes(request,env) {
     const {rows}=await tursoQuery(env,'SELECT id,title,template,created_at,updated_at,job_id FROM resumes ORDER BY updated_at DESC,id DESC');return json(rows);
   }
   if(method==='POST'){
+    if(body.action==='save-quick-preview'){
+      const sourceId=String(body.source_resume_id||'').trim();
+      const jobTitle=String(body.job_title||'Target role').trim().slice(0,160)||'Target role';
+      const company=String(body.company_name||'').trim().slice(0,160);
+      const template=String(body.template||'us').slice(0,80)||'us';
+      let content, cover=String(body.cover_letter||'').trim();
+      if(!sourceId||!cover||cover.length>20000)return json({error:'A saved source resume and complete cover letter are required.'},400);
+      try{content=normalizeResumeContent(body.resume_content);}catch(error){return json({error:error.message||'The tailored resume content is invalid.'},400);}
+      const requestId=String(body.request_id||'').trim();
+      if(!/^[a-zA-Z0-9-]{8,80}$/.test(requestId))return json({error:'A valid Quick Preview request ID is required. Reopen Quick Preview and try again.'},400);
+      // Repeated requests with the same key return the first saved set after a timeout or lost response.
+      const existing=await tursoQuery(env,`SELECT j.id AS job_id,j.title AS job_title,j.company,json_extract(j.analysis_json,'$.quick_preview_source_resume_id') AS source_resume_id,r.id AS resume_id,r.title AS resume_title,r.template,r.content,r.created_at,r.updated_at,r.job_id AS linked_job_id,cl.id AS cover_id,cl.content AS cover_content,cl.created_at AS cover_created_at,cl.updated_at AS cover_updated_at FROM jobs j LEFT JOIN resumes r ON r.job_id=j.id LEFT JOIN cover_letters cl ON cl.resume_id=r.id WHERE json_extract(j.analysis_json,'$.quick_preview_request_id')=$1 ORDER BY j.created_at DESC LIMIT 1`,[requestId]);
+      if(existing.rows[0]){const row=existing.rows[0];if(row.source_resume_id&&String(row.source_resume_id)!==sourceId)return json({error:'This request ID is already associated with a different source resume. Reopen Quick Preview to create a new request.'},409);if(!row.resume_id||!row.cover_id)return json({error:'An earlier save is incomplete. Please inspect saved records before retrying.',incomplete_save:true,job_id:row.job_id,resume_id:row.resume_id||null,cover_letter_id:row.cover_id||null},409);return json({ok:true,job:{id:row.job_id,title:row.job_title,company:row.company},resume:{id:row.resume_id,title:row.resume_title,template:row.template,content:normalizeResumeContent(parseStoredJson(row.content,{})),created_at:row.created_at,updated_at:row.updated_at,job_id:row.linked_job_id},cover_letter:{id:row.cover_id,resume_id:row.resume_id,content:row.cover_content,created_at:row.cover_created_at,updated_at:row.cover_updated_at,title:'Cover Letter — '+(row.company||row.job_title)},history_ids:[],reused:true},200);}
+      const {rows:sourceRows}=await tursoQuery(env,'SELECT id,title,content FROM resumes WHERE id=$1 LIMIT 1',[sourceId]);
+      if(!sourceRows[0])return json({error:'The selected source resume no longer exists. Refresh and try again.'},404);
+      let sourceContent;
+      try{sourceContent=normalizeResumeContent(parseStoredJson(sourceRows[0].content,{}));}catch(_){return json({error:'The saved source resume is invalid. Open and save it before creating application documents.'},409);}
+      // Enforce core source-record integrity at the persistence boundary as well as during generation.
+      for(const section of ['experience','projects','education','certifications'])if(content[section].length!==sourceContent[section].length)return json({error:'The tailored resume changed the number of saved '+section+' records. Nothing was saved.'},422);
+      for(const section of ['experience','projects']){
+        if(content[section].some((entry,index)=>!Array.isArray(entry.bullets)||entry.bullets.length!==sourceContent[section][index].bullets.length))return json({error:'The tailored resume changed the number of saved achievement bullets. Nothing was saved.'},422);
+        const keys=section==='experience'?['company','title']:['name'];
+        if(content[section].some((entry,index)=>keys.some(key=>String(entry?.[key]||'').trim().toLocaleLowerCase()!==String(sourceContent[section][index]?.[key]||'').trim().toLocaleLowerCase())))return json({error:'The tailored resume changed or reordered a saved '+(section==='experience'?'work experience':'project')+' record. Nothing was saved.'},422);
+      }
+      let jobId=null,resumeId=null,coverSaved=false,historyIds=[];
+      try{
+        const job=await tursoQuery(env,'INSERT INTO jobs (title,company,description,status,analysis_json,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[jobTitle,company,String(body.job_description||'').slice(0,20000),'saved',JSON.stringify({...object(body.analysis),quick_preview_request_id:requestId,quick_preview_source_resume_id:sourceId})]);
+        jobId=job.rows[0]?.id;if(!jobId)throw new Error('The job record was not created.');
+        const resumeTitle=(jobTitle+' — '+(company||'Tailored Resume')).slice(0,160);
+        const created=await tursoQuery(env,'INSERT INTO resumes (job_id,title,template,content,created_at,updated_at) VALUES ($1,$2,$3,$4,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id',[jobId,resumeTitle,template,JSON.stringify(content)]);
+        resumeId=created.rows[0]?.id;if(!resumeId)throw new Error('The tailored resume record was not created.');
+        await tursoQuery(env,'INSERT INTO resume_versions (resume_id,content,created_at) VALUES ($1,$2,CURRENT_TIMESTAMP)',[resumeId,JSON.stringify(content)]);
+        const coverRow=await tursoQuery(env,'INSERT INTO cover_letters (resume_id,content,created_at,updated_at) VALUES ($1,$2,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING id,resume_id,content,created_at,updated_at',[resumeId,cover]);
+        if(!coverRow.rows[0])throw new Error('The linked cover letter record was not created.');
+        coverSaved=true;
+        const historyResume=await saveDocument(env,{document_type:'resume',title:resumeTitle,job_title:jobTitle,company_name:company,content:JSON.stringify(content),analysis:object(body.analysis)});
+        historyIds.push(historyResume.id);
+        const historyCover=await saveDocument(env,{document_type:'cover',title:'Cover Letter — '+(company||jobTitle),job_title:jobTitle,company_name:company,content:cover,analysis:object(body.analysis)});
+        historyIds.push(historyCover.id);
+        const {rows:resumeRows}=await tursoQuery(env,'SELECT id,title,template,content,created_at,updated_at,job_id FROM resumes WHERE id=$1 LIMIT 1',[resumeId]);
+        const row=resumeRows[0];
+        return json({ok:true,job:{id:jobId,title:jobTitle,company},resume:{...row,content:normalizeResumeContent(parseStoredJson(row.content,{}))},cover_letter:{...coverRow.rows[0],title:'Cover Letter — '+(company||jobTitle)},history_ids:historyIds},201);
+      }catch(error){
+        // If another request won the idempotency race, reuse its complete saved set instead of surfacing a duplicate-key error.
+        if(!jobId&&/idx_jobs_quick_preview_request_id/i.test(String(error?.message||error))){try{const raced=await tursoQuery(env,`SELECT j.id AS job_id,j.title AS job_title,j.company,json_extract(j.analysis_json,'$.quick_preview_source_resume_id') AS source_resume_id,r.id AS resume_id,r.title AS resume_title,r.template,r.content,r.created_at,r.updated_at,r.job_id AS linked_job_id,cl.id AS cover_id,cl.content AS cover_content,cl.created_at AS cover_created_at,cl.updated_at AS cover_updated_at FROM jobs j LEFT JOIN resumes r ON r.job_id=j.id LEFT JOIN cover_letters cl ON cl.resume_id=r.id WHERE json_extract(j.analysis_json,'$.quick_preview_request_id')=$1 ORDER BY j.created_at DESC LIMIT 1`,[requestId]);const row=raced.rows[0];if(row){if(row.source_resume_id&&String(row.source_resume_id)!==sourceId)return json({error:'This request ID is already associated with a different source resume. Reopen Quick Preview to create a new request.'},409);if(!row.resume_id||!row.cover_id)return json({error:'A concurrent save created an incomplete record set. Inspect saved records before retrying.',incomplete_save:true,request_id:requestId,job_id:row.job_id,resume_id:row.resume_id||null,cover_letter_id:row.cover_id||null},409);return json({ok:true,job:{id:row.job_id,title:row.job_title,company:row.company},resume:{id:row.resume_id,title:row.resume_title,template:row.template,content:normalizeResumeContent(parseStoredJson(row.content,{})),created_at:row.created_at,updated_at:row.updated_at,job_id:row.linked_job_id},cover_letter:{id:row.cover_id,resume_id:row.resume_id,content:row.cover_content,created_at:row.cover_created_at,updated_at:row.cover_updated_at,title:'Cover Letter — '+(row.company||row.job_title)},history_ids:[],reused:true},200);}}catch(_){} }
+        let cleanupIncomplete=false;
+        if(historyIds.length)try{await deleteSavedDocuments(env,historyIds);}catch(_){cleanupIncomplete=true;}
+        if(resumeId){try{await tursoQuery(env,'DELETE FROM cover_letters WHERE resume_id=$1',[resumeId]);}catch(_){cleanupIncomplete=true;}try{await tursoQuery(env,'DELETE FROM resume_versions WHERE resume_id=$1',[resumeId]);}catch(_){cleanupIncomplete=true;}try{await tursoQuery(env,'DELETE FROM resumes WHERE id=$1',[resumeId]);}catch(_){cleanupIncomplete=true;}}
+        if(jobId)try{await tursoQuery(env,'DELETE FROM jobs WHERE id=$1',[jobId]);}catch(_){cleanupIncomplete=true;}
+        const recoveryIds=cleanupIncomplete?' Recovery details — request ID: '+requestId+'; job ID: '+String(jobId??'not created')+'; resume ID: '+String(resumeId??'not created')+'; saved-history IDs: '+(historyIds.length?historyIds.join(', '):'none recorded')+'.':'';
+        return json({error:(cleanupIncomplete?'The save failed and automatic cleanup was incomplete. Do not retry yet; inspect the listed records.':'The application records could not be saved. Please review saved history before trying again.')+recoveryIds,cleanup_incomplete:cleanupIncomplete,request_id:requestId,job_id:cleanupIncomplete?jobId:null,resume_id:cleanupIncomplete?resumeId:null,history_ids:cleanupIncomplete?historyIds:[]},500);
+      }
+    }
     let title=String(body.title||'Untitled Resume').trim().slice(0,160)||'Untitled Resume',template='us',content;
     if(body.action==='duplicate'){const {rows}=await tursoQuery(env,'SELECT title,template,content FROM resumes WHERE id=$1 LIMIT 1',[String(body.id||'')]);if(!rows[0])return json({error:'Resume not found.'},404);title=String(body.title||('Copy of '+rows[0].title)).slice(0,160);template=rows[0].template||'us';content=normalizeResumeContent(parseStoredJson(rows[0].content,{}));}
     else {const {rows}=await tursoQuery(env,'SELECT profile_json FROM master_profile WHERE id=1 LIMIT 1');let profile={};try{profile=JSON.parse(rows[0]?.profile_json||'{}')}catch{}content=normalizeResumeContent(resumeSnapshotFromMaster(profile));}
@@ -1356,6 +1622,7 @@ function coreTemplateSlug(value) {
 async function resumePreview(request, env) {
   const url = new URL(request.url);
   let template = url.searchParams.get('template') || 'new-york';
+  let pageSize = url.searchParams.get('pageSize') === 'letter' ? 'letter' : 'a4';
   let resume;
   if (request.method === 'GET') {
     const sampleUrl = new URL('/cloudflare/resume-templates/sample.json', url.origin);
@@ -1366,12 +1633,18 @@ async function resumePreview(request, env) {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== 'object') return json({ error: 'Send a JSON object containing template and resume.' }, 400);
     template = body.template || template;
+    pageSize = body.pageSize === 'letter' ? 'letter' : 'a4';
     try { resume = normalizeCoreResume(body.resume); }
     catch (error) { return json({ error: error.message || 'Resume data is invalid.' }, Number(error.status) || 400); }
   } else return json({ error: 'Method not allowed.' }, 405);
   try {
-    const html = renderResume(coreTemplateSlug(template), normalizeCoreResume(resume));
-    return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-resume-template': coreTemplateSlug(template) } });
+    let html = renderResume(coreTemplateSlug(template), normalizeCoreResume(resume));
+    if (pageSize === 'letter') {
+      html = html
+        .replace('@page { size: A4; margin: 0; }', '@page { size: letter; margin: 0; }')
+        .replace('width: 794px; min-height: 1122px;', 'width: 816px; min-height: 1056px;');
+    }
+    return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-resume-template': coreTemplateSlug(template), 'x-resume-page-size': pageSize } });
   } catch (error) {
     return json({ error: error.message || 'Resume template rendering failed.' }, 400);
   }
@@ -1391,7 +1664,15 @@ async function resumePdf(request, env) {
       return json({ error: 'Cloudflare Browser Run is not configured. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN as server-side Pages environment variables.' }, 503);
     }
     try {
-      const html = renderResume(template, resume);
+      const pageSize = body.pageSize === 'a4' ? 'a4' : 'letter';
+      let html = renderResume(template, resume);
+      // The shared templates use fixed A4 sheet dimensions. Match the HTML sheet to the
+      // requested PDF paper size so Letter exports use the correct content width/height.
+      if (pageSize === 'letter') {
+        html = html
+          .replace('@page { size: A4; margin: 0; }', '@page { size: letter; margin: 0; }')
+          .replace('width: 794px; min-height: 1122px;', 'width: 816px; min-height: 1056px;');
+      }
       const response = await fetch('https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(accountId) + '/browser-run/pdf', {
         method: 'POST',
         headers: {
@@ -1402,12 +1683,13 @@ async function resumePdf(request, env) {
         body: JSON.stringify({
           html,
           pdfOptions: {
-            format: 'a4',
+            format: pageSize,
             printBackground: true,
-            preferCSSPageSize: true,
+            // Use the explicit format above; the shared template HTML declares A4 in @page.
+            preferCSSPageSize: false,
             margin: { top: 0, right: 0, bottom: 0, left: 0 }
           },
-          viewport: { width: 794, height: 1122 }
+          viewport: pageSize === 'a4' ? { width: 794, height: 1122 } : { width: 816, height: 1056 }
         })
       });
       if (!response.ok) {

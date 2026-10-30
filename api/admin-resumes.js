@@ -131,10 +131,12 @@ export default async function(req,res) {
     }
     if (req.method === 'DELETE') {
       if (!id) return res.status(400).json({error:'Resume ID is required.'});
+      const {rows:existing}=await tursoQuery('SELECT id FROM resumes WHERE id=$1 LIMIT 1',[id]);
+      if (!existing.length) return res.status(404).json({error:'Resume not found.'});
       await tursoQuery('DELETE FROM cover_letters WHERE resume_id=$1',[id]);
       await tursoQuery('DELETE FROM resume_versions WHERE resume_id=$1',[id]);
       const {rows}=await tursoQuery('DELETE FROM resumes WHERE id=$1 RETURNING id',[id]);
-      if (!rows.length) return res.status(404).json({error:'Resume not found.'});
+      if (!rows.length) return res.status(409).json({error:'Resume could not be deleted. Refresh the resume list and retry.'});
       return res.json({ok:true,id});
     }
     return res.status(405).json({error:'Method not allowed.'});
