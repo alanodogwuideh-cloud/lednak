@@ -912,7 +912,7 @@
     finally { coverLoading=false; renderCoverLettersView(); }
   }
   function coverLettersHead() {
-    return '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Cover Letters</h2><p class="muted">Create, edit and manage cover letters independently. Each letter is linked to a saved source resume, but does not change it.</p></div>'+(coverMode==='list'?'<button type="button" class="primary" data-cover-action="new">+ Create cover letter</button>':'<button type="button" class="secondary" data-cover-action="back">Back to library</button>')+'</div>'+
+    return '<div class="rs-header"><div><div class="eyebrow">CAREER WORKSPACE</div><h2>Cover Letters</h2><p class="muted">Create and manage cover letters without changing your saved resumes.</p></div>'+(coverMode==='list'?'<button type="button" class="primary" data-cover-action="new">+ Create cover letter</button>':'<button type="button" class="secondary" data-cover-action="back">Back to library</button>')+'</div>'+
       '<button type="button" class="rs-mobile-nav-toggle" aria-expanded="false" aria-controls="rsStudioTabs"><span aria-hidden="true">☰</span><span>Resume Studio menu</span></button><div id="rsStudioTabs" class="rs-tabs" role="tablist" aria-label="Resume Studio sections"><button class="rs-tab" data-resume-view="profile">Master Profile</button><button class="rs-tab" data-resume-view="resumes">Resumes</button><button class="rs-tab" data-resume-view="jobs">Jobs</button><button class="rs-tab is-active" data-resume-view="coverletters" aria-selected="true">Cover Letters</button></div>';
   }
   function renderCoverLettersView() {
