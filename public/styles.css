@@ -95,3 +95,19 @@ body.motion-leaving .site-shell{opacity:.98;transform:translateY(-4px);transitio
 .km-preview-row{display:flex;justify-content:space-between;gap:12px}.km-preview-row span{overflow-wrap:anywhere}.km-preview-row b{color:#F59E0B;white-space:nowrap}
 .km-preview-track{height:6px;border-radius:99px;background:#393832;overflow:hidden;margin-top:7px}.km-preview-track i{display:block;height:100%;background:#F59E0B}
 @media(max-width:700px){.case-key-metrics{padding:22px 18px}.case-key-metrics-grid{grid-template-columns:1fr;gap:10px}.km-preview-inner.km-cards{grid-template-columns:1fr}}
+
+/* Portfolio-wide typography and contrast refinement — November 2026 */
+:root{--muted:#66645e}
+body.dark{--muted:#b9b6ae}
+.hero-bottom p,.section-intro p,.project-info p,.process-grid p,.about-content>p,.contact p{color:var(--muted)}
+/* Case-study reading text */
+.case-content p,.case-content li,.case-content .nested-content-subsection p,.case-content .showcase-subsection-description,.case-content .case-section-subtitle{font-size:16px!important;line-height:1.78!important;color:#55534e!important}
+body.dark .case-content p,body.dark .case-content li,body.dark .case-content .nested-content-subsection p,body.dark .case-content .showcase-subsection-description,body.dark .case-content .case-section-subtitle{color:#c3c0b8!important}
+/* Card copy stays compact but comfortably readable */
+.case-content .case-list-card p,.case-content .card5-card p,.case-content .case-metric-card p,.case-content .info-card p,.case-content .decision-card p,.case-content .testing-card p,.case-content .learned-card p,.case-content .next-step-card p,.case-content .insight-card p,.case-content .stat-card p,.case-content .card7-card p,.case-content .card4-card p,.case-content .card3-card p,.case-content .case-metric-progress p,.case-content .case-metric p,.case-content [class*="card"] p{font-size:14px!important;line-height:1.65!important;color:#55534e!important}
+body.dark .case-content .case-list-card p,body.dark .case-content .card5-card p,body.dark .case-content .case-metric-card p,body.dark .case-content .info-card p,body.dark .case-content .decision-card p,body.dark .case-content .testing-card p,body.dark .case-content .learned-card p,body.dark .case-content .next-step-card p,body.dark .case-content .insight-card p,body.dark .case-content .stat-card p,body.dark .case-content .card7-card p,body.dark .case-content .card4-card p,body.dark .case-content .card3-card p,body.dark .case-content .case-metric-progress p,body.dark .case-content .case-metric p,body.dark .case-content [class*="card"] p{color:#c3c0b8!important}
+/* Card titles establish a clear step above the 14px body copy */
+.case-content [class*="card"] h3,.case-content [class*="card"] h4,.case-content [class*="card"] .card-title,.case-content .showcase-subsection-title,.case-content .nested-content-subsection h3{font-size:18px!important;line-height:1.3!important;font-weight:600!important;color:var(--foreground)!important}
+.case-content .case-list-number{color:#d96b13}
+.case-content .case-section-subtitle,.case-content .nested-content-quote-author,.case-content figcaption{color:#68665f}
+body.dark .case-content .case-section-subtitle,body.dark .case-content .nested-content-quote-author,body.dark .case-content figcaption{color:#b9b6ae}
