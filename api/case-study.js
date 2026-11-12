@@ -8,6 +8,9 @@ const aliases = { 'outsider-vendor-platform': 'outsider-vendor-app' };
 const validColumns = value => [1, 2, 3, 4].includes(Number(value)) ? Number(value) : 1;
 
 function object(value) {
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { value = {}; }
+  }
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 

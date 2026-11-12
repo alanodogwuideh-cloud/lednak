@@ -5,6 +5,9 @@ export const access = 'public';
 export const methods = ['POST'];
 
 function object(value) {
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { value = {}; }
+  }
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
