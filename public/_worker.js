@@ -58,14 +58,7 @@ export default {
       }
     }
 
-    // Case studies use the same full client renderer as the published portfolio.
-    // Route both clean and legacy preview URLs to the static case-study shell;
-    // the query string (slug + preview token) is preserved for the renderer/API.
-    if (['/case-study', '/case-study/', '/case-study.html'].includes(url.pathname)) {
-      const assetUrl = new URL(request.url);
-      assetUrl.pathname = '/case-study/index.html';
-      return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
-    }
+    // Case-study routing is intentionally left to the existing Pages asset configuration.
 
     // Cloudflare Pages serves the same static portfolio assets.
     return env.ASSETS.fetch(request);
