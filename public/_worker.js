@@ -58,8 +58,6 @@ export default {
       }
     }
 
-    // Case-study routing is intentionally left to the existing Pages asset configuration.
-
     // Cloudflare Pages serves the same static portfolio assets.
     return env.ASSETS.fetch(request);
   }
