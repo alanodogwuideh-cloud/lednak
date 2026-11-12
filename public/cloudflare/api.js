@@ -13,7 +13,12 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers }
 });
-const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const object = value => {
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { value = {}; }
+  }
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+};
 const skillItems = value => (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map(item => String(item ?? '').trim().slice(0,100)).filter(Boolean).slice(0,100);
 const parseStoredJson = (value, fallback = {}) => { if (value == null || value === '') return fallback; if (typeof value === 'object') return value; try { return JSON.parse(String(value)); } catch { return fallback; } };
 const normalizeR2Url = value => {
@@ -785,7 +790,7 @@ async function adminPreview(request, env) {
       JSON.stringify({ ...content, preview_token: token, preview_token_expires_at: tokenExpiresAt }), id
     ]);
   }
-  return json({ preview_url: '/case-study.html?slug=' + encodeURIComponent(project.slug) + '&preview=' + encodeURIComponent(token) });
+  return json({ preview_url: '/case-study?slug=' + encodeURIComponent(project.slug) + '&preview=' + encodeURIComponent(token) });
 }
 
 async function adminMediaPreview(request, env) {
