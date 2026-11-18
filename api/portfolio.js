@@ -6,11 +6,10 @@ export const methods = ['GET'];
 
 export default async function (req, res) {
   try {
-    // Trash schema is maintained by authenticated admin project/trash routes.
-    try { await tursoQuery('ALTER TABLE site_branding ADD COLUMN resume_key TEXT'); } catch (e) { if (!/duplicate column|already exists/i.test(e.message || '')) throw e; }
+    // Public reads must stay read-only and return only the fields needed by the homepage.
     const [{ rows: settingsRows }, { rows: projectRows }, { rows: brandingRows }] = await Promise.all([
       tursoQuery(`SELECT * FROM portfolio_settings LIMIT 1`),
-      tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,content,cover_image_url,hero_image_url,status,sort_order,updated_at FROM case_studies WHERE status = $1 AND deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`, ['published']),
+      tursoQuery(`SELECT id,title,slug,subtitle,description,role,year,duration,category,cover_image_url,status,sort_order,updated_at,json_extract(content, '$.case_meta.display_category') AS display_category FROM case_studies WHERE status = $1 AND deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`, ['published']),
       tursoQuery(`SELECT * FROM site_branding LIMIT 1`),
     ]);
     const settings = settingsRows?.[0] || {};
@@ -33,11 +32,18 @@ export default async function (req, res) {
         resume_display_name: branding.resume_display_name || 'My Resume',
       },
       projects: (projectRows || []).map(p => ({
-        ...p,
-        display_category: (() => { let c=p?.content; if(typeof c==='string'){try{c=JSON.parse(c)}catch{c={}}} const v=String(c?.case_meta?.display_category||'').toLowerCase(); return ['mobile','web','both'].includes(v)?v:'all' })(),
+        id: p.id,
+        title: p.title || '',
+        slug: p.slug || '',
+        subtitle: p.subtitle || '',
+        description: p.description || '',
+        role: p.role || '',
+        year: p.year || '',
+        duration: p.duration || '',
+        category: p.category || '',
+        display_category: ['mobile','web','both'].includes(String(p.display_category || '').toLowerCase()) ? String(p.display_category).toLowerCase() : 'all',
         cover_image_url: normalizeR2Url(p.cover_image_url || ''),
-        hero_image_url: normalizeR2Url(p.hero_image_url || ''),
-        short_description: p.short_description || p.description || '',
+        short_description: p.description || '',
         status: p.status || 'draft',
         sort_order: Number(p.sort_order || 0),
       })),
